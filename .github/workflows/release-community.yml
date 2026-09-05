@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.release/v1.1.0'
+      - '.release/**'
 
 permissions:
   contents: write
@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)
-          test "$VERSION" = "1.1.0"
+          test -f ".release/v${VERSION}"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Support/Info.plist)" = "my-alt-tab"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.zhangqiaoran.myalttab"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
