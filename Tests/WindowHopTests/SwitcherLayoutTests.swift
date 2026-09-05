@@ -183,6 +183,37 @@ final class SwitcherLayoutTests: XCTestCase {
                            + DesignTokens.chromeButtonOutsideOverlap)
     }
 
+    func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.update(items: [item("a"), item("b"), item("c")], selectedIndex: 0)
+        let first = try XCTUnwrap(panel.tileFrameForTesting(at: 0))
+        XCTAssertTrue(panel.selectionLensIsVisibleForTesting)
+        XCTAssertEqual(panel.selectionGeometryCountForTesting, 3)
+        XCTAssertEqual(panel.selectionLensFrameForTesting,
+                       first.insetBy(dx: -DesignTokens.selectionLensInset,
+                                     dy: -DesignTokens.selectionLensInset))
+        panel.select(2)
+        let third = try XCTUnwrap(panel.tileFrameForTesting(at: 2))
+        XCTAssertEqual(panel.selectionLensFrameForTesting,
+                       third.insetBy(dx: -DesignTokens.selectionLensInset,
+                                     dy: -DesignTokens.selectionLensInset))
+    }
+
+    func testSelectionEmphasisTouchesOnlyOldAndNewTileState() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.update(items: [item("a"), item("b"), item("c")], selectedIndex: 0)
+        let first = try XCTUnwrap(panel.tileForTesting(at: 0))
+        let second = try XCTUnwrap(panel.tileForTesting(at: 1))
+        let third = try XCTUnwrap(panel.tileForTesting(at: 2))
+        XCTAssertEqual(first.selectionScaleForTesting, DesignTokens.selectedTileScale)
+        XCTAssertEqual(second.selectionScaleForTesting, 1)
+        XCTAssertEqual(third.selectionScaleForTesting, 1)
+        panel.select(1)
+        XCTAssertEqual(first.selectionScaleForTesting, 1)
+        XCTAssertEqual(second.selectionScaleForTesting, DesignTokens.selectedTileScale)
+        XCTAssertEqual(third.selectionScaleForTesting, 1)
+    }
+
     func testSettingsButtonIsContextualInCyclingAndPersistentModes() {
         let panel = SwitcherPanel(rasterizableBackground: true)
         let items = [item("a")]
