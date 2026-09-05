@@ -20,7 +20,7 @@ grep -Fq "version: \"$VERSION\"" docs/scripts/main.js || {
   echo "website version does not match Support/Info.plist: $VERSION" >&2
   exit 1
 }
-grep -Fq "WindowHop-$VERSION.zip" docs/scripts/main.js || {
+grep -Fq "my-alt-tab-$VERSION.zip" docs/scripts/main.js || {
   echo "website installer URL does not match version $VERSION" >&2
   exit 1
 }
