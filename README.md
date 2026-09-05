@@ -1,74 +1,83 @@
 # my-alt-tab
 
-**Lightweight macOS window switching by zhangqiaoran.**
-Current release: **v1.1.0** · macOS 14+ · Native Swift / AppKit · GPL-3.0
+**A native macOS window switcher by zhangqiaoran.**  
+Current release line: **v2.0.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
-my-alt-tab is developed, maintained, and released by **zhangqiaoran**. The project focuses on one thing: make `⌘ Tab` window switching fast, stable, visually clean, and inexpensive to keep running all day.
+my-alt-tab is developed, maintained, and released by **zhangqiaoran**. Version 2.0 starts a new product direction: a more premium visual experience without turning a window switcher into a heavy background application.
 
-> GPL-3.0 upstream attribution for inherited code is preserved in [`UPSTREAM.md`](UPSTREAM.md) and [`LICENSE`](LICENSE).
+> GPL-3.0 attribution for inherited code is preserved in [`UPSTREAM.md`](UPSTREAM.md) and [`LICENSE`](LICENSE).
 
-**中文说明：[`README.zh-CN.md`](README.zh-CN.md)**
+**中文：[`README.zh-CN.md`](README.zh-CN.md)**
 
-## v1.1.0 — Performance + Lightweight UI
+## 2.0 — Glass Focus Engine
 
-v1.0.0 is the frozen project baseline. v1.1.0 keeps its multi-display behavior and direct-close workflow, then optimizes the paths that run most often while the switcher is open.
+The 2.0 interface is built around a **shared glass surface**, not one blur layer per window. On macOS 26+ the switcher uses the system `NSGlassEffectView`; macOS 14/15 use the native `NSVisualEffectView` fallback.
 
-### Performance architecture
+Selection is intentionally unmistakable:
 
-| Area | v1.1 implementation | Why it matters |
+- one **Focus Lens** follows the active thumbnail;
+- the selected card gets a subtle 2.2% optical lift;
+- distance-adaptive motion keeps nearby Tab steps immediate while longer grid moves stay readable;
+- Reduce Motion disables transition animation automatically;
+- there are no looping highlight, shimmer, or idle animations.
+
+The key design constraint: **the number of animated compositor surfaces does not grow with the number of windows**.
+
+## Constant-cost interaction architecture
+
+| Hot path | 2.0 implementation | Complexity / cost |
 |---|---|---|
-| Selection repaint | **O(1) old/new tile update** | Tab/arrow traversal no longer repaints every visible tile |
-| Preview lookup | **Hash-indexed IDs** | near O(1) average lookup instead of repeated scans |
-| Preview matching | **PID buckets + flat score matrix + dense active masks** | removes irrelevant cross-app comparisons and per-round Set/Dictionary churn |
-| Preview refresh | **O(n) priority planner returning indices** | no temporary ID→request dictionary round-trip |
-| Capture scheduling | **session in-flight deduplication** | repeated AX/window-store refreshes do not capture the same window twice |
-| Key interception | **128-bit key-up bitset** | normal macOS keycodes avoid Set hashing/allocation in the EventTap hot path |
-| Session reconciliation | **single-pass pre-sized hash structures** | fewer temporary arrays during Chrome/IDE/Finder window churn |
-| Thumbnail memory | **bounded ~64 MiB LRU-style cost cache** | long-running sessions cannot grow preview memory without bound |
-| Hidden tile memory | **transient preview release** | pooled hidden tiles do not keep evicted images alive |
-| Expanded preview | **explicit image release on hide** | large dwell snapshots are not unnecessarily retained |
+| Selection movement | cached lens frames + old/new tile delta | **O(1)** |
+| Selection animation | one Focus Lens + at most two tile transforms | **constant compositor work** |
+| Preview delivery | hash-indexed Window ID | average **O(1)** |
+| Preview refresh | zero-sort priority buckets | **O(n)** |
+| Window-preview matching | PID buckets + flat score matrix + dense masks | avoids irrelevant cross-app comparisons |
+| Capture duplication | active-session in-flight ID set | duplicate capture suppressed |
+| EventTap key-up state | 128-bit fast-path bitset | no Set allocation for normal keycodes |
+| Session reconciliation | pre-sized single-pass hash structures | fewer temporary objects |
+| Preview memory | ~64 MiB byte-bounded cache + transient release | bounded long-run memory |
 
-The algorithms are deliberately simple where the data size is small. For display detection, for example, an O(number of displays) point-in-rect scan is faster and lighter than maintaining a spatial tree for the usual 1–4 monitors.
+2.0 deliberately avoids “algorithm theatre.” Monitor selection remains an O(display count) point-in-rectangle pass because 1–4 displays are common and a spatial tree would cost more than the problem.
 
-### Lightweight UI
+## Glass without the GPU tax
 
-v1.1 reduces visual/compositor overhead instead of adding effects:
+The list owns one shared native blur plane. Individual thumbnails do **not** each create their own effect view. The result is a genuine macOS glass presentation without an N-window blur multiplier.
 
-- tighter panel padding, tile spacing, and preview dimensions;
-- static loading placeholder — **no infinite skeleton animation**;
-- preview card drop shadows removed to reduce per-tile compositing;
-- selection/hover changes repaint only; they no longer force geometry layout;
-- shorter preview crossfades;
-- close button keeps a 44×44 hit target while its visible chrome is smaller;
-- left / center / right preview-row alignment remains available.
+Rendering rules remain strict:
 
-### Multi-display behavior
+- no per-thumbnail drop shadows;
+- no infinite skeleton animation;
+- no full-grid layout pass on every Tab step;
+- preview crossfades are short and session-scoped;
+- hidden pooled tiles release heavy image references;
+- the close control keeps a 44×44 hit target even though its visible chrome is compact.
 
-With **Focused multi-display mode** enabled:
+## Multi-display focus
 
-- the switcher panel appears **only on the display containing the mouse pointer**;
-- candidate windows still include eligible windows from **all connected displays**;
-- pointer location is resolved when the switcher opens — no continuous `mouseMoved` listener and no idle polling.
+With Focused multi-display mode enabled:
 
-### Window close behavior
+- the panel appears only on the display containing the pointer;
+- eligible windows from all connected displays remain available;
+- pointer display is resolved only when opening the switcher;
+- no continuous mouse polling and no idle monitor timer.
 
-- close button → closes the selected window directly;
-- Delete / Backspace → closes the selected window directly;
-- no legacy close-vs-quit confirmation;
-- Finder closes only the selected Finder window;
-- an application's own unsaved-document dialog is still respected.
+## Window close behavior
 
-## Screenshots
+- close button: close the selected window;
+- Delete / Backspace: close the selected window;
+- Finder: close only the selected Finder window;
+- my-alt-tab does not add a second close-vs-quit prompt;
+- the target application's own unsaved-document confirmation is still respected.
 
-### Window switching
+## Product UI
 
-![my-alt-tab v1.1 multi-window switcher](docs/screenshots/v1.1-switcher.jpg)
+Repository screenshots are generated from the app's own UI/demo harness. System glass rendering varies slightly by macOS release.
 
-### Lightweight settings UI
+![my-alt-tab window preview interface](docs/screenshots/switcher-previews-light.png)
 
-![my-alt-tab v1.1 Appearance settings](docs/screenshots/v1.1-settings.jpg)
+![my-alt-tab Windows settings](docs/screenshots/settings-windows.png)
 
-## Keyboard controls
+## Keyboard
 
 | Keys | Action |
 |---|---|
@@ -78,22 +87,20 @@ With **Focused multi-display mode** enabled:
 | **← → ↑ ↓** | Navigate |
 | **Return / Space** | Confirm |
 | **Esc** | Cancel |
-| **Delete / Backspace** | Close selected window directly |
+| **Delete / Backspace** | Close selected window |
 | **⌘,** | Settings |
 
-## Privacy and resource policy
+## Privacy and runtime policy
 
 - Native Swift / AppKit.
-- ScreenCaptureKit is confined to the preview provider.
-- No telemetry and no account.
-- No new runtime dependency was added for v1.1.
-- No background polling was added.
-- Window snapshots stay in memory and are not written to disk or transmitted.
-- Community auto-update remains disabled until zhangqiaoran-controlled signing/appcast infrastructure is configured.
+- ScreenCaptureKit is isolated to the preview provider.
+- Window snapshots stay in memory; they are not written to disk or uploaded.
+- No telemetry, no account, no analytics SDK.
+- No background polling was added for 2.0.
+- No new runtime dependency was added for 2.0.
+- Community auto-update remains disabled until a zhangqiaoran-controlled signing/appcast channel exists.
 
 ## Build
-
-Requirements: macOS 14+, Xcode 16+ recommended.
 
 ```bash
 git clone https://github.com/zhangqiaoran/windowhop-optimized.git my-alt-tab
@@ -106,22 +113,24 @@ Outputs:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-1.1.0.zip
+artifacts/my-alt-tab-2.0.0.zip
 ```
 
-A Developer ID is not required for personal/community builds; the packaging script falls back to ad-hoc signing.
+Without a Developer ID certificate, the packaging script uses ad-hoc signing.
 
 ## Release line
 
-- **v1.0.0** — frozen zhangqiaoran baseline: multi-display focus mode, all-display candidates, direct close, LRU/freshness preview cache, EventTap recovery.
-- **v1.1.0** — hot-path algorithm optimization, duplicate-capture suppression, bounded transient memory, O(1) selection repaint, and a lighter UI/compositor path.
+- **v1.0.0** — project baseline under zhangqiaoran.
+- **v1.1.0** — hot-path optimization, bounded preview memory, O(1) selection repaint.
+- **v2.0.0** — Glass Focus Engine, shared-blur architecture, constant-cost selection motion, premium focus feedback.
 
-Full notes: [`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md)
+Full notes: [`RELEASE_NOTES_v2.0.0.md`](RELEASE_NOTES_v2.0.0.md)
 
-## Project identity
+## Identity
 
 - Author / maintainer / release owner: **zhangqiaoran**
-- Current version: **1.1.0**
+- Version: **2.0.0**
+- Build: **20000**
 - Bundle ID: `com.zhangqiaoran.myalttab`
 - Repository: `zhangqiaoran/windowhop-optimized`
 - License: GNU GPL-3.0
