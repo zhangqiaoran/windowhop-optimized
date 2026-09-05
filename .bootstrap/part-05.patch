@@ -1,0 +1,500 @@
+-            self.cache[identity.value] = image
+-            self.onPreview?(identity.value, image)
+-            self.onExpandedPreview?(identity.value, image)
++            // Expanded captures are transient presentation assets. Keeping them out
++            // of the thumbnail cache prevents large dwell images from accumulating.
++            self.onExpandedPreview?(identity.value, captured.image)
+         }
+     }
+ 
+     private func captureImage(_ scWindow: SCWindow,
+-                              pixelTarget: CGSize) async -> NSImage? {
++                              pixelTarget: CGSize) async -> CapturedImage? {
+         let windowSize = scWindow.frame.size
+         guard windowSize.width > 1, windowSize.height > 1 else { return nil }
+         let configuration = SCStreamConfiguration()
+@@ -248,9 +361,13 @@ public final class PreviewProvider {
+         let filter = SCContentFilter(desktopIndependentWindow: scWindow)
+         guard let cgImage = try? await SCScreenshotManager.captureImage(
+             contentFilter: filter, configuration: configuration) else { return nil }
+-        return NSImage(cgImage: cgImage,
+-                       size: NSSize(width: CGFloat(cgImage.width) / 2,
+-                                    height: CGFloat(cgImage.height) / 2))
++        let image = NSImage(cgImage: cgImage,
++                            size: NSSize(width: CGFloat(cgImage.width) / 2,
++                                         height: CGFloat(cgImage.height) / 2))
++        // bytesPerRow includes row padding and therefore gives a safer memory
++        // estimate than width * height * 4. The cache cap remains conservative.
++        let byteCost = max(1, cgImage.bytesPerRow * cgImage.height)
++        return CapturedImage(image: image, byteCost: byteCost)
+     }
+ 
+     private func makeCaptureRequest(_ item: SwitcherItem) -> CaptureRequest? {
+@@ -299,7 +416,8 @@ public final class PreviewProvider {
+                 await MainActor.run { completion(["dump-previews: no shareable content"]) }
+                 return
+             }
+-            let candidates = Self.matchCandidates(in: content.windows)
++            let candidates = Self.matchCandidates(
++                in: content.windows, allowedPIDs: Set(requests.map(\.pid)))
+             let assignments = PreviewMatcher.assign(requests: requests.map(Self.matchRequest),
+                                                     candidates: candidates)
+             let lines = requests.map { request -> String in
+@@ -317,13 +435,19 @@ public final class PreviewProvider {
+ 
+     /// SCWindows are paired with switcher entries by `PreviewMatcher` (pure,
+     /// unit-tested): a unique, unambiguous assignment, never a guess.
+-    private static func matchCandidates(in windows: [SCWindow]) -> [PreviewMatcher.Candidate] {
+-        windows.enumerated().map { index, window in
+-            PreviewMatcher.Candidate(index: index,
+-                                     pid: window.owningApplication?.processID ?? -1,
+-                                     title: window.title ?? "",
+-                                     frame: window.frame)
++    private static func matchCandidates(
++        in windows: [SCWindow],
++        allowedPIDs: Set<pid_t>
++    ) -> [PreviewMatcher.Candidate] {
++        var candidates: [PreviewMatcher.Candidate] = []
++        candidates.reserveCapacity(min(windows.count, allowedPIDs.count * 4))
++        for (index, window) in windows.enumerated() {
++            let pid = window.owningApplication?.processID ?? -1
++            guard allowedPIDs.contains(pid) else { continue }
++            candidates.append(PreviewMatcher.Candidate(
++                index: index, pid: pid, title: window.title ?? "", frame: window.frame))
+         }
++        return candidates
+     }
+ 
+     private static func matchRequest(_ request: CaptureRequest) -> PreviewMatcher.Request {
+diff --git a/Sources/WindowHopCore/Engine/TrackedApp.swift b/Sources/WindowHopCore/Engine/TrackedApp.swift
+index b99d9cc5d1795984ab6cb49e06e5e94fc07a5b93..aef42f5a4f1387d23912b61482e5cd892b9c56b6 100644
+--- a/Sources/WindowHopCore/Engine/TrackedApp.swift
++++ b/Sources/WindowHopCore/Engine/TrackedApp.swift
+@@ -31,9 +31,8 @@ public final class TrackedApp {
+     public let bundleIdentifier: String?
+     let executablePath: String?
+     public internal(set) var isHidden: Bool
+-    /// A graceful Quit was already requested from the close dialog; the next quit
+-    /// offer escalates to a confirmed Force Quit (ported from AltTab's
+-    /// alreadyRequestedToQuit, with an explicit confirmation added).
++    /// Compatibility state for callers that explicitly request application Quit.
++    /// Switcher window-close actions never read or change this state.
+     public internal(set) var quitRequested = false
+     private var axObserver: AXObserver?
+     private var isReallyFinishedLaunching = false
+diff --git a/Sources/WindowHopCore/Engine/WindowActions.swift b/Sources/WindowHopCore/Engine/WindowActions.swift
+index cb7d26282635d707752816649c30c52dd4142e5e..b2b1a6da6f5809199d988667a823e227a48bc5e7 100644
+--- a/Sources/WindowHopCore/Engine/WindowActions.swift
++++ b/Sources/WindowHopCore/Engine/WindowActions.swift
+@@ -9,7 +9,7 @@ import ApplicationServices
+ public enum WindowActions {
+     /// Schedules main-thread UI only after every previously requested AX action
+     /// has finished. This prevents a committed activation already in flight from
+-    /// stealing focus back from Settings or a confirmation dialog.
++    /// stealing focus back from Settings or another app-owned modal surface.
+     public static func afterPendingActions(_ action: @escaping () -> Void) {
+         BackgroundWork.axActionsQueue.async {
+             DispatchQueue.main.async(execute: action)
+@@ -77,8 +77,8 @@ public enum WindowActions {
+         app.runningApplication.terminate()
+     }
+ 
+-    /// Immediate termination; only reachable through the explicit, destructive,
+-    /// twice-confirmed Force Quit path.
++    /// Immediate termination helper retained for API compatibility. The switcher
++    /// never offers Force Quit from its window-close controls.
+     public static func forceQuit(_ app: TrackedApp) {
+         app.runningApplication.forceTerminate()
+     }
+diff --git a/Sources/WindowHopCore/Engine/WindowStore.swift b/Sources/WindowHopCore/Engine/WindowStore.swift
+index c510e0040026d3d48d5b6dc9506173bbc6a9e8cb..dd33b36cc369dbd7239b53369f68ce340acf920b 100644
+--- a/Sources/WindowHopCore/Engine/WindowStore.swift
++++ b/Sources/WindowHopCore/Engine/WindowStore.swift
+@@ -309,12 +309,15 @@ public final class WindowStore {
+ 
+     // MARK: - Snapshot
+ 
+-    /// The visible, ordered switcher list under the current settings.
++    /// The visible, ordered switcher list under the current settings. Focused
++    /// multi-display mode keeps every display eligible while preserving all other
++    /// filters. When display filtering is disabled there is no reason to resolve or
++    /// intersect an active screen for every window.
+     public func snapshot() -> [SwitcherItem] {
+         resolveFloatingWindows()
+-        let policy = preferences.windowInclusionPolicy
++        let policy = preferences.effectiveWindowInclusionPolicy
+         let showTabCounts = preferences.showTabCounts
+-        let activeScreen = NSScreen.main
++        let activeScreen = policy.includeOtherDisplays ? nil : NSScreen.main
+         return windows.compactMap { window in
+             guard window.isActual else { return nil }
+             let state = WindowDisplayState(
+@@ -327,7 +330,8 @@ public final class WindowStore {
+                 isTabbed: window.isTabbed,
+                 isPictureInPicture: window.isPictureInPicture ?? false,
+                 isOnCurrentSpace: window.isOnCurrentSpace,
+-                isOnActiveDisplay: activeScreen.map { window.isOn(screen: $0) } ?? true)
++                isOnActiveDisplay: policy.includeOtherDisplays
++                    || (activeScreen.map { window.isOn(screen: $0) } ?? true))
+             guard WindowEligibility.shouldDisplay(state, policy: policy) else { return nil }
+             return SwitcherItem(id: window.stableId,
+                                 window: window,
+diff --git a/Sources/WindowHopCore/Input/EventTap.swift b/Sources/WindowHopCore/Input/EventTap.swift
+index d3880f1e75e0d07f03d8fd8800d29e4e5aabe7b9..4bf1511301e1c02e4eaa176999528a7cd536bd44 100644
+--- a/Sources/WindowHopCore/Input/EventTap.swift
++++ b/Sources/WindowHopCore/Input/EventTap.swift
+@@ -27,8 +27,6 @@ public enum TapMode: Equatable {
+     /// persistent session: like sessionHeld, but modifier release is meaningless
+     /// and Space also activates
+     case sessionSticky
+-    /// close-confirmation dialog open: consume nothing so the dialog gets the keyboard
+-    case passthrough
+ }
+ 
+ enum EventTapDisposition: Equatable {
+@@ -76,7 +74,7 @@ struct EventTapInterceptionState {
+         }
+ 
+         switch mode {
+-        case .off, .passthrough:
++        case .off:
+             return .pass
+         case .watching:
+             guard type == .keyDown else { return .pass }
+@@ -191,10 +189,15 @@ public final class EventTap {
+     @discardableResult
+     public func start() -> Bool {
+         if let eventTap {
+-            if !CGEvent.tapIsEnabled(tap: eventTap) {
+-                CGEvent.tapEnable(tap: eventTap, enable: true)
++            if CFMachPortIsValid(eventTap) {
++                if !CGEvent.tapIsEnabled(tap: eventTap) {
++                    CGEvent.tapEnable(tap: eventTap, enable: true)
++                }
++                if CGEvent.tapIsEnabled(tap: eventTap) { return true }
+             }
+-            return true
++            // A valid-looking tap that still refuses to enable is just as dead
++            // to the user as an invalid Mach port. Rebuild it in either case.
++            tearDownTap(resetInterception: false)
+         }
+         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+             | (1 << CGEventType.keyUp.rawValue)
+@@ -210,28 +213,54 @@ public final class EventTap {
+         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+         runLoopSource = source
+         CFRunLoopAddSource(BackgroundWork.eventTapThread.runLoop, source, .commonModes)
+-        return true
++        CFRunLoopWakeUp(BackgroundWork.eventTapThread.runLoop)
++        if !CGEvent.tapIsEnabled(tap: tap) {
++            CGEvent.tapEnable(tap: tap, enable: true)
++        }
++        return CGEvent.tapIsEnabled(tap: tap)
+     }
+ 
+     public func stop() {
++        tearDownTap(resetInterception: true)
++    }
++
++    private func tearDownTap(resetInterception: Bool) {
+         if let eventTap {
+-            CGEvent.tapEnable(tap: eventTap, enable: false)
++            if CFMachPortIsValid(eventTap) {
++                CGEvent.tapEnable(tap: eventTap, enable: false)
++            }
+             if let runLoopSource {
+                 CFRunLoopRemoveSource(BackgroundWork.eventTapThread.runLoop, runLoopSource, .commonModes)
+             }
++            CFMachPortInvalidate(eventTap)
+         }
+         eventTap = nil
+         runLoopSource = nil
+-        lock.lock()
+-        interception.reset()
+-        lock.unlock()
++        if resetInterception {
++            lock.lock()
++            interception.reset()
++            lock.unlock()
++        }
+     }
+ 
+-    /// macOS silently disables taps after sleep/wake or long stalls without sending
+-    /// tapDisabled events; callers re-arm on wake and unlock notifications.
+-    public func reEnableIfNeeded() {
+-        guard let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) else { return }
+-        CGEvent.tapEnable(tap: eventTap, enable: true)
++    /// macOS can disable or invalidate taps after sleep/wake, login-session
++    /// changes, or long stalls. Re-enable a healthy tap and rebuild an invalid
++    /// one while preserving the configured shortcut and current interception mode.
++    @discardableResult
++    public func reEnableIfNeeded() -> Bool {
++        // When WindowHop is disabled there is intentionally no tap at all.
++        // Wake/session notifications must not recreate one in that state.
++        guard eventTap != nil else { return false }
++        if let eventTap, CFMachPortIsValid(eventTap) {
++            if !CGEvent.tapIsEnabled(tap: eventTap) {
++                CGEvent.tapEnable(tap: eventTap, enable: true)
++            }
++            if CGEvent.tapIsEnabled(tap: eventTap) { return true }
++        }
++        if eventTap != nil {
++            tearDownTap(resetInterception: false)
++        }
++        return start()
+     }
+ 
+     // MARK: - Callback (runs on the tap thread; must stay small and non-blocking)
+@@ -241,6 +270,13 @@ public final class EventTap {
+             if let eventTap {
+                 CGEvent.tapEnable(tap: eventTap, enable: true)
+             }
++            // Keep the callback tiny. If a plain re-enable was insufficient,
++            // rebuild from the main side rather than doing lifecycle work here.
++            if eventTap.map({ !CGEvent.tapIsEnabled(tap: $0) }) ?? true {
++                DispatchQueue.main.async {
++                    _ = EventTap.shared.reEnableIfNeeded()
++                }
++            }
+             return Unmanaged.passUnretained(event)
+         }
+         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+diff --git a/Sources/WindowHopCore/Input/SwitcherController.swift b/Sources/WindowHopCore/Input/SwitcherController.swift
+index 6e37746ae63f51c1936c591ebb1af0124b68c021..f43bfc5383e7bdc3ce7818acfcf4c40cb86d827f 100644
+--- a/Sources/WindowHopCore/Input/SwitcherController.swift
++++ b/Sources/WindowHopCore/Input/SwitcherController.swift
+@@ -1,8 +1,8 @@
+ import AppKit
+ 
+ /// Orchestrates one switcher session: semantic input events feed the pure
+-/// SwitcherState; resulting commands drive the panel, window actions, and the
+-/// close-confirmation dialog. Main thread only.
++/// SwitcherState; resulting commands drive the panel and window actions. Main
++/// thread only.
+ public final class SwitcherController {
+     public static let shared = SwitcherController()
+ 
+@@ -16,6 +16,10 @@ public final class SwitcherController {
+     private var heldModifierGuard: Timer?
+     private var expandedPreview = ExpandedPreviewSession<AnyHashable>()
+     private var expandedPreviewTimer: Timer?
++    /// AX can deliver several title/move/resize notifications in one run-loop turn.
++    /// Coalescing them keeps a live switcher from rebuilding the same tile set
++    /// repeatedly without adding a timer or any idle work.
++    private var storeRefreshScheduled = false
+     private var configuredEnabled = false
+ 
+     private init() {}
+@@ -167,6 +171,7 @@ public final class SwitcherController {
+             // asynchronously, never gating panel presentation
+             PreviewProvider.shared.beginSession(
+                 items: items,
++                selectedID: itemID(at: selectedIndex),
+                 targetSize: SwitcherPanel.previewContentSize,
+                 scale: panels.captureScale)
+             // a missed destroy notification once produced a duplicate entry;
+@@ -190,108 +195,34 @@ public final class SwitcherController {
+             endSession()
+             expandedPreview.reset()
+         case .requestClose(let index):
+-            if index >= 0, index < items.count {
+-                runCloseConfirmation(for: items[index])
+-            } else {
+-                _ = state.confirmationFinished()
++            guard index >= 0, index < items.count,
++                  let window = items[index].window,
++                  WindowStore.shared.windows.contains(where: { $0 === window }) else {
++                refreshDuringSession()
++                break
+             }
+-        }
+-    }
+-
+-    // MARK: - Close confirmation
+-
+-    /// Closing always requires explicit native confirmation; Cancel is the default.
+-    /// While the dialog is up the tap consumes nothing, so Return/Escape and a
+-    /// released Command key go to the dialog instead of the session. The panel is
+-    /// hidden for the duration so the dialog is unquestionably on top, and is
+-    /// restored afterwards with the previous selection.
+-    private func runCloseConfirmation(for item: SwitcherItem) {
+-        cancelExpandedPreviewTimer()
+-        expandedPreview.reset()
+-        panels.hideExpandedPreview()
+-        EventTap.shared.mode = .passthrough
+-        panels.hide()
+-        WindowActions.afterPendingActions { [weak self] in
+-            guard let self, self.state.phase == .confirming else { return }
+-            self.presentCloseConfirmation(for: item)
+-        }
+-    }
+-
+-    private func presentCloseConfirmation(for item: SwitcherItem) {
+-        let app = item.window?.app
+-        let isOwnEntry = item.window?.isOwnSettingsEntry ?? false
+-        let offersQuit = !isOwnEntry && app != nil
+-        let quitEscalatesToForce = app?.quitRequested ?? false
+-
+-        let alert = NSAlert()
+-        alert.alertStyle = .warning
+-        alert.messageText = "Close “\(item.title)” in \(item.appName)?"
+-        alert.informativeText = quitEscalatesToForce
+-            ? "\(item.appName) was already asked to quit and is still running. Closing the window still uses the normal, safe path."
+-            : "If the window has unsaved changes, \(item.appName) will ask about them."
+-        alert.addButton(withTitle: "Cancel")
+-        let closeButton = alert.addButton(withTitle: "Close Window")
+-        closeButton.hasDestructiveAction = true
+-        if offersQuit {
+-            let quitTitle = quitEscalatesToForce
+-                ? "Force Quit \(item.appName)…"
+-                : "Quit \(item.appName)"
+-            let quitButton = alert.addButton(withTitle: quitTitle)
+-            quitButton.hasDestructiveAction = true
+-        }
+-        NSApp.activate()
+-        let response = alert.runModal()
+-
+-        switch response {
+-        case .alertSecondButtonReturn:
+-            if let window = item.window,
+-               WindowStore.shared.windows.contains(where: { $0 === window }) {
+-                WindowActions.close(window)
+-            }
+-        case .alertThirdButtonReturn:
+-            // the target may have vanished while the dialog was up; then do nothing
+-            if let app, !app.runningApplication.isTerminated {
+-                if quitEscalatesToForce {
+-                    runForceQuitConfirmation(app)
+-                } else {
+-                    WindowActions.quit(app)
+-                }
+-            }
+-        default:
+-            break
+-        }
+-
+-        _ = state.confirmationFinished()
+-        if configuredEnabled {
+-            EventTap.shared.mode = state.isActive ? sessionTapMode() : .watching
+-        }
+-        refreshDuringSession()
+-        if state.isActive {
+-            panels.presentAgain(presentationMode: .persistent)
+-        }
+-    }
+-
+-    /// Force Quit is never the default, never silent, and always a second,
+-    /// explicitly destructive confirmation after a failed graceful Quit.
+-    private func runForceQuitConfirmation(_ app: TrackedApp) {
+-        let name = app.name ?? "the application"
+-        let alert = NSAlert()
+-        alert.alertStyle = .critical
+-        alert.messageText = "Force Quit \(name)?"
+-        alert.informativeText = "\(name) didn't quit when asked. Force quitting ends it immediately and any unsaved changes will be lost."
+-        alert.addButton(withTitle: "Cancel")
+-        let forceButton = alert.addButton(withTitle: "Force Quit")
+-        forceButton.hasDestructiveAction = true
+-        if alert.runModal() == .alertSecondButtonReturn {
+-            WindowActions.forceQuit(app)
++            cancelExpandedPreviewTimer()
++            expandedPreview.reset()
++            panels.hideExpandedPreview()
++            // Close the selected window only. We intentionally never offer to
++            // quit its application (Finder included); the app's own unsaved-
++            // changes UI still runs because WindowActions presses its native
++            // close button through Accessibility.
++            WindowActions.close(window)
+         }
+     }
+ 
+     // MARK: - Store changes while the session is open
+ 
+     private func storeChanged() {
+-        guard state.isActive else { return }
+-        refreshDuringSession()
++        guard state.isActive, !storeRefreshScheduled else { return }
++        storeRefreshScheduled = true
++        DispatchQueue.main.async { [weak self] in
++            guard let self else { return }
++            self.storeRefreshScheduled = false
++            guard self.state.isActive else { return }
++            self.refreshDuringSession()
++        }
+     }
+ 
+     private func refreshDuringSession() {
+@@ -350,7 +281,7 @@ public final class SwitcherController {
+             isOnCurrentSpace: true,
+             isOnActiveDisplay: true)
+         return WindowEligibility.shouldDisplay(
+-            state, policy: Preferences.shared.windowInclusionPolicy)
++            state, policy: Preferences.shared.effectiveWindowInclusionPolicy)
+     }
+ 
+     // MARK: - Session support
+@@ -384,18 +315,21 @@ public final class SwitcherController {
+     /// path to get wrong.
+     private func preparePanels(tileCount: Int) {
+         let connected = DisplayRegistry.connectedDisplays()
++        let pointer = DisplayRegistry.pointerDisplay(in: connected)
++        let focusedMode = Preferences.shared.focusedMultiDisplayMode
+         let targetIDs = Set(PanelDisplayResolver.targets(
++            focusedMultiDisplayMode: focusedMode,
+             placement: Preferences.shared.switcherDisplayPlacement,
+             chosenDisplayID: Preferences.shared.switcherDisplayID,
+             available: connected.map(\.descriptor),
+-            pointerDisplayID: DisplayRegistry.pointerDisplayID()).map(\.id))
++            pointerDisplayID: pointer?.descriptor.id).map(\.id))
+         let targets = connected.filter { targetIDs.contains($0.descriptor.id) }
+         let metrics = SwitcherTileView.Metrics.metrics(
+             for: Preferences.shared.appearanceMode,
+             showTabCounts: Preferences.shared.showTabCounts)
+         panels.prepare(for: targets, tileCount: tileCount, tileSize: metrics.tileSize)
+-        DebugLog.log("panels prepared: \(targets.count) display(s), "
+-            + "placement \(Preferences.shared.switcherDisplayPlacement.rawValue)")
++        DebugLog.log("panels prepared: \(targets.count) display(s), focused multi-display "
++            + "\(focusedMode ? "on" : "off")")
+     }
+ 
+     private func sessionTapMode() -> TapMode {
+@@ -403,6 +337,7 @@ public final class SwitcherController {
+     }
+ 
+     private func endSession() {
++        storeRefreshScheduled = false
+         cancelExpandedPreviewTimer()
+         panels.hideExpandedPreview()
+         panels.hide()
+diff --git a/Sources/WindowHopCore/UI/SettingsWindow.swift b/Sources/WindowHopCore/UI/SettingsWindow.swift
+index 05e991093390f367ab452a9a0408c9e0215bd183..36432ac090fc75aa64dd959d53b406c13da076aa 100644
+--- a/Sources/WindowHopCore/UI/SettingsWindow.swift
++++ b/Sources/WindowHopCore/UI/SettingsWindow.swift
+@@ -255,7 +255,7 @@ struct ShortcutsPane: View {
+                         .foregroundStyle(.secondary)
+                 }
+             } footer: {
+-                Text("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open WindowHop keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes a window after confirmation.")
++                Text("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open WindowHop keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes the selected window directly.")
+                     .font(.callout)
+                     .foregroundStyle(.secondary)
+             }
+@@ -302,8 +302,13 @@ struct WindowsPane: View {
+     var body: some View {
+         Form {
+             Section {
++                Toggle("Focused multi-display mode",
++                       isOn: $preferences.focusedMultiDisplayMode)
+                 Toggle("Include windows from other Spaces", isOn: $preferences.includeOtherSpaces)
+-                Toggle("Include windows from other displays", isOn: $preferences.includeOtherDisplays)
++                if !preferences.focusedMultiDisplayMode {
++                    Toggle("Include windows from other displays",
++                           isOn: $preferences.includeOtherDisplays)
++                }
+                 Toggle("Include minimized windows", isOn: $preferences.includeMinimizedWindows)
+                 Toggle("Include windows from hidden applications",
+                        isOn: $preferences.includeHiddenApplicationWindows)
+@@ -312,31 +317,35 @@ struct WindowsPane: View {
+             } header: {
+                 Text("Windows shown")
+             } footer: {
+-                Text("WindowHop shows a curated set of normal windows by default. Additional categories are opt-in and update the switcher immediately. Menus, tooltips, tab siblings, and system overlays are never listed.")
