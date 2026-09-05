@@ -1,4 +1,4 @@
-name: Bootstrap my-alt-tab v1.1.0
+name: Bootstrap my-alt-tab v1.1.0\n# canonical payload complete
 
 on:
   push:
