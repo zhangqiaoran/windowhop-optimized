@@ -2,6 +2,25 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.0.0 — 2026-09-06 — zhangqiaoran
+
+### Glass Focus Engine
+
+- One shared native glass/visual-effect surface replaces per-thumbnail blur as the product rule.
+- Added a single shared Focus Lens with semantic system focus color.
+- Selected thumbnails receive a subtle 2.2% optical lift without changing layout geometry.
+- Added O(1) distance-adaptive selection motion; rapid input retargets the current compositor animation.
+- Reduce Motion disables focus motion automatically.
+
+### Performance
+
+- Selection target geometry is cached during layout and retrieved by index in O(1).
+- Normal selection still updates only the old and new tile.
+- The number of animated selection surfaces stays constant regardless of window count.
+- Existing PID bucketing, dense preview matching, O(n) zero-sort refresh planning, capture deduplication, bounded preview memory, and EventTap bitset hot paths remain intact.
+
+Full notes: [`RELEASE_NOTES_v2.0.0.md`](RELEASE_NOTES_v2.0.0.md).
+
 ## 1.1.0 — 2026-09-06 — zhangqiaoran
 
 ### Performance
