@@ -14,6 +14,38 @@ private final class SwitcherTilesContainerView: NSView {
     }
 }
 
+/// One compositor surface follows selection across the grid. The panel itself
+/// owns the expensive blur; this view is only a translucent accent lens, so
+/// selection cost is independent of the number of thumbnails.
+private final class SelectionLensView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
+        layer?.cornerCurve = .continuous
+        setAccessibilityElement(false)
+        refreshAppearance()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshAppearance()
+    }
+
+    private func refreshAppearance() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = DesignTokens.selectionLensFill.cgColor
+            layer?.borderColor = DesignTokens.selectionLensStroke.cgColor
+            layer?.borderWidth = DesignTokens.selectionLensBorderWidth
+        }
+    }
+}
+
 private final class SwitcherPanelHostView: NSView {
     var onHoverChanged: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
@@ -83,6 +115,10 @@ public final class SwitcherPanel: NSPanel {
     private let chromeView = NSView()
     private let scrollView = NSScrollView()
     private let tilesContainer = SwitcherTilesContainerView()
+    private let selectionLensView = SelectionLensView()
+    /// Cached target frames make every selection transition a direct O(1)
+    /// indexed lookup. Geometry is rebuilt only when the window list/layout is.
+    private var selectionFrames: [NSRect] = []
     private let settingsButton = NSButton()
     private let permissionButton = NSButton()
     private let expandedPreviewView = ExpandedPreviewView()
@@ -176,6 +212,9 @@ public final class SwitcherPanel: NSPanel {
         scrollView.verticalScrollElasticity = .none
         scrollView.documentView = tilesContainer
         chromeView.addSubview(scrollView)
+
+        selectionLensView.isHidden = true
+        tilesContainer.addSubview(selectionLensView)
 
         expandedPreviewView.isHidden = true
         chromeView.addSubview(expandedPreviewView)
@@ -389,6 +428,8 @@ public final class SwitcherPanel: NSPanel {
 
     public func hide() {
         hostView.setPointerInside(false)
+        selectionLensView.layer?.removeAnimation(forKey: "selectionLensMove")
+        selectionLensView.isHidden = true
         expandedPreviewView.clear()
         for tile in tilePool.prefix(visibleTileCount) {
             tile.releaseTransientPreview()
@@ -461,6 +502,8 @@ public final class SwitcherPanel: NSPanel {
         let documentHeight = contentGridHeight + topOverflow
         tilesContainer.frame = NSRect(x: 0, y: 0,
                                       width: documentWidth, height: documentHeight)
+        selectionFrames.removeAll(keepingCapacity: true)
+        selectionFrames.reserveCapacity(tileCount)
         for (index, tile) in tilePool.prefix(tileCount).enumerated() {
             let column = index % columns
             let row = index / columns
@@ -475,10 +518,15 @@ public final class SwitcherPanel: NSPanel {
                 : .center
             let rowOffset = rowAlignment.leadingOffset(
                 remainingWidth: contentGridWidth - rowWidth)
-            tile.frame = NSRect(x: leadingOverflow + rowOffset
-                                    + CGFloat(column) * (tileSize.width + spacing),
-                                y: CGFloat(rows - 1 - row) * (tileSize.height + rowSpacing),
-                                width: tileSize.width, height: tileSize.height)
+            let tileFrame = NSRect(
+                x: leadingOverflow + rowOffset + CGFloat(column) * (tileSize.width + spacing),
+                y: CGFloat(rows - 1 - row) * (tileSize.height + rowSpacing),
+                width: tileSize.width,
+                height: tileSize.height)
+            tile.frame = tileFrame
+            selectionFrames.append(tileFrame.insetBy(
+                dx: -DesignTokens.selectionLensInset,
+                dy: -DesignTokens.selectionLensInset))
         }
 
         let rowCapacity = SwitcherGridCapacity.maxVisibleRows(
@@ -550,23 +598,70 @@ public final class SwitcherPanel: NSPanel {
     }
 
     private func applySelection(fullRefresh: Bool = false) {
+        let previousIndex = appliedSelectedIndex
         if fullRefresh {
             for (index, tile) in tilePool.prefix(visibleTileCount).enumerated() {
                 tile.isSelected = index == selectedIndex
             }
         } else {
-            if appliedSelectedIndex != selectedIndex,
-               appliedSelectedIndex >= 0, appliedSelectedIndex < visibleTileCount {
-                tilePool[appliedSelectedIndex].isSelected = false
+            if previousIndex != selectedIndex,
+               previousIndex >= 0, previousIndex < visibleTileCount {
+                tilePool[previousIndex].isSelected = false
             }
             if selectedIndex >= 0, selectedIndex < visibleTileCount {
                 tilePool[selectedIndex].isSelected = true
             }
         }
+        moveSelectionLens(from: previousIndex, to: selectedIndex, animated: !fullRefresh)
         appliedSelectedIndex = selectedIndex
         if selectedIndex >= 0, selectedIndex < visibleTileCount {
             tilePool[selectedIndex].scrollToVisible(tilePool[selectedIndex].bounds)
         }
+    }
+
+    private func moveSelectionLens(from previousIndex: Int, to index: Int, animated: Bool) {
+        guard index >= 0, index < selectionFrames.count else {
+            selectionLensView.layer?.removeAnimation(forKey: "selectionLensMove")
+            selectionLensView.isHidden = true
+            return
+        }
+        let targetFrame = selectionFrames[index]
+        guard !selectionLensView.isHidden else {
+            selectionLensView.frame = targetFrame
+            selectionLensView.isHidden = false
+            return
+        }
+
+        let duration = SelectionMotion.duration(from: previousIndex, to: index, columns: columnsPerRow)
+        let shouldAnimate = animated && isVisible && duration > 0
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        guard shouldAnimate, let layer = selectionLensView.layer else {
+            selectionLensView.layer?.removeAnimation(forKey: "selectionLensMove")
+            selectionLensView.frame = targetFrame
+            return
+        }
+
+        let presentation = layer.presentation()
+        let fromPosition = presentation?.position ?? layer.position
+        let fromBounds = presentation?.bounds ?? layer.bounds
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        selectionLensView.frame = targetFrame
+        CATransaction.commit()
+
+        let position = CABasicAnimation(keyPath: "position")
+        position.fromValue = NSValue(point: fromPosition)
+        position.toValue = NSValue(point: layer.position)
+        let bounds = CABasicAnimation(keyPath: "bounds")
+        bounds.fromValue = NSValue(rect: fromBounds)
+        bounds.toValue = NSValue(rect: layer.bounds)
+
+        let group = CAAnimationGroup()
+        group.animations = [position, bounds]
+        group.duration = duration
+        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.82, 0.20, 1.0)
+        layer.add(group, forKey: "selectionLensMove")
     }
 
     private func announceSelection() {
@@ -608,6 +703,10 @@ public final class SwitcherPanel: NSPanel {
             tileForTesting(at: index)?.prepareCloseControlForRendering(visible: true)
         }
     }
+
+    var selectionLensFrameForTesting: NSRect { selectionLensView.frame }
+    var selectionLensIsVisibleForTesting: Bool { !selectionLensView.isHidden }
+    var selectionGeometryCountForTesting: Int { selectionFrames.count }
 
     var settingsButtonFrameForTesting: NSRect { settingsButton.frame }
     var settingsButtonIsVisibleForTesting: Bool {
