@@ -1,6 +1,6 @@
 # Changelog
 
-All current WindowHop Optimized releases are authored, maintained, and published by **zhangqiaoran**.
+All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
 ## 1.1.0 — 2026-09-06 — zhangqiaoran
 
@@ -27,7 +27,7 @@ All current WindowHop Optimized releases are authored, maintained, and published
 
 - Pointer-display-only switcher with all-display window candidates.
 - Left / center / right thumbnail-row alignment.
-- Direct window close without WindowHop's old close-vs-quit confirmation.
+- Direct window close without the legacy close-vs-quit confirmation.
 - Finder closes only the selected Finder window.
 - Bounded in-memory preview caching, freshness-aware refresh, and EventTap recovery.
 
@@ -35,7 +35,7 @@ Full notes: [`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md).
 
 ## 1.0.0 — 2026-09-06 — zhangqiaoran
 
-- Established the WindowHop Optimized release line under zhangqiaoran.
+- Established the my-alt-tab release line under zhangqiaoran.
 - Added focused multi-display placement: one switcher on the pointer display while listing eligible windows from every display.
 - Added Left / Center / Right thumbnail-row alignment.
 - Simplified close behavior to close the selected window directly.

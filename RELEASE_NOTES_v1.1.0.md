@@ -1,4 +1,4 @@
-# WindowHop v1.1.0
+# my-alt-tab v1.1.0
 
 **Author / maintainer / release owner: zhangqiaoran**
 Release date: 2026-09-06
@@ -50,7 +50,7 @@ The v1.0 multi-display model remains unchanged: the switcher is shown only on th
 
 ## Window closing
 
-Close button and Delete/Backspace close the selected window immediately. Finder closes only the selected Finder window. WindowHop itself does not add a second close-vs-quit prompt; target applications can still show their own unsaved-document confirmation.
+Close button and Delete/Backspace close the selected window immediately. Finder closes only the selected Finder window. my-alt-tab does not add a second close-vs-quit prompt; target applications can still show their own unsaved-document confirmation.
 
 ## Identity
 

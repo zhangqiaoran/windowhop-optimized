@@ -1,4 +1,4 @@
-# WindowHop v1.0.0
+# my-alt-tab v1.0.0
 
 **Author / maintainer / release publisher: zhangqiaoran**
 
@@ -18,7 +18,7 @@ This is the first zhangqiaoran-maintained release line. The goal is a lightweigh
 
 ### Direct window closing
 - Close button and Delete/Backspace now close the selected window directly.
-- Removed the WindowHop close-vs-quit confirmation path.
+- Removed the legacy close-vs-quit confirmation path.
 - Finder closes only the selected Finder window.
 - Application-native unsaved-document prompts are still respected.
 

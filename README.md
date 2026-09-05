@@ -1,9 +1,9 @@
-# WindowHop Optimized
+# my-alt-tab
 
 **Lightweight macOS window switching by zhangqiaoran.**
 Current release: **v1.1.0** · macOS 14+ · Native Swift / AppKit · GPL-3.0
 
-WindowHop Optimized is developed, maintained, and released by **zhangqiaoran**. The project focuses on one thing: make `⌘ Tab` window switching fast, stable, visually clean, and inexpensive to keep running all day.
+my-alt-tab is developed, maintained, and released by **zhangqiaoran**. The project focuses on one thing: make `⌘ Tab` window switching fast, stable, visually clean, and inexpensive to keep running all day.
 
 > GPL-3.0 upstream attribution for inherited code is preserved in [`UPSTREAM.md`](UPSTREAM.md) and [`LICENSE`](LICENSE).
 
@@ -54,7 +54,7 @@ With **Focused multi-display mode** enabled:
 
 - close button → closes the selected window directly;
 - Delete / Backspace → closes the selected window directly;
-- no WindowHop close-vs-quit confirmation;
+- no legacy close-vs-quit confirmation;
 - Finder closes only the selected Finder window;
 - an application's own unsaved-document dialog is still respected.
 
@@ -62,11 +62,11 @@ With **Focused multi-display mode** enabled:
 
 ### Window switching
 
-![WindowHop v1.1 multi-window switcher](docs/screenshots/v1.1-switcher.jpg)
+![my-alt-tab v1.1 multi-window switcher](docs/screenshots/v1.1-switcher.jpg)
 
 ### Lightweight settings UI
 
-![WindowHop v1.1 Appearance settings](docs/screenshots/v1.1-settings.jpg)
+![my-alt-tab v1.1 Appearance settings](docs/screenshots/v1.1-settings.jpg)
 
 ## Keyboard controls
 

@@ -1,9 +1,9 @@
-# WindowHop Optimized
+# my-alt-tab
 
 **zhangqiaoran 维护的轻量 macOS 窗口切换器。**
 当前版本：**v1.1.0** · macOS 14+ · 原生 Swift / AppKit · GPL-3.0
 
-WindowHop Optimized 从现在开始以 **zhangqiaoran** 作为当前项目作者、维护者和发行者。v1.0.0 作为正式基线冻结；v1.1.0 在不堆功能、不增加后台轮询、不增加新运行时依赖的前提下，继续优化性能、内存、稳定性和 UI。
+my-alt-tab 从 v1.0.0 开始以 **zhangqiaoran** 作为当前项目作者、维护者和发行者。v1.0.0 作为正式基线冻结；v1.1.0 在不堆功能、不增加后台轮询、不增加新运行时依赖的前提下，继续优化性能、内存、稳定性和 UI。
 
 > 继承代码所需的 GPL-3.0 上游版权/来源信息单独保留在 [`UPSTREAM.md`](UPSTREAM.md) 和 [`LICENSE`](LICENSE) 中。
 
@@ -51,7 +51,7 @@ v1.1 的 UI 方向不是增加特效，而是减少没有必要的绘制：
 
 - 缩略图关闭按钮：直接关闭当前窗口；
 - Delete / Backspace：直接关闭当前窗口；
-- WindowHop 自己不再二次确认“关闭窗口还是退出应用”；
+- my-alt-tab 不再二次确认“关闭窗口还是退出应用”；
 - Finder 只关闭选中的 Finder 窗口；
 - 如果目标 App 自己存在“文件未保存”提示，仍然尊重目标 App 的系统/原生确认，避免数据丢失。
 
@@ -59,11 +59,11 @@ v1.1 的 UI 方向不是增加特效，而是减少没有必要的绘制：
 
 ### 多窗口切换
 
-![WindowHop v1.1 多窗口切换](docs/screenshots/v1.1-switcher.jpg)
+![my-alt-tab v1.1 多窗口切换](docs/screenshots/v1.1-switcher.jpg)
 
 ### Appearance / 缩略图排版
 
-![WindowHop v1.1 设置界面](docs/screenshots/v1.1-settings.jpg)
+![my-alt-tab v1.1 设置界面](docs/screenshots/v1.1-settings.jpg)
 
 ## 快捷键
 

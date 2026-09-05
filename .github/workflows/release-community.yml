@@ -55,6 +55,11 @@ jobs:
           SHA="artifacts/my-alt-tab-${VERSION}.zip.sha256"
           NOTES="RELEASE_NOTES_v${VERSION}.md"
 
+          # Keep the public release tag on the exact commit whose docs and
+          # release metadata were validated by this job.
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$TAG"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ZIP" "$SHA" --clobber
             gh release edit "$TAG" --title "my-alt-tab ${VERSION}" --notes-file "$NOTES"
