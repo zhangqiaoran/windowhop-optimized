@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euxo pipefail
           git clone --depth 1 --branch v1.6.0 https://github.com/martonpaulo/windowhop.git /tmp/upstream
-          rsync -a --exclude=.git /tmp/upstream/ ./
+          rsync -a --exclude=.git --exclude=.github/workflows /tmp/upstream/ ./
           git config user.name zhangqiaoran
           git config user.email liuzijiang_work@163.com
           git add -A
