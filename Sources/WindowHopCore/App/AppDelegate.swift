@@ -18,7 +18,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let mainMenu = NSMenu()
 
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About WindowHop",
+        appMenu.addItem(withTitle: "About my-alt-tab",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
@@ -27,7 +27,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = self
         appMenu.addItem(settingsItem)
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit WindowHop",
+        appMenu.addItem(withTitle: "Quit my-alt-tab",
                         action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let appMenuItem = NSMenuItem()
         appMenuItem.submenu = appMenu
@@ -95,7 +95,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
-        // nothing system-wide to restore: WindowHop never modifies the native switcher
+        // nothing system-wide to restore: my-alt-tab never modifies the native switcher
         EventTap.shared.stop()
     }
 

@@ -27,8 +27,6 @@ public enum TapMode: Equatable {
     /// persistent session: like sessionHeld, but modifier release is meaningless
     /// and Space also activates
     case sessionSticky
-    /// close-confirmation dialog open: consume nothing so the dialog gets the keyboard
-    case passthrough
 }
 
 enum EventTapDisposition: Equatable {
@@ -52,11 +50,59 @@ struct EventTapInterceptionState {
     var mode: TapMode = .off
     var holdModifier: CGEventFlags = .maskCommand
     var persistentShortcut: PersistentShortcut?
-    private(set) var suppressedKeyUps: Set<Int64> = []
+
+    // macOS virtual key codes used by WindowHop live in 0...127. A two-word
+    // bitset keeps the event-tap hot path allocation-free and avoids Set hashing
+    // for every keyDown/keyUp pair. The overflow set is a correctness fallback
+    // for unusual synthetic key codes and is normally never touched.
+    private var suppressedLow: UInt64 = 0
+    private var suppressedHigh: UInt64 = 0
+    private var suppressedOverflow: Set<Int64> = []
+
+    var suppressedKeyUps: Set<Int64> {
+        var result = suppressedOverflow
+        for bit in 0..<64 where suppressedLow & (UInt64(1) << UInt64(bit)) != 0 {
+            result.insert(Int64(bit))
+        }
+        for bit in 0..<64 where suppressedHigh & (UInt64(1) << UInt64(bit)) != 0 {
+            result.insert(Int64(bit + 64))
+        }
+        return result
+    }
 
     mutating func reset() {
         mode = .off
-        suppressedKeyUps.removeAll()
+        suppressedLow = 0
+        suppressedHigh = 0
+        suppressedOverflow.removeAll(keepingCapacity: true)
+    }
+
+    private mutating func suppressKeyUp(_ keyCode: Int64) {
+        switch keyCode {
+        case 0..<64:
+            suppressedLow |= UInt64(1) << UInt64(keyCode)
+        case 64..<128:
+            suppressedHigh |= UInt64(1) << UInt64(keyCode - 64)
+        default:
+            suppressedOverflow.insert(keyCode)
+        }
+    }
+
+    private mutating func consumeSuppressedKeyUp(_ keyCode: Int64) -> Bool {
+        switch keyCode {
+        case 0..<64:
+            let bit = UInt64(1) << UInt64(keyCode)
+            guard suppressedLow & bit != 0 else { return false }
+            suppressedLow &= ~bit
+            return true
+        case 64..<128:
+            let bit = UInt64(1) << UInt64(keyCode - 64)
+            guard suppressedHigh & bit != 0 else { return false }
+            suppressedHigh &= ~bit
+            return true
+        default:
+            return suppressedOverflow.remove(keyCode) != nil
+        }
     }
 
     mutating func decide(type: CGEventType,
@@ -71,18 +117,18 @@ struct EventTapInterceptionState {
 
         // Consume the matching release even when the controller moved back to
         // watching between the down/up halves of a rapid chord.
-        if type == .keyUp, suppressedKeyUps.remove(keyCode) != nil {
+        if type == .keyUp, consumeSuppressedKeyUp(keyCode) {
             return .consume
         }
 
         switch mode {
-        case .off, .passthrough:
+        case .off:
             return .pass
         case .watching:
             guard type == .keyDown else { return .pass }
             if isSwitcherTrigger(keyCode: keyCode, flags: flags) {
                 mode = .sessionHeld
-                suppressedKeyUps.insert(keyCode)
+                suppressKeyUp(keyCode)
                 return EventTapDecision(
                     disposition: .consume,
                     input: .trigger(backward: flags.contains(.maskShift)))
@@ -90,7 +136,7 @@ struct EventTapInterceptionState {
             if let persistentShortcut,
                persistentShortcut.matches(keyCode: keyCode, flags: flags) {
                 mode = .sessionSticky
-                suppressedKeyUps.insert(keyCode)
+                suppressKeyUp(keyCode)
                 return EventTapDecision(disposition: .consume, input: .openPersistent)
             }
             return .pass
@@ -98,13 +144,13 @@ struct EventTapInterceptionState {
             let sticky = mode == .sessionSticky
             if let persistentShortcut,
                persistentShortcut.matches(keyCode: keyCode, flags: flags) {
-                if type == .keyDown { suppressedKeyUps.insert(keyCode) }
+                if type == .keyDown { suppressKeyUp(keyCode) }
                 return .consume
             }
             guard let input = sessionEvent(
                 for: keyCode, flags: flags, sticky: sticky) else { return .pass }
             if type == .keyDown {
-                suppressedKeyUps.insert(keyCode)
+                suppressKeyUp(keyCode)
                 return EventTapDecision(disposition: .consume, input: input)
             }
             return type == .keyUp ? .consume : .pass
@@ -191,10 +237,15 @@ public final class EventTap {
     @discardableResult
     public func start() -> Bool {
         if let eventTap {
-            if !CGEvent.tapIsEnabled(tap: eventTap) {
-                CGEvent.tapEnable(tap: eventTap, enable: true)
+            if CFMachPortIsValid(eventTap) {
+                if !CGEvent.tapIsEnabled(tap: eventTap) {
+                    CGEvent.tapEnable(tap: eventTap, enable: true)
+                }
+                if CGEvent.tapIsEnabled(tap: eventTap) { return true }
             }
-            return true
+            // A valid-looking tap that still refuses to enable is just as dead
+            // to the user as an invalid Mach port. Rebuild it in either case.
+            tearDownTap(resetInterception: false)
         }
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue)
@@ -210,28 +261,54 @@ public final class EventTap {
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         runLoopSource = source
         CFRunLoopAddSource(BackgroundWork.eventTapThread.runLoop, source, .commonModes)
-        return true
+        CFRunLoopWakeUp(BackgroundWork.eventTapThread.runLoop)
+        if !CGEvent.tapIsEnabled(tap: tap) {
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
+        return CGEvent.tapIsEnabled(tap: tap)
     }
 
     public func stop() {
+        tearDownTap(resetInterception: true)
+    }
+
+    private func tearDownTap(resetInterception: Bool) {
         if let eventTap {
-            CGEvent.tapEnable(tap: eventTap, enable: false)
+            if CFMachPortIsValid(eventTap) {
+                CGEvent.tapEnable(tap: eventTap, enable: false)
+            }
             if let runLoopSource {
                 CFRunLoopRemoveSource(BackgroundWork.eventTapThread.runLoop, runLoopSource, .commonModes)
             }
+            CFMachPortInvalidate(eventTap)
         }
         eventTap = nil
         runLoopSource = nil
-        lock.lock()
-        interception.reset()
-        lock.unlock()
+        if resetInterception {
+            lock.lock()
+            interception.reset()
+            lock.unlock()
+        }
     }
 
-    /// macOS silently disables taps after sleep/wake or long stalls without sending
-    /// tapDisabled events; callers re-arm on wake and unlock notifications.
-    public func reEnableIfNeeded() {
-        guard let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) else { return }
-        CGEvent.tapEnable(tap: eventTap, enable: true)
+    /// macOS can disable or invalidate taps after sleep/wake, login-session
+    /// changes, or long stalls. Re-enable a healthy tap and rebuild an invalid
+    /// one while preserving the configured shortcut and current interception mode.
+    @discardableResult
+    public func reEnableIfNeeded() -> Bool {
+        // When WindowHop is disabled there is intentionally no tap at all.
+        // Wake/session notifications must not recreate one in that state.
+        guard eventTap != nil else { return false }
+        if let eventTap, CFMachPortIsValid(eventTap) {
+            if !CGEvent.tapIsEnabled(tap: eventTap) {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            if CGEvent.tapIsEnabled(tap: eventTap) { return true }
+        }
+        if eventTap != nil {
+            tearDownTap(resetInterception: false)
+        }
+        return start()
     }
 
     // MARK: - Callback (runs on the tap thread; must stay small and non-blocking)
@@ -240,6 +317,13 @@ public final class EventTap {
         if type == .tapDisabledByUserInput || type == .tapDisabledByTimeout {
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            // Keep the callback tiny. If a plain re-enable was insufficient,
+            // rebuild from the main side rather than doing lifecycle work here.
+            if eventTap.map({ !CGEvent.tapIsEnabled(tap: $0) }) ?? true {
+                DispatchQueue.main.async {
+                    _ = EventTap.shared.reEnableIfNeeded()
+                }
             }
             return Unmanaged.passUnretained(event)
         }
@@ -257,9 +341,11 @@ public final class EventTap {
     }
 
     private func post(_ inputEvent: SwitcherInputEvent) {
-        let postedAt = CFAbsoluteTimeGetCurrent()
+        let postedAt = DebugLog.enabled ? CFAbsoluteTimeGetCurrent() : 0
         DispatchQueue.main.async { [weak self] in
-            DebugLog.log("input \(inputEvent) (+\(String(format: "%.2f", (CFAbsoluteTimeGetCurrent() - postedAt) * 1000))ms hop)")
+            if DebugLog.enabled {
+                DebugLog.log("input \(inputEvent) (+\(String(format: "%.2f", (CFAbsoluteTimeGetCurrent() - postedAt) * 1000))ms hop)")
+            }
             self?.onEvent?(inputEvent)
         }
     }

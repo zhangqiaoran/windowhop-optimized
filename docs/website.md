@@ -1,7 +1,7 @@
-# WindowHop website deployment
+# my-alt-tab website deployment
 
 The static product site lives directly in `docs/` and is served at
-<https://martonpaulo.github.io/windowhop/>. It has no backend, package manager, generated
+<https://zhangqiaoran.github.io/windowhop-optimized/>. It has no backend, package manager, generated
 bundle, analytics, or runtime dependency.
 
 ## Local preview
@@ -16,7 +16,7 @@ Dark Mode, and Reduce Motion. `scripts/validate.sh` also runs the static-site va
 
 Project, release, download, license, issue, and attribution URLs are centralized in
 `docs/scripts/main.js`. The version and installer filename must match `Support/Info.plist`.
-Final user-facing images come from WindowHop's privacy-safe render harness; annotated
+Final user-facing images come from my-alt-tab's privacy-safe render harness; annotated
 development references never belong in `docs/`.
 
 ## GitHub Pages

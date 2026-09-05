@@ -54,12 +54,18 @@ public struct DisplayDescriptor: Equatable, Identifiable {
 /// result is never empty. A switcher that opens on no display at all is worse
 /// than one that opens on the wrong display.
 public enum PanelDisplayResolver {
-    public static func targets(placement: SwitcherDisplayPlacement,
+    public static func targets(focusedMultiDisplayMode: Bool = false,
+                               placement: SwitcherDisplayPlacement,
                                chosenDisplayID: String?,
                                available: [DisplayDescriptor],
                                pointerDisplayID: String?) -> [DisplayDescriptor] {
         guard !available.isEmpty else { return [] }
-        switch placement {
+        // Focused multi-display mode is intentionally a single-panel mode. The
+        // legacy placement preference is preserved and becomes effective again
+        // as soon as the mode is disabled.
+        let effectivePlacement: SwitcherDisplayPlacement = focusedMultiDisplayMode
+            ? .pointerDisplay : placement
+        switch effectivePlacement {
         case .allDisplays:
             return available
         case .pointerDisplay:

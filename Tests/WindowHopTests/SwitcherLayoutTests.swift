@@ -4,16 +4,40 @@ import XCTest
 
 final class SwitcherLayoutTests: XCTestCase {
     private var savedAppearanceMode: AppearanceMode!
+    private var savedPreviewRowAlignment: PreviewRowAlignment!
 
     override func setUp() {
         super.setUp()
         savedAppearanceMode = Preferences.shared.appearanceMode
+        savedPreviewRowAlignment = Preferences.shared.previewRowAlignment
         Preferences.shared.appearanceMode = .windowPreviews
     }
 
     override func tearDown() {
         Preferences.shared.appearanceMode = savedAppearanceMode
+        Preferences.shared.previewRowAlignment = savedPreviewRowAlignment
         super.tearDown()
+    }
+
+    func testIncompletePreviewRowCanAlignLeftCenterOrRight() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.sharedColumnLimit = 2
+        let items = [item("a"), item("b"), item("c")]
+
+        Preferences.shared.previewRowAlignment = .left
+        panel.update(items: items, selectedIndex: 0)
+        let leftX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
+
+        Preferences.shared.previewRowAlignment = .center
+        panel.update(items: items, selectedIndex: 0)
+        let centerX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
+
+        Preferences.shared.previewRowAlignment = .right
+        panel.update(items: items, selectedIndex: 0)
+        let rightX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
+
+        XCTAssertLessThan(leftX, centerX)
+        XCTAssertLessThan(centerX, rightX)
     }
 
     func testOverlaysStayCanvasAlignedAcrossSourceAspectRatios() {
@@ -202,9 +226,21 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThan(panel.panelBackgroundFrameForTesting.height, visiblePanelHeight)
     }
 
+    func testPooledTileCanReleaseHeavyPreviewBetweenSessions() {
+        let tile = configuredTile(imageSize: NSSize(width: 640, height: 400))
+        XCTAssertTrue(tile.showsPreviewImage)
+
+        tile.releaseTransientPreview()
+
+        XCTAssertFalse(tile.showsPreviewImage)
+        XCTAssertTrue(tile.showsLoadingStateForTesting)
+    }
+
     func testSkeletonStatesAreExplicitAndUnavailableNeverAnimates() {
         let loading = configuredTile(imageSize: nil)
         XCTAssertTrue(loading.showsLoadingStateForTesting)
+        XCTAssertFalse(loading.skeletonIsAnimatingForTesting,
+                       "v1.1 loading placeholders stay static to avoid continuous compositor work")
 
         loading.setPreviewPermissionUnavailable()
         XCTAssertTrue(loading.showsPermissionUnavailableStateForTesting)

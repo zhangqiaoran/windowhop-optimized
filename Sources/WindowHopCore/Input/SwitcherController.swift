@@ -1,8 +1,8 @@
 import AppKit
 
 /// Orchestrates one switcher session: semantic input events feed the pure
-/// SwitcherState; resulting commands drive the panel, window actions, and the
-/// close-confirmation dialog. Main thread only.
+/// SwitcherState; resulting commands drive the panel and window actions. Main
+/// thread only.
 public final class SwitcherController {
     public static let shared = SwitcherController()
 
@@ -16,6 +16,10 @@ public final class SwitcherController {
     private var heldModifierGuard: Timer?
     private var expandedPreview = ExpandedPreviewSession<AnyHashable>()
     private var expandedPreviewTimer: Timer?
+    /// AX can deliver several title/move/resize notifications in one run-loop turn.
+    /// Coalescing them keeps a live switcher from rebuilding the same tile set
+    /// repeatedly without adding a timer or any idle work.
+    private var storeRefreshScheduled = false
     private var configuredEnabled = false
 
     private init() {}
@@ -167,6 +171,7 @@ public final class SwitcherController {
             // asynchronously, never gating panel presentation
             PreviewProvider.shared.beginSession(
                 items: items,
+                selectedID: itemID(at: selectedIndex),
                 targetSize: SwitcherPanel.previewContentSize,
                 scale: panels.captureScale)
             // a missed destroy notification once produced a duplicate entry;
@@ -190,123 +195,78 @@ public final class SwitcherController {
             endSession()
             expandedPreview.reset()
         case .requestClose(let index):
-            if index >= 0, index < items.count {
-                runCloseConfirmation(for: items[index])
-            } else {
-                _ = state.confirmationFinished()
+            guard index >= 0, index < items.count,
+                  let window = items[index].window,
+                  WindowStore.shared.windows.contains(where: { $0 === window }) else {
+                refreshDuringSession()
+                break
             }
-        }
-    }
-
-    // MARK: - Close confirmation
-
-    /// Closing always requires explicit native confirmation; Cancel is the default.
-    /// While the dialog is up the tap consumes nothing, so Return/Escape and a
-    /// released Command key go to the dialog instead of the session. The panel is
-    /// hidden for the duration so the dialog is unquestionably on top, and is
-    /// restored afterwards with the previous selection.
-    private func runCloseConfirmation(for item: SwitcherItem) {
-        cancelExpandedPreviewTimer()
-        expandedPreview.reset()
-        panels.hideExpandedPreview()
-        EventTap.shared.mode = .passthrough
-        panels.hide()
-        WindowActions.afterPendingActions { [weak self] in
-            guard let self, self.state.phase == .confirming else { return }
-            self.presentCloseConfirmation(for: item)
-        }
-    }
-
-    private func presentCloseConfirmation(for item: SwitcherItem) {
-        let app = item.window?.app
-        let isOwnEntry = item.window?.isOwnSettingsEntry ?? false
-        let offersQuit = !isOwnEntry && app != nil
-        let quitEscalatesToForce = app?.quitRequested ?? false
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Close “\(item.title)” in \(item.appName)?"
-        alert.informativeText = quitEscalatesToForce
-            ? "\(item.appName) was already asked to quit and is still running. Closing the window still uses the normal, safe path."
-            : "If the window has unsaved changes, \(item.appName) will ask about them."
-        alert.addButton(withTitle: "Cancel")
-        let closeButton = alert.addButton(withTitle: "Close Window")
-        closeButton.hasDestructiveAction = true
-        if offersQuit {
-            let quitTitle = quitEscalatesToForce
-                ? "Force Quit \(item.appName)…"
-                : "Quit \(item.appName)"
-            let quitButton = alert.addButton(withTitle: quitTitle)
-            quitButton.hasDestructiveAction = true
-        }
-        NSApp.activate()
-        let response = alert.runModal()
-
-        switch response {
-        case .alertSecondButtonReturn:
-            if let window = item.window,
-               WindowStore.shared.windows.contains(where: { $0 === window }) {
-                WindowActions.close(window)
-            }
-        case .alertThirdButtonReturn:
-            // the target may have vanished while the dialog was up; then do nothing
-            if let app, !app.runningApplication.isTerminated {
-                if quitEscalatesToForce {
-                    runForceQuitConfirmation(app)
-                } else {
-                    WindowActions.quit(app)
-                }
-            }
-        default:
-            break
-        }
-
-        _ = state.confirmationFinished()
-        if configuredEnabled {
-            EventTap.shared.mode = state.isActive ? sessionTapMode() : .watching
-        }
-        refreshDuringSession()
-        if state.isActive {
-            panels.presentAgain(presentationMode: .persistent)
-        }
-    }
-
-    /// Force Quit is never the default, never silent, and always a second,
-    /// explicitly destructive confirmation after a failed graceful Quit.
-    private func runForceQuitConfirmation(_ app: TrackedApp) {
-        let name = app.name ?? "the application"
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = "Force Quit \(name)?"
-        alert.informativeText = "\(name) didn't quit when asked. Force quitting ends it immediately and any unsaved changes will be lost."
-        alert.addButton(withTitle: "Cancel")
-        let forceButton = alert.addButton(withTitle: "Force Quit")
-        forceButton.hasDestructiveAction = true
-        if alert.runModal() == .alertSecondButtonReturn {
-            WindowActions.forceQuit(app)
+            cancelExpandedPreviewTimer()
+            expandedPreview.reset()
+            panels.hideExpandedPreview()
+            // Close the selected window only. We intentionally never offer to
+            // quit its application (Finder included); the app's own unsaved-
+            // changes UI still runs because WindowActions presses its native
+            // close button through Accessibility.
+            WindowActions.close(window)
         }
     }
 
     // MARK: - Store changes while the session is open
 
     private func storeChanged() {
-        guard state.isActive else { return }
-        refreshDuringSession()
+        guard state.isActive, !storeRefreshScheduled else { return }
+        storeRefreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.storeRefreshScheduled = false
+            guard self.state.isActive else { return }
+            self.refreshDuringSession()
+        }
     }
 
     private func refreshDuringSession() {
         guard state.isActive else { return }
         let selectedId = state.selectedIndex < items.count ? items[state.selectedIndex].id : nil
         let fresh = WindowStore.shared.snapshot()
-        let freshById = Dictionary(fresh.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let sessionById = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let preserved = Set(items.lazy
-            .filter { freshById[$0.id] == nil && self.shouldPreserveAcrossLocationRefresh($0) }
-            .map(\.id))
-        let plan = SessionListReconciler.reconcile(sessionIds: items.map(\.id),
-                                                   freshIds: fresh.map(\.id),
+
+        // This path can run repeatedly while Chrome/IDE/Finder are changing
+        // windows. Build IDs and lookup tables in one pass instead of creating
+        // temporary map arrays for Dictionary initializers on every refresh.
+        var freshById: [AnyHashable: SwitcherItem] = [:]
+        var freshIds: [AnyHashable] = []
+        freshById.reserveCapacity(fresh.count)
+        freshIds.reserveCapacity(fresh.count)
+        for item in fresh {
+            freshIds.append(item.id)
+            if freshById[item.id] == nil { freshById[item.id] = item }
+        }
+
+        var sessionById: [AnyHashable: SwitcherItem] = [:]
+        var sessionIds: [AnyHashable] = []
+        sessionById.reserveCapacity(items.count)
+        sessionIds.reserveCapacity(items.count)
+        for item in items {
+            sessionIds.append(item.id)
+            if sessionById[item.id] == nil { sessionById[item.id] = item }
+        }
+
+        var preserved = Set<AnyHashable>()
+        preserved.reserveCapacity(items.count)
+        for item in items
+        where freshById[item.id] == nil && shouldPreserveAcrossLocationRefresh(item) {
+            preserved.insert(item.id)
+        }
+
+        let plan = SessionListReconciler.reconcile(sessionIds: sessionIds,
+                                                   freshIds: freshIds,
                                                    preserving: preserved)
-        items = plan.ids.compactMap { freshById[$0] ?? sessionById[$0] }
+        var reconciled: [SwitcherItem] = []
+        reconciled.reserveCapacity(plan.ids.count)
+        for id in plan.ids {
+            if let item = freshById[id] ?? sessionById[id] { reconciled.append(item) }
+        }
+        items = reconciled
         // a window that appeared mid-session has no capture in flight yet; without
         // this its tile would stay a placeholder for the rest of the session
         if !plan.appeared.isEmpty {
@@ -316,7 +276,10 @@ public final class SwitcherController {
                 targetSize: SwitcherPanel.previewContentSize,
                 scale: panels.captureScale)
         }
-        expandedPreview.retainAvailable(Set(items.map(\.id)))
+        var availableIDs = Set<AnyHashable>()
+        availableIDs.reserveCapacity(items.count)
+        for item in items { availableIDs.insert(item.id) }
+        expandedPreview.retainAvailable(availableIDs)
         let preferredIndex = selectedId.flatMap { id in
             items.firstIndex { $0.id == id }
         } ?? state.selectedIndex
@@ -350,7 +313,7 @@ public final class SwitcherController {
             isOnCurrentSpace: true,
             isOnActiveDisplay: true)
         return WindowEligibility.shouldDisplay(
-            state, policy: Preferences.shared.windowInclusionPolicy)
+            state, policy: Preferences.shared.effectiveWindowInclusionPolicy)
     }
 
     // MARK: - Session support
@@ -384,18 +347,21 @@ public final class SwitcherController {
     /// path to get wrong.
     private func preparePanels(tileCount: Int) {
         let connected = DisplayRegistry.connectedDisplays()
+        let pointer = DisplayRegistry.pointerDisplay(in: connected)
+        let focusedMode = Preferences.shared.focusedMultiDisplayMode
         let targetIDs = Set(PanelDisplayResolver.targets(
+            focusedMultiDisplayMode: focusedMode,
             placement: Preferences.shared.switcherDisplayPlacement,
             chosenDisplayID: Preferences.shared.switcherDisplayID,
             available: connected.map(\.descriptor),
-            pointerDisplayID: DisplayRegistry.pointerDisplayID()).map(\.id))
+            pointerDisplayID: pointer?.descriptor.id).map(\.id))
         let targets = connected.filter { targetIDs.contains($0.descriptor.id) }
         let metrics = SwitcherTileView.Metrics.metrics(
             for: Preferences.shared.appearanceMode,
             showTabCounts: Preferences.shared.showTabCounts)
         panels.prepare(for: targets, tileCount: tileCount, tileSize: metrics.tileSize)
-        DebugLog.log("panels prepared: \(targets.count) display(s), "
-            + "placement \(Preferences.shared.switcherDisplayPlacement.rawValue)")
+        DebugLog.log("panels prepared: \(targets.count) display(s), focused multi-display "
+            + "\(focusedMode ? "on" : "off")")
     }
 
     private func sessionTapMode() -> TapMode {
@@ -403,6 +369,7 @@ public final class SwitcherController {
     }
 
     private func endSession() {
+        storeRefreshScheduled = false
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
         panels.hide()

@@ -24,8 +24,9 @@ private final class OverlayCloseButton: NSButton {
 }
 
 /// A native, dependency-free placeholder that reads as a simplified macOS
-/// window. Loading pulses gently; unavailable and permission-blocked states
-/// use the same geometry without animation or card-level error copy.
+/// window. v1.1 deliberately keeps it static: ScreenCaptureKit already does the
+/// expensive work during fill-in, so placeholders add no continuous animation
+/// or card-level error copy.
 private final class PreviewSkeletonView: NSView {
     enum Variant: Equatable {
         case loading
@@ -33,15 +34,11 @@ private final class PreviewSkeletonView: NSView {
     }
 
     var variant: Variant = .loading {
-        didSet {
-            needsDisplay = true
-            refreshAnimation()
-        }
+        didSet { needsDisplay = true }
     }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
         setAccessibilityElement(false)
     }
 
@@ -92,40 +89,18 @@ private final class PreviewSkeletonView: NSView {
         }
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        refreshAnimation()
-    }
-
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         needsDisplay = true
     }
 
-    func refreshAnimation() {
-        layer?.removeAnimation(forKey: "previewSkeletonPulse")
-        layer?.opacity = 1
-        guard variant == .loading,
-              window != nil,
-              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = DesignTokens.previewSkeletonMinimumOpacity
-        pulse.toValue = 1
-        pulse.duration = DesignTokens.previewSkeletonPulseDuration
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        layer?.add(pulse, forKey: "previewSkeletonPulse")
-    }
-
-    func stopAnimation() {
-        layer?.removeAnimation(forKey: "previewSkeletonPulse")
-        layer?.opacity = 1
-    }
-
-    var isAnimatingForTesting: Bool {
-        layer?.animation(forKey: "previewSkeletonPulse") != nil
-    }
+    /// v1.1 keeps loading placeholders static. A repeating animation on every
+    /// uncached tile keeps Core Animation active precisely when WindowServer is
+    /// already busy producing snapshots. Short preview crossfades remain, but
+    /// idle/loading tiles generate no continuous compositor work.
+    func refreshAnimation() {}
+    func stopAnimation() {}
+    var isAnimatingForTesting: Bool { false }
 }
 
 enum PreviewPresentationState: Equatable {
@@ -142,7 +117,7 @@ enum PreviewPresentationState: Equatable {
 ///   skeleton remains behind that same corner-aligned badge.
 /// Titles and optional metadata use one shared native typography hierarchy.
 /// Hovering reveals an overlay close control that
-/// routes through the same confirmation flow as Delete.
+/// routes through the same direct-close flow as Delete.
 final class SwitcherTileView: NSView {
     struct Metrics {
         let tileSize: NSSize
@@ -202,10 +177,6 @@ final class SwitcherTileView: NSView {
     private let selectionBackgroundView = NSView()
     private let iconView = NSImageView()
     private let previewView = NSImageView()
-    /// Carries the snapshot's soft shadow: the shadow path follows the
-    /// preview's rounded shape, so no rectangular halo can appear (the clip on
-    /// previewView would swallow a shadow set on it directly).
-    private let previewShadowView = NSView()
     /// Semantic canvas surface behind loaded, letterboxed, loading, blocked,
     /// and unavailable content. It is always the same fixed geometry.
     private let previewSurfaceView = NSView()
@@ -217,12 +188,31 @@ final class SwitcherTileView: NSView {
     private var trackingArea: NSTrackingArea?
     private var suppressHoverForRendering = false
 
+    /// Cheap fingerprint for pooled-tile reuse. Window-store notifications can
+    /// rebuild the visible list without changing most cards; unchanged cards no
+    /// longer recreate attributed strings or reassign icon images on every pass.
+    private struct RenderSignature: Equatable {
+        let id: AnyHashable
+        let title: String
+        let appName: String
+        let tabCount: Int?
+        let mode: AppearanceMode
+        let showTabCounts: Bool
+    }
+    private var renderSignature: RenderSignature?
+
     var isSelected = false {
-        didSet { applySelectionStyle() }
+        didSet {
+            guard oldValue != isSelected else { return }
+            applySelectionStyle()
+        }
     }
 
     private var isHovered = false {
-        didSet { applySelectionStyle() }
+        didSet {
+            guard oldValue != isHovered else { return }
+            applySelectionStyle()
+        }
     }
 
     /// Whether the tile currently shows a window snapshot (test hook for the
@@ -279,13 +269,6 @@ final class SwitcherTileView: NSView {
         previewSurfaceView.layer?.cornerCurve = .continuous
         addSubview(previewSurfaceView)
 
-        previewShadowView.wantsLayer = true
-        previewShadowView.layer?.shadowColor = NSColor.black.cgColor
-        previewShadowView.layer?.shadowOpacity = DesignTokens.previewShadowOpacity
-        previewShadowView.layer?.shadowRadius = DesignTokens.previewShadowRadius
-        previewShadowView.layer?.shadowOffset = DesignTokens.previewShadowOffset
-        addSubview(previewShadowView)
-
         previewView.imageScaling = .scaleProportionallyDown
         previewView.wantsLayer = true
         previewView.layer?.cornerRadius = DesignTokens.previewCornerRadius
@@ -296,7 +279,6 @@ final class SwitcherTileView: NSView {
         addSubview(skeletonView)
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        iconView.wantsLayer = true
         addSubview(iconView)
 
         badgeIconView.imageScaling = .scaleProportionallyUpOrDown
@@ -354,28 +336,50 @@ final class SwitcherTileView: NSView {
                    mode: AppearanceMode,
                    showTabCounts: Bool,
                    preview: NSImage?) {
+        let nextSignature = RenderSignature(
+            id: item.id, title: item.title, appName: item.appName,
+            tabCount: item.tabCount, mode: mode, showTabCounts: showTabCounts)
+        let identityChanged = renderSignature?.id != item.id || renderSignature?.mode != mode
+        let contentChanged = renderSignature != nextSignature
+
         self.mode = mode
         self.showTabCounts = showTabCounts
         metrics = Metrics.metrics(for: mode, showTabCounts: showTabCounts)
-        let tabsText = item.tabCount.map { "\($0) tabs" } ?? ""
-        var accessibilityParts = [item.title, item.appName]
-        if showTabCounts, !tabsText.isEmpty { accessibilityParts.append(tabsText) }
-        accessibilityText = accessibilityParts.joined(separator: ", ")
-        iconView.image = item.icon
-        badgeIconView.image = item.icon
-        setTypography(title: item.title, metadata: tabsText)
-        tabsLabel.isHidden = !showTabCounts
-        setAccessibilityLabel(accessibilityText)
-        // a pooled tile may be re-representing another window: any in-flight
-        // crossfade belongs to the previous occupant, never the next one
-        previewView.layer?.removeAllAnimations()
-        previewState = .loading
-        setPreview(preview)
+
+        if contentChanged {
+            let tabsText = item.tabCount.map { "\($0) tabs" } ?? ""
+            var accessibilityParts = [item.title, item.appName]
+            if showTabCounts, !tabsText.isEmpty { accessibilityParts.append(tabsText) }
+            accessibilityText = accessibilityParts.joined(separator: ", ")
+            iconView.image = item.icon
+            badgeIconView.image = item.icon
+            setTypography(title: item.title, metadata: tabsText)
+            tabsLabel.isHidden = !showTabCounts
+            setAccessibilityLabel(accessibilityText)
+        }
+
+        if identityChanged {
+            // A pooled tile now represents another window. No transition or
+            // preview state may leak from its previous occupant.
+            previewView.layer?.removeAllAnimations()
+            previewState = .loading
+            setPreview(preview)
+        } else if mode == .windowPreviews {
+            if let preview {
+                if previewView.image !== preview || !hasPreview { setPreview(preview) }
+            } else if hasPreview {
+                // The bounded cache is the sole owner between sessions. If it
+                // evicted this image, do not let the pooled tile pin it forever.
+                setPreview(nil)
+            }
+        }
+
+        renderSignature = nextSignature
         applySelectionStyle()
     }
 
     /// Applies (or clears) the window preview. While a window has no snapshot
-    /// the tile shows a quiet loading skeleton under the corner badge, and the first
+    /// the tile shows a quiet static skeleton under the corner badge, and the first
     /// capture fades in over it. When a fresh capture replaces a cached
     /// snapshot mid-session it crossfades in place — same geometry, no blank
     /// frame, no layout shift. Reduce Motion disables both animations.
@@ -458,11 +462,6 @@ final class SwitcherTileView: NSView {
             // window stays visible and the semantic surface owns letterboxing.
             let fitted = fittedImageRect(in: contentBox, imageSize: previewView.image?.size)
             previewView.frame = fitted
-            previewShadowView.frame = contentBox
-            previewShadowView.layer?.shadowPath = CGPath(
-                roundedRect: CGRect(origin: .zero, size: contentBox.size),
-                cornerWidth: DesignTokens.previewCornerRadius,
-                cornerHeight: DesignTokens.previewCornerRadius, transform: nil)
             // Both overlays belong to the fixed display-aspect canvas, never
             // the source image's fitted bounds.
             let badge = DesignTokens.previewBadgeSize
@@ -487,12 +486,6 @@ final class SwitcherTileView: NSView {
         previewSurfaceView.isHidden = mode == .appIcons
         skeletonView.frame = contentBox
         skeletonView.isHidden = mode != .windowPreviews || hasPreview
-        previewShadowView.isHidden = mode == .appIcons
-        previewShadowView.frame = contentBox
-        previewShadowView.layer?.shadowPath = CGPath(
-            roundedRect: CGRect(origin: .zero, size: contentBox.size),
-            cornerWidth: DesignTokens.previewCornerRadius,
-            cornerHeight: DesignTokens.previewCornerRadius, transform: nil)
         let labelWidth = size.width - DesignTokens.tileLabelInset * 2
         // the zone is two lines tall; a single-line title centers within it so
         // one- and two-line cards read as the same layout
@@ -547,7 +540,9 @@ final class SwitcherTileView: NSView {
             selectionBackgroundView.layer?.backgroundColor = fill.cgColor
             previewSurfaceView.layer?.backgroundColor = DesignTokens.previewSurfaceFill.cgColor
         }
-        needsLayout = true
+        // Selection/hover only changes paint. Forcing layout here used to make
+        // every rapid ⌘⇥ step relayout the selected and previously selected
+        // tiles even though no geometry changed.
     }
 
     private func updateSkeletonPresentation() {
@@ -591,9 +586,19 @@ final class SwitcherTileView: NSView {
             ])
     }
 
-    func refreshMotionPreference() {
-        skeletonView.refreshAnimation()
+    /// Releases heavy snapshot references whenever a pooled tile leaves the
+    /// visible panel. The bounded PreviewProvider cache becomes the single
+    /// between-session owner, so evicting from that cache actually releases the
+    /// image instead of a hidden tile accidentally pinning it in memory.
+    func releaseTransientPreview() {
+        previewView.layer?.removeAllAnimations()
+        previewView.image = nil
+        previewView.alphaValue = 1
+        previewView.isHidden = true
+        previewState = .loading
+        updateSkeletonPresentation()
     }
+
 
     /// Selection color is CGColor-backed; refresh when the appearance flips.
     override func viewDidChangeEffectiveAppearance() {

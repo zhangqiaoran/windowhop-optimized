@@ -6,15 +6,12 @@ import Foundation
 /// Phases:
 /// - inactive:   no session
 /// - held:       the hold-modifier is down; releasing it activates the selection
-/// - sticky:     session continues after a close-confirmation dialog; the modifier is
-///               no longer the anchor, so only Return/Escape/click end the session
-/// - confirming: a close-confirmation dialog is open; keyboard events pass through to it
+/// - sticky:     persistent session; modifier release is not an activation signal
 public struct SwitcherState {
     public enum Phase: Equatable {
         case inactive
         case held
         case sticky
-        case confirming
     }
 
     public enum Command: Equatable {
@@ -50,8 +47,6 @@ public struct SwitcherState {
             return .show(selectedIndex: selectedIndex)
         case .held, .sticky:
             return step(backward: backward)
-        case .confirming:
-            return .none
         }
     }
 
@@ -134,21 +129,12 @@ public struct SwitcherState {
     }
 
     /// Close request for an explicit item (the hover close control); Delete is the
-    /// same flow aimed at the current selection. The selection is left untouched so
-    /// a cancelled confirmation restores exactly the previous state.
+    /// same flow aimed at the current selection. Closing is intentionally direct,
+    /// so the current held/sticky session mode remains unchanged.
     public mutating func closeRequested(index: Int) -> Command {
         guard phase == .held || phase == .sticky,
               index >= 0, index < itemCount else { return .none }
-        phase = .confirming
         return .requestClose(index: index)
-    }
-
-    /// The close-confirmation dialog was dismissed (either way); the session continues
-    /// without a held modifier. List changes caused by the close arrive via listChanged.
-    public mutating func confirmationFinished() -> Command {
-        guard phase == .confirming else { return .none }
-        phase = .sticky
-        return .none
     }
 
     public mutating func itemClicked(index: Int) -> Command {

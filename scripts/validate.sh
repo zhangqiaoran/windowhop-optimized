@@ -16,10 +16,10 @@ if grep -rn "com\.martonpss\|com\.lwouis\|lwouis\.alt-tab" $TRACKED 2>/dev/null 
 else
     pass "no obsolete bundle identifiers"
 fi
-if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.perso.windowhop" ]; then
-    pass "bundle identifier is com.perso.windowhop"
+if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.zhangqiaoran.myalttab" ]; then
+    pass "bundle identifier is com.zhangqiaoran.myalttab"
 else
-    fail "Support/Info.plist bundle identifier is not com.perso.windowhop"
+    fail "Support/Info.plist bundle identifier is not com.zhangqiaoran.myalttab"
 fi
 
 # --- no private API, no capture outside the preview subsystem ----------------
@@ -48,35 +48,37 @@ else
 fi
 
 # --- updater configuration ---------------------------------------------------
-for key in SUFeedURL SUPublicEDKey SUEnableAutomaticChecks; do
+# Community builds deliberately have no upstream Sparkle feed/key so they can
+# never replace themselves with another project's release channel.
+if /usr/libexec/PlistBuddy -c 'Print :WindowHopForkUpdatesDisabled' Support/Info.plist 2>/dev/null | grep -qx true; then
+    pass "community auto-updates are disabled"
+else
+    fail "WindowHopForkUpdatesDisabled must be true"
+fi
+if /usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' Support/Info.plist 2>/dev/null | grep -qx false; then
+    pass "automatic update checks are disabled"
+else
+    fail "SUEnableAutomaticChecks must be false"
+fi
+for key in SUFeedURL SUPublicEDKey; do
     if /usr/libexec/PlistBuddy -c "Print :$key" Support/Info.plist >/dev/null 2>&1; then
-        pass "Info.plist has $key"
+        fail "community Info.plist must not contain $key"
     else
-        fail "Info.plist missing $key"
+        pass "community Info.plist omits $key"
     fi
 done
-FEED=$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Support/Info.plist)
-case "$FEED" in
-    https://*) pass "appcast feed is HTTPS" ;;
-    *) fail "appcast feed is not HTTPS: $FEED" ;;
-esac
 
 # --- appcast/release metadata consistency ------------------------------------
-if [ -f appcast.xml ]; then
-    if grep -q "sparkle:edSignature=" appcast.xml && grep -q "https://github.com/martonpaulo/windowhop/releases/download/" appcast.xml; then
-        pass "appcast entries are signed and point at GitHub Releases"
-    else
-        fail "appcast.xml missing edSignature or GitHub release URLs"
-    fi
-fi
+# appcast.xml is retained only as upstream historical material. The community
+# build intentionally has no active feed or Sparkle public key.
 
 # --- documentation/release synchronization ----------------------------------
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)
-README_DMG_VERSIONS=$(grep -oE 'WindowHop-[0-9]+\.[0-9]+\.[0-9]+\.dmg' README.md | sort -u)
-if [ "$README_DMG_VERSIONS" = "WindowHop-$VERSION.dmg" ]; then
-    pass "README download matches version $VERSION"
+README_ZIP_VERSIONS=$(grep -oE 'WindowHop-[0-9]+\.[0-9]+\.[0-9]+\.zip' README.md | sort -u)
+if [ "$README_ZIP_VERSIONS" = "WindowHop-$VERSION.zip" ]; then
+    pass "README artifact matches version $VERSION"
 else
-    fail "README download does not uniquely match version $VERSION: $README_DMG_VERSIONS"
+    fail "README artifact does not uniquely match version $VERSION: $README_ZIP_VERSIONS"
 fi
 
 MARKDOWN_FILES=$(git ls-files '*.md')

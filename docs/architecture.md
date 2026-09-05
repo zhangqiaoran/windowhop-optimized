@@ -54,13 +54,13 @@ through plain AppKit.
 
 1. `EventTap` owns a consuming CGEvent tap (keyDown/keyUp/flagsChanged) on its own
    thread. The callback reads a lock-protected mode — `off`, `watching`, `sessionHeld`,
-   `sessionSticky`, `passthrough` — and decides synchronously whether to consume;
+   `sessionSticky` — and decides synchronously whether to consume;
    semantic events are posted to the main thread. `flagsChanged` is never consumed.
 2. In `watching` it matches two chords: the switcher shortcut (modifier+Tab, Shift
    reverses) opening a **held** session, and the optional persistent shortcut
    (`PersistentShortcut`, exact modifier match) opening a **sticky** session.
 3. `SwitcherController` (main) feeds events into the pure `SwitcherState` machine
-   (phases: inactive → held/sticky → confirming) and executes the returned commands:
+   (phases: inactive → held/sticky) and executes the returned commands:
    show/select on the panel, activate/close via `WindowActions`, cancel.
 4. `ExpandedPreviewSession` owns only targeted and expanded identities. The `Preferences`
    delay is the single source of truth: Off, 1, 2, 3 (default), or 5 seconds. Target
@@ -96,16 +96,22 @@ pieces with one responsibility each:
   the same command surface `SwitcherController` used against a single panel. Callbacks
   are index-based, so which panel a click came from never reaches the controller.
 
-Mirrored panels are identical by construction. They share one grid derived from the
-most constrained target display, because `SwitcherState` tracks a single column count
-for arrow navigation and per-display grids would make ↑/↓ mean different things
-depending on which display the user is looking at. One capture per window feeds every
-panel, sized for the sharpest target scale, so mirroring does not multiply
-ScreenCaptureKit work.
+Focused multi-display mode is the default. It resolves the pointer display from the same
+`connectedDisplays()` snapshot used for placement, creates exactly one panel there, and
+forces cross-display window inclusion while preserving every other eligibility filter. This
+keeps presentation local to where the user is looking without losing windows from the other
+monitors. No mouse polling or idle display observer is added; the target is resolved when a
+session opens.
 
-`Include windows from other displays` is a different concern with a different owner:
-it decides which *windows* are listed, through `WindowInclusionPolicy`, and is
-unaffected by placement.
+When focused multi-display mode is disabled, the legacy placement behavior remains available.
+Mirrored panels are then identical by construction. They share one grid derived from the most
+constrained target display, because `SwitcherState` tracks a single column count for arrow
+navigation and per-display grids would make ↑/↓ mean different things depending on which
+display the user is looking at. One capture per window feeds every panel, sized for the
+sharpest target scale, so mirroring does not multiply ScreenCaptureKit work.
+
+The stored `Include windows from other displays` choice remains separate. Focused mode only
+overrides it at runtime; disabling focused mode restores the stored choice immediately.
 
 ## Presentation
 
@@ -131,8 +137,8 @@ appearance-aware keyboard focus color; no neutral border remains underneath it. 
 has no border and uses the native switcher's soft rounded background for selection and
 hover. Selection surrounds only the fixed content canvas
 — the title stays outside — and every overlay is excluded from layout measurement.
-Hovering a tile reveals an overlay close control (routed through the same
-confirmation as ⌫; also a VoiceOver custom action). Its center equals the canvas's
+Hovering a tile reveals an overlay close control (routed through the same direct
+window-close path as ⌫; also a VoiceOver custom action). Its center equals the canvas's
 top-left point; the scroll document reuses the panel's existing padding as a clip-safe,
 hit-testable overflow gutter, so the card and panel do not grow. A compact Settings
 control (⌘, works without a pointer) keeps most of its 44 pt target inside the panel and
@@ -145,7 +151,9 @@ into **rows** when one row can't fit ~88 % of the screen width (the AltTab
 layout model) — there is no horizontal scrolling and tiles never shrink; ←/→
 step linearly while ↑/↓ move by one row. Only an extreme window count exceeds
 the ~85 % height budget and falls back to vertical scrolling with the selection
-kept visible. Tile views are pooled and reconfigured, so repeated opens and
+kept visible. In Window Previews mode an incomplete row can be aligned Left,
+Center (default, preserving the original layout), or Right without changing the
+grid capacity or tile size. Tile views are pooled and reconfigured, so repeated opens and
 live updates are single-digit milliseconds even with 100+ windows. System
 materials and semantic colors handle Light/Dark, Increase Contrast, and Reduce
 Transparency.
@@ -160,16 +168,20 @@ provider emits a loading state, so unavailable authorization never starts captur
 retry loop. One panel-level action requests a not-determined grant or opens the correct
 Privacy & Security pane; cards never duplicate that action. App activation refreshes the
 status after the user returns from System Settings. App Icons never needs this permission.
-The cache is memory-only and app-lifetime: opening
-the switcher shows the last known snapshot of every window instantly. The
-session recaptures in parallel waves of four and delivers every result live —
-a tile that opened with a cached snapshot crossfades to the fresh capture the
-moment it lands (constant geometry, no layout shift; Reduce Motion disables
-the fade), and tiles that opened with none fill in. Captures are taken without
-the system window shadow (`ignoreShadowsSingleWindow`); the tile draws its own
-shadow along the preview's rounded clip. WindowHop's own Settings window is
-captured too (own pid + converted frame). Entries are evicted the moment their
-window disappears and when the user switches back to App Icons.
+The cache is memory-only and bounded to roughly 64 MiB with LRU eviction. Opening the
+switcher shows any cached tile immediately. A pure O(n) refresh planner schedules the
+selected uncached window first, then every other uncached or geometry/title-invalidated
+window, then stale cached windows. Cache entries younger than two seconds are reused without
+recapture, so rapid repeated switching does not hammer WindowServer. Missing windows always
+beat stale cached windows, which guarantees that large multi-display inventories progressively
+fill instead of repeatedly refreshing only the first few MRU entries.
+
+Capture still runs in parallel waves of four and delivers results live. Matching first filters
+window-server candidates to relevant pids, then `PreviewMatcher` partitions by pid and reuses
+a compact precomputed score matrix inside each app. Expanded dwell images are transient and
+never enter the thumbnail cache, preventing large preview images from accumulating. Captures
+remain tile-sized, shadow-free (`ignoreShadowsSingleWindow`), memory-only, and session-scoped.
+WindowHop's own Settings window is captured too (own pid + converted frame).
 
 Captures finish asynchronously and out of order, so the pure, unit-tested
 `PreviewLedger` decides what a late result may do: results for evicted windows
@@ -245,40 +257,31 @@ off the main thread — on Space changes (elements missing from `kAXWindows`) an
 every switcher open (the visible entries) — and removes the dead ones. Ported in
 spirit from AltTab's missing-window checks on trigger (upstream `39070383`).
 
-## Close, Quit, Force Quit
+## Close
 
-The confirmation dialog hides the switcher panel while it runs (so it is always on
-top and keyboard-focused) and restores it afterwards with the previous selection.
-Buttons: Cancel (default), Close Window (AX close button; the app's own
-unsaved-changes flow runs), and Quit <App> (`NSRunningApplication.terminate()` —
-never injected keystrokes). If a quit was already requested and the app still runs,
-the offer escalates to "Force Quit <App>…", which opens a second, explicitly
-destructive confirmation before `forceTerminate()`. WindowHop's own Settings entry
-offers Cancel/Close only.
+Delete and the hover close control act on the selected top-level window immediately.
+`WindowActions.close` presses that window's native close button through Accessibility
+(or `performClose` for WindowHop's own Settings window), so the target application's
+normal unsaved-changes workflow is preserved. The switcher never turns a window-close
+request into Quit or Force Quit; closing a Finder window therefore closes only that
+Finder window and never offers to quit Finder.
 
-## Updates
+## Updates and releases
 
-`UpdateManager` wraps Sparkle 2's `SPUStandardUpdaterController` and only starts from a
-real bundle (`com.perso.windowhop` with `SUFeedURL` present). As the updater
-delegate it mirrors the latest found update version (`availableVersion`,
-observable) so the Settings Updates pane can show "X.Y.Z is available" with an
-install button; the standard Sparkle dialog still owns install / remind-later /
-skip-this-version, so the same version never nags twice and a failed check
-changes nothing. The appcast lives at
-`https://raw.githubusercontent.com/martonpaulo/windowhop/main/appcast.xml`; archives are
-EdDSA-signed (`SUPublicEDKey` embedded in Info.plist, private key in Keychain/CI secret).
-Update checks are the app's only network activity.
+The zhangqiaoran v1.0.0 community build intentionally ships with automatic Sparkle
+updates disabled. `Support/Info.plist` contains no upstream `SUFeedURL` or
+`SUPublicEDKey`, and `WindowHopForkUpdatesDisabled` prevents `UpdateManager` from
+starting. This prevents the maintained build from replacing itself with another
+project's release line.
 
-Official tag builds are fail-closed: the workflow accepts only the current `main` commit,
-requires an Apple-issued Developer ID Application identity plus Apple ID notarization
-credentials, and validates the final app against `Support/ExpectedDesignatedRequirement.txt`
-and the stable public leaf certificate in `Support/WindowHopCodeSigning.cer`. The validator
-checks bundle id, Team ID, hardened runtime, entitlements, every nested Mach-O signature,
-and the exact designated requirement. The workflow submits both the app archive and final
-DMG with `notarytool --wait`, staples and validates both tickets, runs Gatekeeper on the
-app and DMG, preserves the branded DMG resource fork in an installer ZIP, then signs the
-Sparkle archive and publishes. Local packages may remain ad-hoc signed only when release
-identity validation is explicitly inapplicable.
+The canonical release path is `.github/workflows/release-community.yml`: a matching
+`vX.Y.Z` tag is checked against `CFBundleShortVersionString`, tests and repository
+validation run on a macOS runner, `scripts/package-app.sh` creates an ad-hoc signed app
+archive, and GitHub CLI publishes the ZIP as a GitHub Release.
+
+A future notarized Developer ID/Sparkle channel may be added only with zhangqiaoran-owned
+credentials, Team ID, public/private update keys, and repository URLs. No upstream
+certificate or private signing material is part of the current project.
 
 ## Public-API replacements for AltTab's private calls
 

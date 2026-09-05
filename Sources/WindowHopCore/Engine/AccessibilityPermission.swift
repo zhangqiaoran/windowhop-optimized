@@ -35,7 +35,7 @@ public enum AccessibilityPermission {
     public static func resetStaleGrant() {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-        process.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.perso.windowhop"]
+        process.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.zhangqiaoran.myalttab"]
         try? process.run()
         process.waitUntilExit()
     }

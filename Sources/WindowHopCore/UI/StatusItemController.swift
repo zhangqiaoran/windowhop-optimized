@@ -12,7 +12,7 @@ public final class StatusItemController: NSObject {
         if shouldShow, statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             item.button?.image = NSImage(systemSymbolName: "rectangle.on.rectangle",
-                                         accessibilityDescription: "WindowHop")
+                                         accessibilityDescription: "my-alt-tab")
             item.menu = buildMenu()
             statusItem = item
         } else if !shouldShow, let statusItem {
@@ -38,7 +38,7 @@ public final class StatusItemController: NSObject {
             menu.addItem(updatesItem)
         }
         menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit WindowHop", action: #selector(quit), keyEquivalent: "")
+        let quitItem = NSMenuItem(title: "Quit my-alt-tab", action: #selector(quit), keyEquivalent: "")
         quitItem.target = self
         menu.addItem(quitItem)
         return menu

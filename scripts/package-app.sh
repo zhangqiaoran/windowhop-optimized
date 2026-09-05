@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds the Release binary and assembles a runnable WindowHop.app with the
+# Builds the Release binary and assembles a runnable my-alt-tab.app with the
 # Sparkle framework embedded.
 #
 # Signing:
@@ -7,7 +7,7 @@
 #   - Otherwise: ad-hoc signing — free to build and run locally, no paid account.
 #
 # Usage: scripts/package-app.sh [version] [build-number]
-# Output: build/WindowHop.app and artifacts/WindowHop-<version>.zip
+# Output: build/my-alt-tab.app and artifacts/my-alt-tab-<version>.zip
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,10 +19,10 @@ IDENTITY="${DEVELOPER_ID_IDENTITY:--}"
 
 swift build -c release
 
-APP=build/WindowHop.app
+APP=build/my-alt-tab.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
-cp .build/release/WindowHop "$APP/Contents/MacOS/WindowHop"
+cp .build/release/WindowHop "$APP/Contents/MacOS/my-alt-tab"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # ditto preserves the framework's symlink structure; cp -R would break it
@@ -51,7 +51,7 @@ if [ "$IDENTITY" != "-" ]; then
 fi
 
 mkdir -p artifacts
-ZIP="artifacts/WindowHop-$VERSION.zip"
+ZIP="artifacts/my-alt-tab-$VERSION.zip"
 rm -f "$ZIP"
 # ditto -c -k preserves symlinks and signatures, as Sparkle requires
 ditto -c -k --keepParent "$APP" "$ZIP"

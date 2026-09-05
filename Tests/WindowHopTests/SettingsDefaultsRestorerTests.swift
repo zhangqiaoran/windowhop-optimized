@@ -45,7 +45,7 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertFalse(preferences.showTabCounts)
-        XCTAssertTrue(preferences.automaticUpdateChecks)
+        XCTAssertFalse(preferences.automaticUpdateChecks)
         let restored = Preferences(defaults: defaults)
         XCTAssertEqual(restored.persistentShortcut, .optionTab)
         XCTAssertFalse(restored.showTabCounts)

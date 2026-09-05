@@ -1,19 +1,19 @@
 #!/bin/bash
-# Creates the WindowHop installer DMG: drag-to-Applications layout with
+# Creates the my-alt-tab installer DMG: drag-to-Applications layout with
 # background artwork, fixed icon positions, a volume icon, and (locally) a
 # matching icon on the .dmg file itself. Built with appdmg (pinned), which
 # writes the Finder layout (.DS_Store) programmatically — works headless on
 # CI, no Finder scripting.
-# Usage: scripts/make-dmg.sh <version>   (expects build/WindowHop.app to exist)
+# Usage: scripts/make-dmg.sh <version>   (expects build/my-alt-tab.app to exist)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DEFAULT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Support/Info.plist)
 VERSION="${1:-$DEFAULT_VERSION}"
 APPDMG_VERSION=0.6.6
-DMG="artifacts/WindowHop-$VERSION.dmg"
+DMG="artifacts/my-alt-tab-$VERSION.dmg"
 
-[ -d build/WindowHop.app ] || { echo "build/WindowHop.app missing; run scripts/package-app.sh first"; exit 1; }
+[ -d build/my-alt-tab.app ] || { echo "build/my-alt-tab.app missing; run scripts/package-app.sh first"; exit 1; }
 
 mkdir -p artifacts
 rm -f "$DMG"
@@ -22,13 +22,13 @@ rm -f "$DMG"
 # (scripts/render-dmg-background.swift): window 680x400, icons at y 225
 cat > artifacts/dmg-spec.json <<JSON
 {
-  "title": "WindowHop $VERSION",
+  "title": "my-alt-tab $VERSION",
   "icon": "../Support/AppInstallerIcon.icns",
   "background": "../Support/WindowHopInstallerBackground.tiff",
   "icon-size": 112,
   "window": { "size": { "width": 680, "height": 400 } },
   "contents": [
-    { "x": 180, "y": 225, "type": "file", "path": "../build/WindowHop.app" },
+    { "x": 180, "y": 225, "type": "file", "path": "../build/my-alt-tab.app" },
     { "x": 500, "y": 225, "type": "link", "path": "/Applications" }
   ]
 }
@@ -36,7 +36,7 @@ JSON
 npx --yes "appdmg@$APPDMG_VERSION" artifacts/dmg-spec.json "$DMG"
 rm -f artifacts/dmg-spec.json
 
-# give the .dmg file itself the WindowHop icon (resource fork; survives local
+# give the .dmg file itself the my-alt-tab icon (resource fork; survives local
 # copies — download services strip xattrs, so the VOLUME icon is the one every
 # user sees after mounting)
 if xcrun --find Rez >/dev/null 2>&1 && command -v SetFile >/dev/null 2>&1; then

@@ -9,7 +9,7 @@ import ApplicationServices
 public enum WindowActions {
     /// Schedules main-thread UI only after every previously requested AX action
     /// has finished. This prevents a committed activation already in flight from
-    /// stealing focus back from Settings or a confirmation dialog.
+    /// stealing focus back from Settings or another app-owned modal surface.
     public static func afterPendingActions(_ action: @escaping () -> Void) {
         BackgroundWork.axActionsQueue.async {
             DispatchQueue.main.async(execute: action)
@@ -77,8 +77,8 @@ public enum WindowActions {
         app.runningApplication.terminate()
     }
 
-    /// Immediate termination; only reachable through the explicit, destructive,
-    /// twice-confirmed Force Quit path.
+    /// Immediate termination helper retained for API compatibility. The switcher
+    /// never offers Force Quit from its window-close controls.
     public static func forceQuit(_ app: TrackedApp) {
         app.runningApplication.forceTerminate()
     }

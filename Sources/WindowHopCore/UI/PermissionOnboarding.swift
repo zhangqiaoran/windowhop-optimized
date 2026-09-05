@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// First-run explanation of the single permission WindowHop needs.
+/// First-run explanation of the single permission my-alt-tab needs.
 /// Polls only while this window is visible; closes itself once access is granted.
 public final class PermissionOnboardingController {
     public static let shared = PermissionOnboardingController()
@@ -14,7 +14,7 @@ public final class PermissionOnboardingController {
         if window == nil {
             let hosting = NSHostingController(rootView: PermissionOnboardingView())
             let newWindow = NSWindow(contentViewController: hosting)
-            newWindow.title = "Welcome to WindowHop"
+            newWindow.title = "Welcome to my-alt-tab"
             newWindow.styleMask = [.titled, .closable]
             newWindow.isReleasedWhenClosed = false
             newWindow.center()
@@ -59,12 +59,12 @@ struct PermissionOnboardingView: View {
             Image(systemName: "rectangle.on.rectangle")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.tint)
-            Text("WindowHop needs Accessibility access")
+            Text("my-alt-tab needs Accessibility access")
                 .font(.title3.weight(.semibold))
             if AccessibilityPermission.isTranslocated {
                 // quarantined apps run from a randomized path; no grant can stick
                 Label {
-                    Text("WindowHop is running from a temporary macOS location, so this permission can't be saved. Move WindowHop.app into Applications with Finder, then open it again.")
+                    Text("my-alt-tab is running from a temporary macOS location, so this permission can't be saved. Move my-alt-tab.app into Applications with Finder, then open it again.")
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -72,7 +72,7 @@ struct PermissionOnboardingView: View {
                 }
                 .font(.callout)
             }
-            Text("macOS requires this permission to list your windows and to switch between them with the keyboard. WindowHop uses no other permission — it never records your screen and never connects to the network.")
+            Text("macOS requires this permission to list your windows and to switch between them with the keyboard. my-alt-tab uses no other permission — it never records your screen and never connects to the network.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -81,7 +81,7 @@ struct PermissionOnboardingView: View {
                 AccessibilityPermission.openSystemSettings()
             }
             .keyboardShortcut(.defaultAction)
-            Text("System Settings → Privacy & Security → Accessibility → enable WindowHop")
+            Text("System Settings → Privacy & Security → Accessibility → enable my-alt-tab")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
             Divider()
@@ -89,7 +89,7 @@ struct PermissionOnboardingView: View {
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
-            Button(didResetGrant ? "Permission reset — enable WindowHop in the list" : "Reset Stuck Permission…") {
+            Button(didResetGrant ? "Permission reset — enable my-alt-tab in the list" : "Reset Stuck Permission…") {
                 // clears our own stale TCC entry so the next grant binds cleanly
                 AccessibilityPermission.resetStaleGrant()
                 didResetGrant = true

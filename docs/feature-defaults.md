@@ -4,12 +4,12 @@
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.
 
-## WindowHop 1.3.1 decisions
+## my-alt-tab 1.3.1 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|
 | Switcher shortcut | ⌘Tab | Yes | Shortcuts; typed `UserDefaults`; existing stored values win; resets to ⌘Tab. |
-| Open WindowHop shortcut | ⌥Tab | Yes | Shortcuts; typed `UserDefaults`; an existing custom or explicitly cleared value wins; resets to ⌥Tab. |
+| Open my-alt-tab shortcut | ⌥Tab | Yes | Shortcuts; typed `UserDefaults`; an existing custom or explicitly cleared value wins; resets to ⌥Tab. |
 | Show tab counts | Off | Yes | Appearance; typed `UserDefaults`; existing stored values win; resets to Off. |
 | Context-sensitive Settings button | Enabled | No | One intended presentation behavior: hidden in cycling until panel hover, always visible in persistent mode. No persistence or reset entry. |
 | Complete shortcut interception | Enabled | No | Correctness fix: an owned shortcut must not leak into the native app switcher. No persistence or reset entry. |
@@ -21,7 +21,7 @@ fails when a new configurable key is omitted from Restore Defaults.
 Existing preferences are never overwritten during an upgrade. Missing keys receive the
 centralized default through the registration domain; migrations are explicit and tested.
 
-## WindowHop 1.4.0 decisions
+## my-alt-tab 1.4.0 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|
@@ -29,17 +29,21 @@ centralized default through the registration domain; migrations are explicit and
 | Selected Settings pane | General | No | Window-state restoration, not a preference: the pane identifier is stored in `UserDefaults` and ignored when unknown. Not part of `configurableKeys`; Restore Defaults leaves it untouched. |
 | Unambiguous preview matching | Enabled | No | Correctness fix: a preview is shown only for the window it belongs to, otherwise the tile keeps its placeholder. No persistence or reset entry. |
 
-## WindowHop 1.5.0 decisions
+## my-alt-tab 1.5.0 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|
 | Windows appearing mid-session | Shown | No | Correctness fix: a window the user cannot see is a window they cannot reach, and the existing inclusion policy already decides what qualifies. The stability concern that motivated the frozen list is met by appending instead of reordering (see `SessionListReconciler`), so no legitimate "hide new windows" state remains. No persistence or reset entry. |
 
-## WindowHop 1.6.0 decisions
+## my-alt-tab 1.0.0 (zhangqiaoran release line) decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|
+| Focused multi-display mode | On | Yes | Windows pane; typed `UserDefaults` (`focusedMultiDisplayMode`); one switcher is drawn on the pointer display while eligible windows from every display remain in the list. Turning it off restores the pre-existing placement and cross-display inclusion controls. Restore Defaults resets to On. |
 | Switcher placement across displays | All displays | Yes | Windows pane; typed `UserDefaults` (`switcherDisplayPlacement`); no migration — an installation with no stored value takes the new default and every other stored choice is untouched; resets to All displays. Placement is display *behavior*, so it lives beside the inclusion filters rather than under Appearance. |
 | Chosen display for "a specific display" | None | Yes | Windows pane; typed `UserDefaults` (`switcherDisplayID`), a display UUID from `CGDisplayCreateUUIDFromDisplayID` so it survives reconnect and reboot. A disconnected choice is kept verbatim, shown in the picker as disconnected, and falls back to the pointer display until it returns; resets to none. |
 | Pointer display rather than keyboard focus | Pointer | No | One valid outcome: `NSScreen.main` is documented to misreport the active screen (fullscreen app, or `screensHaveSeparateSpaces` off), and the pointer is what tracks where the user is looking. No persistence or reset entry. See `UPSTREAM.md`. |
 | Identical grid on mirrored panels | Enabled | No | Correctness constraint: `SwitcherState` holds one column count for arrow navigation, so per-display grids would make the arrow keys ambiguous. The shared grid comes from the most constrained target display. No persistence or reset entry. |
+| Preview row alignment | Center | Yes | Appearance pane; typed `UserDefaults` (`previewRowAlignment`); applies only to incomplete rows in Window Previews mode, so full-row geometry and App Icons remain unchanged. Missing or invalid stored values fall back to Center; Restore Defaults resets to Center. |
+| Direct window close | Enabled | No | Delete and the hover close control invoke the selected window's native close action immediately. They never offer application Quit/Force Quit; app-owned unsaved-changes dialogs remain intact. No persistence or reset entry. |
+| Event-tap self-healing | Enabled | No | Reliability fix: wake/session recovery first re-enables the existing CGEvent tap and rebuilds it only when invalid or unable to re-enable. No idle polling, timer, persistence, or reset entry. |

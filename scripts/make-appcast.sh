@@ -9,7 +9,7 @@ VERSION="$1"
 BUILD_NUMBER="$2"
 ZIP_PATH="$3"
 SIGNATURE_ATTRS="$4"
-URL="https://github.com/martonpaulo/windowhop/releases/download/v$VERSION/$(basename "$ZIP_PATH")"
+URL="https://github.com/zhangqiaoran/windowhop-optimized/releases/download/v$VERSION/$(basename "$ZIP_PATH")"
 DATE=$(LC_ALL=en_US.UTF-8 date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
 # BSD awk rejects newlines in -v values, so the item travels via a temp file
@@ -32,7 +32,7 @@ if [ ! -f appcast.xml ]; then
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>WindowHop</title>
-    <link>https://github.com/martonpaulo/windowhop</link>
+    <link>https://github.com/zhangqiaoran/windowhop-optimized</link>
     <description>Most recent updates to WindowHop</description>
     <language>en</language>
   </channel>

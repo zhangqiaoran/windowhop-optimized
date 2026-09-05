@@ -25,8 +25,10 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
+        XCTAssertEqual(preferences.previewRowAlignment, .center)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
         XCTAssertEqual(preferences.expandedPreviewDelay.duration, 3)
+        XCTAssertTrue(preferences.focusedMultiDisplayMode)
         XCTAssertEqual(preferences.switcherDisplayPlacement, .allDisplays)
         XCTAssertNil(preferences.switcherDisplayID)
         XCTAssertTrue(preferences.includeOtherSpaces)
@@ -37,7 +39,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.showTabCounts)
         XCTAssertFalse(preferences.showMenuBarItem)
         XCTAssertFalse(preferences.showDockIcon)
-        XCTAssertTrue(preferences.automaticUpdateChecks)
+        XCTAssertFalse(preferences.automaticUpdateChecks)
         XCTAssertFalse(preferences.firstLaunchCompleted)
     }
 
@@ -48,7 +50,9 @@ final class PreferencesTests: XCTestCase {
         preferences.persistentShortcut = PersistentShortcut(
             keyCode: KeyCode.space, modifiers: [.maskAlternate])
         preferences.appearanceMode = .windowPreviews
+        preferences.previewRowAlignment = .right
         preferences.expandedPreviewDelay = .fiveSeconds
+        preferences.focusedMultiDisplayMode = false
         preferences.switcherDisplayPlacement = .specificDisplay
         preferences.switcherDisplayID = "UUID-EXTERNAL"
         preferences.includeOtherSpaces = false
@@ -69,7 +73,9 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(restored.shortcut, .optionTab)
         XCTAssertEqual(restored.persistentShortcut, preferences.persistentShortcut)
         XCTAssertEqual(restored.appearanceMode, .windowPreviews)
+        XCTAssertEqual(restored.previewRowAlignment, .right)
         XCTAssertEqual(restored.expandedPreviewDelay, .fiveSeconds)
+        XCTAssertFalse(restored.focusedMultiDisplayMode)
         XCTAssertEqual(restored.switcherDisplayPlacement, .specificDisplay)
         XCTAssertEqual(restored.switcherDisplayID, "UUID-EXTERNAL")
         XCTAssertFalse(restored.includeOtherSpaces)
@@ -103,8 +109,11 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(migrated.shortcut, .optionTab)
         XCTAssertEqual(migrated.persistentShortcut, openShortcut)
         XCTAssertEqual(migrated.appearanceMode, .windowPreviews)
+        XCTAssertEqual(migrated.previewRowAlignment, .center)
         XCTAssertEqual(migrated.expandedPreviewDelay, .threeSeconds,
                        "existing users inherit the documented three-second default")
+        XCTAssertTrue(migrated.focusedMultiDisplayMode,
+                      "the optimized single-panel multi-display behavior is the new default")
         XCTAssertFalse(migrated.includeMinimizedWindows)
         XCTAssertFalse(migrated.includeHiddenApplicationWindows)
         XCTAssertFalse(migrated.includePictureInPictureWindows)
@@ -119,6 +128,7 @@ final class PreferencesTests: XCTestCase {
 
     func testCorruptAppearanceAndBooleanValuesFallBackToDocumentedDefaults() {
         defaults.set("obsolete-mode", forKey: Preferences.Key.appearanceMode.rawValue)
+        defaults.set("diagonal", forKey: Preferences.Key.previewRowAlignment.rawValue)
         defaults.set("obsolete-delay", forKey: Preferences.Key.expandedPreviewDelay.rawValue)
         defaults.set("not-a-boolean", forKey: Preferences.Key.includeOtherSpaces.rawValue)
         defaults.set("not-a-boolean",
@@ -128,6 +138,7 @@ final class PreferencesTests: XCTestCase {
         let restored = Preferences(defaults: defaults)
 
         XCTAssertEqual(restored.appearanceMode, .appIcons)
+        XCTAssertEqual(restored.previewRowAlignment, .center)
         XCTAssertEqual(restored.expandedPreviewDelay, .threeSeconds)
         XCTAssertTrue(restored.includeOtherSpaces)
         XCTAssertFalse(restored.includeMinimizedWindows)
@@ -147,6 +158,15 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(ExpandedPreviewDelay.fiveSeconds.duration, 5)
         XCTAssertEqual(ExpandedPreviewDelay.allCases.map(\.displayName),
                        ["Off", "1 second", "2 seconds", "3 seconds", "5 seconds"])
+    }
+
+    func testPreviewRowAlignmentUsesPredictableLeadingOffsets() {
+        XCTAssertEqual(PreviewRowAlignment.allCases.map(\.displayName),
+                       ["Left", "Center", "Right"])
+        XCTAssertEqual(PreviewRowAlignment.left.leadingOffset(remainingWidth: 120), 0)
+        XCTAssertEqual(PreviewRowAlignment.center.leadingOffset(remainingWidth: 120), 60)
+        XCTAssertEqual(PreviewRowAlignment.right.leadingOffset(remainingWidth: 120), 120)
+        XCTAssertEqual(PreviewRowAlignment.right.leadingOffset(remainingWidth: -1), 0)
     }
 
     func testExpandedPreviewDelayPublishesRuntimeUpdatesImmediately() {
@@ -186,7 +206,9 @@ final class PreferencesTests: XCTestCase {
         preferences.shortcut = .controlTab
         preferences.persistentShortcut = nil
         preferences.appearanceMode = .windowPreviews
+        preferences.previewRowAlignment = .left
         preferences.expandedPreviewDelay = .off
+        preferences.focusedMultiDisplayMode = false
         preferences.includeOtherSpaces = false
         preferences.includeOtherDisplays = false
         preferences.includeMinimizedWindows = true
@@ -205,7 +227,9 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
+        XCTAssertEqual(preferences.previewRowAlignment, .center)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
+        XCTAssertTrue(preferences.focusedMultiDisplayMode)
         XCTAssertEqual(preferences.switcherDisplayPlacement, .allDisplays)
         XCTAssertNil(preferences.switcherDisplayID)
         XCTAssertTrue(preferences.includeOtherSpaces)
@@ -216,9 +240,23 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.showTabCounts)
         XCTAssertFalse(preferences.showMenuBarItem)
         XCTAssertFalse(preferences.showDockIcon)
-        XCTAssertTrue(preferences.automaticUpdateChecks)
+        XCTAssertFalse(preferences.automaticUpdateChecks)
         XCTAssertTrue(preferences.firstLaunchCompleted,
                       "Restore Defaults must not repeat first-run state")
+    }
+
+    func testFocusedMultiDisplayModeForcesCrossDisplayInclusionWithoutLosingStoredChoice() {
+        preferences.includeOtherDisplays = false
+        preferences.focusedMultiDisplayMode = true
+
+        XCTAssertFalse(preferences.windowInclusionPolicy.includeOtherDisplays,
+                       "the stored legacy choice remains untouched")
+        XCTAssertTrue(preferences.effectiveWindowInclusionPolicy.includeOtherDisplays,
+                      "focused mode must load windows from every display")
+
+        preferences.focusedMultiDisplayMode = false
+        XCTAssertFalse(preferences.effectiveWindowInclusionPolicy.includeOtherDisplays,
+                       "disabling focused mode restores the legacy display filter")
     }
 
     func testInvalidStoredPlacementFallsBackToTheDocumentedDefault() {

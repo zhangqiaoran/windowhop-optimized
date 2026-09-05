@@ -24,7 +24,7 @@ final class ShortcutRecorderControl: NSButton {
         setButtonType(.momentaryPushIn)
         target = self
         action = #selector(toggleRecording)
-        setAccessibilityLabel("Open WindowHop shortcut")
+        setAccessibilityLabel("Open my-alt-tab shortcut")
         refreshTitle()
     }
 

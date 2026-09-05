@@ -75,45 +75,129 @@ enum PreviewMatcher {
     /// at most once, so two windows of the same app can never share a preview,
     /// and requests without a clear match are simply absent from the result.
     static func assign(requests: [Request], candidates: [Candidate]) -> [AnyHashable: Int] {
-        var assigned: [AnyHashable: Int] = [:]
-        var openRequests = Set(requests.indices)
-        // helper windows too small to capture are not real candidates
-        var openCandidates = Set(candidates.indices.filter {
+        guard !requests.isEmpty, !candidates.isEmpty else { return [:] }
+
+        // PID is a hard constraint, so comparing windows from different apps can
+        // never produce an edge. Partition first instead of paying that cost in
+        // every winner scan. On a desktop with many apps this turns one large
+        // quadratic search into several tiny per-app searches.
+        let requestsByPID = Dictionary(grouping: requests.indices, by: { requests[$0].pid })
+        let candidatesByPID = Dictionary(grouping: candidates.indices.filter {
             candidates[$0].frame.width > 1 && candidates[$0].frame.height > 1
-        })
-        // Resolving the certain pairs frees candidates, which can turn a
-        // previously ambiguous request into a certain one; repeat until settled.
-        while !openRequests.isEmpty, !openCandidates.isEmpty {
-            var round: [(request: Int, candidate: Int)] = []
-            for requestIndex in openRequests.sorted() {
-                guard let candidateIndex = clearWinner(
-                        among: openCandidates,
-                        scoredBy: { score(requests[requestIndex], candidates[$0]) }),
-                      clearWinner(among: openRequests,
-                                  scoredBy: { score(requests[$0], candidates[candidateIndex]) })
-                        == requestIndex else { continue }
-                round.append((requestIndex, candidateIndex))
+        }, by: { candidates[$0].pid })
+
+        var assigned: [AnyHashable: Int] = [:]
+        assigned.reserveCapacity(requests.count)
+        for (pid, requestIndices) in requestsByPID {
+            guard let candidateIndices = candidatesByPID[pid], !candidateIndices.isEmpty else {
+                continue
             }
-            if round.isEmpty { break }
-            for pair in round {
-                assigned[requests[pair.request].id] = candidates[pair.candidate].index
-                openRequests.remove(pair.request)
-                openCandidates.remove(pair.candidate)
-            }
+            assignGroup(requestIndices: requestIndices, candidateIndices: candidateIndices,
+                        requests: requests, candidates: candidates, into: &assigned)
         }
         return assigned
     }
 
+    /// Settles one application's bipartite matching problem. Pair scores are
+    /// computed once, then reused across elimination rounds; removals can make an
+    /// ambiguous edge unique without re-normalizing titles or re-measuring frames.
+    private static func assignGroup(requestIndices: [Int],
+                                    candidateIndices: [Int],
+                                    requests: [Request],
+                                    candidates: [Candidate],
+                                    into assigned: inout [AnyHashable: Int]) {
+        // Keep local indices dense so one flat optional-Score buffer replaces a
+        // dictionary-of-dictionaries. Browser/IDE processes can own dozens of
+        // windows; contiguous storage is both faster to scan and far cheaper in
+        // allocator/hash-table overhead.
+        let requestOrder = requestIndices.sorted()
+        let candidateOrder = candidateIndices.sorted()
+        let requestCount = requestOrder.count
+        let candidateCount = candidateOrder.count
+        var scores = Array<Score?>(repeating: nil,
+                                   count: requestCount * candidateCount)
+        @inline(__always) func scoreIndex(_ request: Int, _ candidate: Int) -> Int {
+            request * candidateCount + candidate
+        }
+
+        for requestLocal in 0..<requestCount {
+            let requestIndex = requestOrder[requestLocal]
+            for candidateLocal in 0..<candidateCount {
+                let candidateIndex = candidateOrder[candidateLocal]
+                scores[scoreIndex(requestLocal, candidateLocal)] =
+                    score(requests[requestIndex], candidates[candidateIndex])
+            }
+        }
+
+        // Local indices are already dense. Boolean activity masks are cheaper
+        // than Set<Int> here: no hashing, no node allocation, and every winner
+        // scan walks contiguous memory beside the contiguous score matrix. This
+        // matters most for browser/IDE processes with dozens of windows.
+        var openRequests = Array(repeating: true, count: requestCount)
+        var openCandidates = Array(repeating: true, count: candidateCount)
+        var openRequestCount = requestCount
+        var openCandidateCount = candidateCount
+        var requestWinners = Array(repeating: -1, count: requestCount)
+        var candidateWinners = Array(repeating: -1, count: candidateCount)
+
+        while openRequestCount > 0, openCandidateCount > 0 {
+            for requestLocal in 0..<requestCount where openRequests[requestLocal] {
+                requestWinners[requestLocal] = clearWinner(
+                    active: openCandidates,
+                    scoredBy: { scores[scoreIndex(requestLocal, $0)] }) ?? -1
+            }
+
+            for candidateLocal in 0..<candidateCount where openCandidates[candidateLocal] {
+                candidateWinners[candidateLocal] = clearWinner(
+                    active: openRequests,
+                    scoredBy: { scores[scoreIndex($0, candidateLocal)] }) ?? -1
+            }
+
+            var resolvedThisRound = 0
+            for requestLocal in 0..<requestCount where openRequests[requestLocal] {
+                let candidateLocal = requestWinners[requestLocal]
+                guard candidateLocal >= 0,
+                      openCandidates[candidateLocal],
+                      candidateWinners[candidateLocal] == requestLocal else { continue }
+
+                let requestIndex = requestOrder[requestLocal]
+                let candidateIndex = candidateOrder[candidateLocal]
+                assigned[requests[requestIndex].id] = candidates[candidateIndex].index
+                openRequests[requestLocal] = false
+                openCandidates[candidateLocal] = false
+                openRequestCount -= 1
+                openCandidateCount -= 1
+                resolvedThisRound += 1
+            }
+            guard resolvedThisRound > 0 else { break }
+        }
+    }
+
     /// The single best element, or nil when nothing scores or the best two are
-    /// indistinguishable.
-    private static func clearWinner(among indices: Set<Int>,
+    /// indistinguishable. The active mask is dense and read-only, so this stays
+    /// allocation-free inside the matching loop.
+    private static func clearWinner(active: [Bool],
                                     scoredBy score: (Int) -> Score?) -> Int? {
-        // sorted by index first, so equal scores always resolve the same way
-        let scored = indices.sorted().compactMap { index in score(index).map { (index, $0) } }
-        guard let best = scored.min(by: { $0.1 < $1.1 }) else { return nil }
-        let runnerUp = scored.filter { $0.0 != best.0 }.min(by: { $0.1 < $1.1 })
-        if let runnerUp, best.1.isTied(with: runnerUp.1) { return nil }
-        return best.0
+        var best: (index: Int, score: Score)?
+        var runnerUp: Score?
+
+        for index in active.indices where active[index] {
+            guard let candidateScore = score(index) else { continue }
+            guard let currentBest = best else {
+                best = (index, candidateScore)
+                continue
+            }
+            if candidateScore < currentBest.score {
+                runnerUp = currentBest.score
+                best = (index, candidateScore)
+            } else if runnerUp == nil || candidateScore < runnerUp! {
+                runnerUp = candidateScore
+            }
+        }
+
+        guard let best else { return nil }
+        if let runnerUp, best.score.isTied(with: runnerUp) { return nil }
+        return best.index
     }
 
     /// Nil when the pair is impossible (different apps, or neither the frame nor

@@ -5,11 +5,11 @@ import AppKit
 /// dimensions — change a token here and every surface follows.
 enum DesignTokens {
     // MARK: Panel chrome
-    static let panelPadding: CGFloat = 16
-    static let panelCornerRadius: CGFloat = 28
+    static let panelPadding: CGFloat = 12
+    static let panelCornerRadius: CGFloat = 22
     /// The grid may use up to this fraction of the screen's width/height.
-    static let panelMaxWidthFraction: CGFloat = 0.88
-    static let panelMaxHeightFraction: CGFloat = 0.85
+    static let panelMaxWidthFraction: CGFloat = 0.90
+    static let panelMaxHeightFraction: CGFloat = 0.84
     /// Settings is a compact global overlay. Most of the hit target remains
     /// inside the panel while a small named overlap keeps it attached to the
     /// outer top-right corner.
@@ -43,11 +43,11 @@ enum DesignTokens {
     static let previewSelectionPadding: CGFloat = 2
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
-    static let tileSpacing: CGFloat = 18
+    static let tileSpacing: CGFloat = 12
     /// Full-card separation between wrapped rows. The tile height already
     /// includes preview overlays, title, and metadata; this is the remaining
     /// visual breathing room between complete cards.
-    static let tileRowSpacing: CGFloat = 30
+    static let tileRowSpacing: CGFloat = 22
     static let tileLabelInset: CGFloat = 8
     /// Native system typography, tuned to the public product preview. Font
     /// family remains AppKit-owned so locale, rendering, and accessibility
@@ -61,15 +61,15 @@ enum DesignTokens {
     /// Titles wrap to two lines before truncating; the zone is always two lines
     /// tall so tiles never resize between one- and two-line titles. A single
     /// line centers vertically inside the zone.
-    static let titleZoneHeight: CGFloat = 36
+    static let titleZoneHeight: CGFloat = 34
     static let titleMaxLines = 2
     static let metadataHeight: CGFloat = 16
     static let labelBottomInset: CGFloat = 6
     static let titleMetadataSpacing: CGFloat = 1
-    static let contentTopInset: CGFloat = 10
+    static let contentTopInset: CGFloat = 8
     /// The one gap between the bottom of the content (icon or preview) and the
     /// top of the title zone — identical on every card, in both appearances.
-    static let contentTitleGap: CGFloat = 12
+    static let contentTitleGap: CGFloat = 9
 
     /// Tile height derived from the content height, so the label zone and the
     /// content-to-title gap stay identical across appearances and screens.
@@ -83,12 +83,12 @@ enum DesignTokens {
     }
 
     // MARK: App Icons appearance (density matched to the native switcher)
-    static let appIconsTileWidth: CGFloat = 124
-    static let appIconsContentHeight: CGFloat = 92
-    static let largeIconSize: CGFloat = 88
+    static let appIconsTileWidth: CGFloat = 116
+    static let appIconsContentHeight: CGFloat = 84
+    static let largeIconSize: CGFloat = 80
 
     // MARK: Window Previews appearance
-    static let previewsTileWidth: CGFloat = 204
+    static let previewsTileWidth: CGFloat = 188
     /// Preview containers all share the aspect ratio of the display the
     /// switcher is presented on, so every card has identical dimensions and
     /// any window fits inside without cropping (unused area uses the semantic
@@ -99,18 +99,12 @@ enum DesignTokens {
     static let previewCornerRadius = cardCornerRadius
     /// The badge is 60% of its previous rendered size and overlaps the fixed
     /// canvas corner, independent of the source image's aspect-fit bounds.
-    static let previewBadgeSize: CGFloat = 48
-    static let previewOverlayOverlap: CGFloat = 8
-    /// The snapshot's own soft shadow (the capture itself is shadow-free); the
-    /// path follows the preview's rounded shape, never a plain rectangle.
-    static let previewShadowRadius: CGFloat = 6
-    static let previewShadowOpacity: Float = 0.16
-    static let previewShadowOffset = CGSize(width: 0, height: -2)
-
+    static let previewBadgeSize: CGFloat = 38
+    static let previewOverlayOverlap: CGFloat = 6
     // MARK: Overlay close control
     static let closeButtonHitSize: CGFloat = 44
-    static let closeButtonVisibleSize: CGFloat = 28
-    static let closeButtonGlyphSize: CGFloat = 12
+    static let closeButtonVisibleSize: CGFloat = 26
+    static let closeButtonGlyphSize: CGFloat = 11
     /// The centered control extends beyond the canvas. The panel reuses its
     /// existing padding as clip-safe overflow, so neither cards nor the visible
     /// panel grow to accommodate it.
@@ -119,11 +113,9 @@ enum DesignTokens {
     static let closeButtonTopOverflow = max(
         0, closeButtonHitSize / 2 - contentTopInset)
     // MARK: Preview skeleton (while loading or unavailable)
-    static let previewFillInFadeDuration: TimeInterval = 0.15
+    static let previewFillInFadeDuration: TimeInterval = 0.12
     /// Crossfade used when a fresh capture replaces a cached snapshot mid-session.
-    static let previewRefreshFadeDuration: TimeInterval = 0.25
-    static let previewSkeletonPulseDuration: TimeInterval = 1.15
-    static let previewSkeletonMinimumOpacity: Float = 0.5
+    static let previewRefreshFadeDuration: TimeInterval = 0.18
     static let previewSkeletonTitleBarHeight: CGFloat = 17
     static let previewSkeletonInset: CGFloat = 12
     static let previewSkeletonDotSize: CGFloat = 4
@@ -138,10 +130,10 @@ enum DesignTokens {
     static var iconSelectionFill: NSColor { .labelColor.withAlphaComponent(0.14) }
     static var iconEmphasisFill: NSColor { .labelColor.withAlphaComponent(0.075) }
     static var previewSelectionFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.78)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.70)
     }
     static var previewEmphasisFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.14)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.10)
     }
     /// A semantic, adaptive canvas surface makes letterboxing and placeholders
     /// intentional without framing every window with a gray rectangle.

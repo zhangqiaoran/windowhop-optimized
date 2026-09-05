@@ -6,11 +6,11 @@ small and focused are the most welcome.
 ## Build and test
 
 ```sh
-git clone https://github.com/martonpaulo/windowhop && cd windowhop
+git clone https://github.com/zhangqiaoran/windowhop-optimized.git my-alt-tab && cd my-alt-tab
 swift build            # debug build
 swift test             # unit tests (must pass)
 scripts/validate.sh    # repository invariants (must pass)
-scripts/package-app.sh # assemble build/WindowHop.app
+scripts/package-app.sh # assemble build/my-alt-tab.app
 ```
 
 Requires macOS 14+ and Xcode 16+ command line tools. No paid Apple account is needed.

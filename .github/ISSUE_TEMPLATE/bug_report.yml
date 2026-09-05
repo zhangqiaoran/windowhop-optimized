@@ -19,7 +19,7 @@ body:
   - type: input
     id: windowhop-version
     attributes:
-      label: WindowHop version
+      label: my-alt-tab version
       description: Shown in Settings under Updates.
       placeholder: e.g. 1.0.0
     validations:
@@ -35,5 +35,5 @@ body:
     attributes:
       label: Checks
       options:
-        - label: Accessibility permission is granted to WindowHop
-        - label: The problem still happens after quitting and reopening WindowHop
+        - label: Accessibility permission is granted to my-alt-tab
+        - label: The problem still happens after quitting and reopening my-alt-tab

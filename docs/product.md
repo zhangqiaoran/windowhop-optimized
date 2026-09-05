@@ -1,4 +1,4 @@
-# WindowHop — product definition
+# my-alt-tab — product definition
 
 What this product is, who it serves, and what it will never become. Read this before proposing
 a feature: if a proposal contradicts a non-goal below, the non-goal wins until this document
@@ -16,7 +16,7 @@ Someone on macOS 14 or later who routinely keeps several windows of the *same* a
 displays, and who switches between them dozens of times an hour by keyboard.
 
 Not for someone who runs one window per app. For them the native switcher is already correct,
-and WindowHop adds a step without removing one.
+and my-alt-tab adds a step without removing one.
 
 ## The job
 
@@ -28,8 +28,8 @@ app, or Mission Control and a mouse. Both cost a deliberate pause, and the mouse
 keyboard flow.
 
 **The honest alternative.** [AltTab](https://github.com/lwouis/alt-tab-macos) already solves
-this job well, and WindowHop is derived from it. Anyone happy with AltTab has no reason to
-switch. WindowHop is the deliberately smaller answer: a fixed presentation, two appearance
+this job well, and my-alt-tab is derived from it. Anyone happy with AltTab has no reason to
+switch. my-alt-tab is the deliberately smaller answer: a fixed presentation, two appearance
 modes, and close to no configuration surface, for people who want the behavior without the
 settings screen. That is a positioning choice, not a claim of superiority.
 
@@ -40,7 +40,7 @@ settings screen. That is a positioning choice, not a claim of superiority.
   ten-tab Safari window is one tile, never ten.
 - Works with no Screen Recording permission at all in its default App Icons mode. Window
   Previews is an opt-in that captures only while the switcher is open.
-- Stays out of the way when it cannot help: if WindowHop is not running, is disabled, lacks
+- Stays out of the way when it cannot help: if my-alt-tab is not running, is disabled, lacks
   Accessibility, or secure input is active, native ⌘Tab behaves exactly as it always did.
 - Updates in place without costing the user their Accessibility grant.
 
@@ -53,7 +53,7 @@ to reopen the non-goal — an inconvenient feature request is not.
   moment the right window has focus; arranging windows is a different product with a different
   mental model, and Rectangle and Magnet already serve it.
 - **Search or launch.** No fuzzy-matching window titles, and never launching an application that
-  is not already running. WindowHop switches among what exists; Spotlight, Raycast, and Alfred
+  is not already running. my-alt-tab switches among what exists; Spotlight, Raycast, and Alfred
   own find-and-launch. This one has a real cost — type-to-filter is a common switcher feature,
   including in AltTab — and it is declined anyway to keep the interaction a single held modifier.
 - **Ship through the Mac App Store.** The sandbox forbids the Accessibility access the entire
@@ -68,12 +68,12 @@ to reopen the non-goal — an inconvenient feature request is not.
 - **Localize.** English only, authored inline, with no localization layer. A single maintainer
   cannot keep translations honest, and stale translations are worse than none.
 - **Disable the native switcher.** The Cmd-Tab symbolic hotkey is never taken away and
-  `flagsChanged` events are never consumed. If WindowHop dies mid-keystroke, the user still has
+  `flagsChanged` events are never consumed. If my-alt-tab dies mid-keystroke, the user still has
   a working switcher. This is the fail-safe the whole design is arranged around.
 
 Appearance customization is deliberately *not* on this list. It is currently constrained to two
-modes and system Light/Dark by an implementation rule in `AGENTS.md`, which is a narrower and
-more reversible commitment than a product non-goal.
+modes, system Light/Dark, and a small preview-row alignment choice by an implementation rule in
+`AGENTS.md`, which is a narrower and more reversible commitment than a product non-goal.
 
 ## How you know it worked
 

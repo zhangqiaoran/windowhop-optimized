@@ -50,13 +50,41 @@ public enum ExpandedPreviewDelay: String, CaseIterable, Identifiable {
     }
 }
 
+/// Alignment of an incomplete row in Window Previews mode. Full rows are
+/// unaffected; the default preserves WindowHop's existing centered layout.
+public enum PreviewRowAlignment: String, CaseIterable, Identifiable {
+    case left
+    case center
+    case right
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .left: return "Left"
+        case .center: return "Center"
+        case .right: return "Right"
+        }
+    }
+
+    /// Leading offset inside the width already reserved by the fullest row.
+    public func leadingOffset(remainingWidth: CGFloat) -> CGFloat {
+        let width = max(0, remainingWidth)
+        switch self {
+        case .left: return 0
+        case .center: return width / 2
+        case .right: return width
+        }
+    }
+}
+
 /// All WindowHop settings with their defaults. This observable model is the
 /// single runtime source of truth; UserDefaults is only its persistence layer.
 /// The store is injectable for deterministic migration and persistence tests.
 public final class Preferences: ObservableObject {
     public static let shared = Preferences()
     public static let windowFiltersDidChange = Notification.Name(
-        "com.perso.windowhop.windowFiltersDidChange")
+        "com.zhangqiaoran.myalttab.windowFiltersDidChange")
 
     public enum Key: String, CaseIterable {
         case switcherEnabled
@@ -64,9 +92,11 @@ public final class Preferences: ObservableObject {
         case shortcut
         case persistentShortcut
         case appearanceMode
+        case previewRowAlignment
         /// Kept only to migrate 1.1.2 dwell presets.
         case navigationPreviewDelay
         case expandedPreviewDelay
+        case focusedMultiDisplayMode
         case switcherDisplayPlacement
         /// The persistent UUID of the display chosen for `.specificDisplay`.
         case switcherDisplayID
@@ -90,7 +120,12 @@ public final class Preferences: ObservableObject {
         public static let shortcut = ShortcutSpec.commandTab
         public static let persistentShortcut: PersistentShortcut? = .optionTab
         public static let appearanceMode = AppearanceMode.appIcons
+        public static let previewRowAlignment = PreviewRowAlignment.center
         public static let expandedPreviewDelay = ExpandedPreviewDelay.threeSeconds
+        /// Default multi-display behavior: draw one panel on the pointer display
+        /// while listing windows from every connected display. The legacy placement
+        /// and display filter settings remain available when this is turned off.
+        public static let focusedMultiDisplayMode = true
         public static let switcherDisplayPlacement = SwitcherDisplayPlacement.allDisplays
         public static let switcherDisplayID: String? = nil
         public static let includeOtherSpaces = true
@@ -101,7 +136,7 @@ public final class Preferences: ObservableObject {
         public static let showTabCounts = false
         public static let showMenuBarItem = false
         public static let showDockIcon = false
-        public static let automaticUpdateChecks = true
+        public static let automaticUpdateChecks = false
         public static let firstLaunchCompleted = false
     }
 
@@ -114,7 +149,9 @@ public final class Preferences: ObservableObject {
         .shortcut,
         .persistentShortcut,
         .appearanceMode,
+        .previewRowAlignment,
         .expandedPreviewDelay,
+        .focusedMultiDisplayMode,
         .switcherDisplayPlacement,
         .switcherDisplayID,
         .includeOtherSpaces,
@@ -134,7 +171,9 @@ public final class Preferences: ObservableObject {
         Key.shortcut.rawValue: Defaults.shortcut.rawValue,
         Key.persistentShortcut.rawValue: Defaults.persistentShortcut?.encoded ?? "",
         Key.appearanceMode.rawValue: Defaults.appearanceMode.rawValue,
+        Key.previewRowAlignment.rawValue: Defaults.previewRowAlignment.rawValue,
         Key.expandedPreviewDelay.rawValue: Defaults.expandedPreviewDelay.rawValue,
+        Key.focusedMultiDisplayMode.rawValue: Defaults.focusedMultiDisplayMode,
         Key.switcherDisplayPlacement.rawValue: Defaults.switcherDisplayPlacement.rawValue,
         // an absent chosen display is the empty string, matching persistentShortcut:
         // the registration domain cannot hold nil
@@ -175,10 +214,25 @@ public final class Preferences: ObservableObject {
         didSet { defaults.set(appearanceMode.rawValue, forKey: Key.appearanceMode.rawValue) }
     }
 
+    @Published public var previewRowAlignment: PreviewRowAlignment {
+        didSet {
+            defaults.set(previewRowAlignment.rawValue,
+                         forKey: Key.previewRowAlignment.rawValue)
+        }
+    }
+
     @Published public var expandedPreviewDelay: ExpandedPreviewDelay {
         didSet {
             defaults.set(expandedPreviewDelay.rawValue,
                          forKey: Key.expandedPreviewDelay.rawValue)
+        }
+    }
+
+    @Published public var focusedMultiDisplayMode: Bool {
+        didSet {
+            defaults.set(focusedMultiDisplayMode,
+                         forKey: Key.focusedMultiDisplayMode.rawValue)
+            notifyWindowFiltersChanged()
         }
     }
 
@@ -277,10 +331,15 @@ public final class Preferences: ObservableObject {
         appearanceMode = AppearanceMode(
             rawValue: Self.string(defaults, .appearanceMode) ?? "")
             ?? Defaults.appearanceMode
+        previewRowAlignment = PreviewRowAlignment(
+            rawValue: Self.string(defaults, .previewRowAlignment) ?? "")
+            ?? Defaults.previewRowAlignment
         let restoredExpandedPreviewDelay = Self.expandedPreviewDelay(from: defaults)
         expandedPreviewDelay = restoredExpandedPreviewDelay
         defaults.set(restoredExpandedPreviewDelay.rawValue,
                      forKey: Key.expandedPreviewDelay.rawValue)
+        focusedMultiDisplayMode = Self.bool(
+            defaults, .focusedMultiDisplayMode, fallback: Defaults.focusedMultiDisplayMode)
         switcherDisplayPlacement = SwitcherDisplayPlacement(
             rawValue: Self.string(defaults, .switcherDisplayPlacement) ?? "")
             ?? Defaults.switcherDisplayPlacement
@@ -373,8 +432,12 @@ public final class Preferences: ObservableObject {
             case .shortcut: shortcut = Defaults.shortcut
             case .persistentShortcut: persistentShortcut = Defaults.persistentShortcut
             case .appearanceMode: appearanceMode = Defaults.appearanceMode
+            case .previewRowAlignment:
+                previewRowAlignment = Defaults.previewRowAlignment
             case .expandedPreviewDelay:
                 expandedPreviewDelay = Defaults.expandedPreviewDelay
+            case .focusedMultiDisplayMode:
+                focusedMultiDisplayMode = Defaults.focusedMultiDisplayMode
             case .switcherDisplayPlacement:
                 switcherDisplayPlacement = Defaults.switcherDisplayPlacement
             case .switcherDisplayID: switcherDisplayID = Defaults.switcherDisplayID
@@ -404,6 +467,18 @@ public final class Preferences: ObservableObject {
             includePictureInPictureWindows: includePictureInPictureWindows,
             includeOtherSpaces: includeOtherSpaces,
             includeOtherDisplays: includeOtherDisplays)
+    }
+
+    /// Runtime policy used by the switcher. Focused multi-display mode intentionally
+    /// forces cross-display inclusion while preserving every other window filter.
+    /// The stored `includeOtherDisplays` choice is untouched so disabling focused
+    /// mode immediately restores the user's legacy behavior.
+    public var effectiveWindowInclusionPolicy: WindowInclusionPolicy {
+        var policy = windowInclusionPolicy
+        if focusedMultiDisplayMode {
+            policy.includeOtherDisplays = true
+        }
+        return policy
     }
 
     private func notifyWindowFiltersChanged() {

@@ -51,6 +51,15 @@ final class ExpandedPreviewView: NSView {
         needsLayout = true
     }
 
+    /// Expanded captures can be much larger than tile thumbnails. Hidden views
+    /// must not retain them after the dwell presentation ends.
+    func clear() {
+        imageView.image = nil
+        badgeView.image = nil
+        titleLabel.stringValue = ""
+        setAccessibilityValue(nil)
+    }
+
     override func layout() {
         super.layout()
         let titleHeight = DesignTokens.expandedPreviewTitleHeight

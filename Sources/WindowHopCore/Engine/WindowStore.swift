@@ -309,12 +309,15 @@ public final class WindowStore {
 
     // MARK: - Snapshot
 
-    /// The visible, ordered switcher list under the current settings.
+    /// The visible, ordered switcher list under the current settings. Focused
+    /// multi-display mode keeps every display eligible while preserving all other
+    /// filters. When display filtering is disabled there is no reason to resolve or
+    /// intersect an active screen for every window.
     public func snapshot() -> [SwitcherItem] {
         resolveFloatingWindows()
-        let policy = preferences.windowInclusionPolicy
+        let policy = preferences.effectiveWindowInclusionPolicy
         let showTabCounts = preferences.showTabCounts
-        let activeScreen = NSScreen.main
+        let activeScreen = policy.includeOtherDisplays ? nil : NSScreen.main
         return windows.compactMap { window in
             guard window.isActual else { return nil }
             let state = WindowDisplayState(
@@ -327,7 +330,8 @@ public final class WindowStore {
                 isTabbed: window.isTabbed,
                 isPictureInPicture: window.isPictureInPicture ?? false,
                 isOnCurrentSpace: window.isOnCurrentSpace,
-                isOnActiveDisplay: activeScreen.map { window.isOn(screen: $0) } ?? true)
+                isOnActiveDisplay: policy.includeOtherDisplays
+                    || (activeScreen.map { window.isOn(screen: $0) } ?? true))
             guard WindowEligibility.shouldDisplay(state, policy: policy) else { return nil }
             return SwitcherItem(id: window.stableId,
                                 window: window,

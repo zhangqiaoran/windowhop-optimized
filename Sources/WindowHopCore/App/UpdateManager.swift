@@ -1,7 +1,7 @@
 import AppKit
 import Sparkle
 
-/// Sparkle 2 wrapper. Update checks are WindowHop's only routine network
+/// Sparkle 2 wrapper. Update checks are my-alt-tab's only routine network
 /// activity — no telemetry, no analytics, no accounts. The standard Sparkle
 /// UI handles the whole experience (prompt with the new version, install,
 /// remind-later, skip-this-version — so the same version never nags twice);
@@ -28,10 +28,11 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
     }
 
     /// Requires the Info.plist SUFeedURL/SUPublicEDKey, so only a bundled,
-    /// properly configured WindowHop.app starts the updater.
+    /// properly configured my-alt-tab.app starts the updater.
     public func startIfBundled() {
         guard controller == nil,
-              Bundle.main.bundleIdentifier == "com.perso.windowhop",
+              Bundle.main.bundleIdentifier == "com.zhangqiaoran.myalttab",
+              Bundle.main.object(forInfoDictionaryKey: "MyAltTabForkUpdatesDisabled") as? Bool != true,
               Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return }
         controller = SPUStandardUpdaterController(startingUpdater: true,
                                                   updaterDelegate: self,
@@ -45,7 +46,7 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
     }
 
     public var automaticallyChecksForUpdates: Bool {
-        get { controller?.updater.automaticallyChecksForUpdates ?? true }
+        get { controller?.updater.automaticallyChecksForUpdates ?? false }
         set { controller?.updater.automaticallyChecksForUpdates = newValue }
     }
 

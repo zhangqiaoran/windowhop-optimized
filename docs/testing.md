@@ -1,4 +1,4 @@
-# Testing WindowHop
+# Testing my-alt-tab
 
 ## Automated suite
 
@@ -36,25 +36,19 @@ Preview regressions pin:
 ## Release and identity validators
 
 ```sh
-scripts/verify-release-identity.sh build/WindowHop.app
+scripts/verify-release-identity.sh build/my-alt-tab.app
 scripts/verify-update-continuity.sh <previous.app> <candidate.app>
-scripts/verify-dmg-branding.sh artifacts/WindowHop-1.3.1.dmg
 ```
 
-`verify-release-identity.sh` fails unless the app has:
+`verify-release-identity.sh` validates the current bundle identity
+`com.zhangqiaoran.myalttab` and a valid deep code signature. Community builds may be
+ad-hoc signed. If a future Developer ID release is used, set `EXPECTED_TEAM_ID` to the
+zhangqiaoran-controlled Team ID; non-ad-hoc releases must use Hardened Runtime.
 
-- bundle id `com.perso.windowhop` and Team ID `TBN79KU9ML`;
-- the reviewed stable Developer ID Application leaf certificate;
-- the exact expected designated requirement;
-- hardened runtime and the expected entitlement set;
-- a valid deep signature and no nested executable signed by another team.
-
-`verify-update-continuity.sh` applies the same contract to both releases and compares
-their effective designated requirements, identifiers, teams, and entitlements.
-`verify-dmg-branding.sh` validates the image, Finder resource icon, mounted volume icon,
-background, `.DS_Store`, app, and Applications alias. The official workflow then waits
-for notarization, staples and validates app and DMG tickets, and runs Gatekeeper before
-creating a release.
+The project no longer carries or validates against the upstream author's certificate,
+Team ID, or designated requirement. Those credentials do not belong to this release line.
+`verify-update-continuity.sh` can still compare two builds when a stable signing identity
+is introduced later.
 
 ## Debug and visual harness
 
@@ -85,7 +79,7 @@ The published Settings images instead capture the real window, because its toolb
 only on a real window:
 
 ```sh
-build/WindowHop.app/Contents/MacOS/WindowHop --demo-settings general   # prints its window number
+build/my-alt-tab.app/Contents/MacOS/WindowHop --demo-settings general   # prints its window number
 screencapture -x -l<window-number> docs/screenshots/settings-general.png
 ```
 
@@ -120,10 +114,10 @@ Screen Recording permission.
 
 - [ ] ⌘Tab opens immediately, cycles and wraps; Shift reverses; arrow navigation follows
       rows; modifier release confirms the selected real window.
-- [ ] Escape or outside click closes WindowHop and leaves focus, stacking, Space, and MRU
+- [ ] Escape or outside click closes my-alt-tab and leaves focus, stacking, Space, and MRU
       unchanged.
 - [ ] Return, Space, and tile click activate exactly the selected real window.
-- [ ] Pausing 3 seconds enlarges the latest preview inside WindowHop without activating,
+- [ ] Pausing 3 seconds enlarges the latest preview inside my-alt-tab without activating,
       raising, focusing, reordering, or moving the target window.
 - [ ] Rapid navigation cancels stale dwell work; navigating away closes the enlarged view;
       a closed target selects a valid neighbor without crashing.
@@ -139,7 +133,7 @@ Screen Recording permission.
 - [ ] Current defaults show normal windows on all visited Spaces/displays while excluding
       minimized, hidden-app, and PiP windows.
 - [ ] Each opt-in takes effect without relaunch and does not duplicate tab groups or admit
-      menus, tooltips, system overlays, or WindowHop helper UI.
+      menus, tooltips, system overlays, or my-alt-tab helper UI.
 - [ ] Identical-title windows stay distinct; Safari tab counts remain metadata, not entries.
 - [ ] Other-Space and other-display toggles rebuild the list correctly.
 
@@ -188,7 +182,7 @@ Screen Recording permission.
       1.2.0 → 1.3.1 update in place, and confirm both grants remain effective.
 - [ ] Perform a signed 1.3.1 → test-update cycle and confirm the same grants remain.
 - [ ] Replace 1.2.0 manually from the notarized DMG in Applications and confirm permissions
-      remain associated with WindowHop.
+      remain associated with my-alt-tab.
 - [ ] No updater helper or temporary app bundle requests application permissions.
 - [ ] The notarized app/DMG validate and staple successfully; Gatekeeper accepts both; the
       updater detects 1.3.1 and rejects a tampered signature.

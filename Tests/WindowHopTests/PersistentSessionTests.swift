@@ -79,12 +79,10 @@ final class PersistentSessionTests: XCTestCase {
         XCTAssertEqual(heldState.phase, .held)
     }
 
-    func testDeleteStillRequiresConfirmation() {
+    func testDeleteClosesDirectlyAndKeepsPersistentSessionSticky() {
         var state = SwitcherState()
         _ = state.openPersistent(itemCount: 3)
         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
-        XCTAssertEqual(state.phase, .confirming)
-        _ = state.confirmationFinished()
         XCTAssertEqual(state.phase, .sticky)
     }
 }

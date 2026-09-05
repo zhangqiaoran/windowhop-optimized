@@ -67,7 +67,7 @@ public enum SwitcherPresentationMode: Equatable {
 /// Contrast, and Reduce Transparency.
 public final class SwitcherPanel: NSPanel {
     public var onItemClicked: ((Int) -> Void)?
-    /// Hover close control on a tile; routes through the same confirmation as Delete.
+    /// Hover close control on a tile; routes through the same direct close as Delete.
     public var onItemCloseRequested: ((Int) -> Void)?
     /// The panel-chrome gear control (and ⌘, while a session is open).
     public var onSettingsRequested: (() -> Void)?
@@ -90,9 +90,15 @@ public final class SwitcherPanel: NSPanel {
     private var tilePool: [SwitcherTileView] = []
     private var visibleTileCount = 0
     private var selectedIndex = 0
+    /// Selection painting is updated incrementally during keyboard cycling.
+    /// A full O(n) pass is reserved for list rebuilds only.
+    private var appliedSelectedIndex = -1
     private var mode = AppearanceMode.appIcons
     private var items: [SwitcherItem] = []
-    private var itemIds: [AnyHashable] = []
+    /// O(1) delivery lookup for asynchronous preview captures. A session can
+    /// deliver many images in quick succession, so repeatedly scanning the list
+    /// needlessly scales the UI work with the number of open windows.
+    private var itemIndexByID: [AnyHashable: Int] = [:]
     private var expandedPreviewID: AnyHashable?
     private var presentationMode = SwitcherPresentationMode.cycling
     private var accessibilityDisplayObserver: NSObjectProtocol?
@@ -175,9 +181,9 @@ public final class SwitcherPanel: NSPanel {
         chromeView.addSubview(expandedPreviewView)
 
         // Global panel action: contextual during held cycling, persistent for
-        // Open WindowHop sessions, and never measured as part of the grid.
+        // Open my-alt-tab sessions, and never measured as part of the grid.
         settingsButton.image = NSImage(systemSymbolName: "gearshape.circle.fill",
-                                       accessibilityDescription: "WindowHop Settings")?
+                                       accessibilityDescription: "my-alt-tab Settings")?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: DesignTokens.chromeButtonSymbolSize,
                                                                   weight: .semibold)
                 .applying(.init(paletteColors: [DesignTokens.overlayGlyphColor,
@@ -186,8 +192,8 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.imagePosition = .imageOnly
         settingsButton.target = self
         settingsButton.action = #selector(settingsClicked)
-        settingsButton.toolTip = "WindowHop Settings (⌘,)"
-        settingsButton.setAccessibilityLabel("WindowHop Settings")
+        settingsButton.toolTip = "my-alt-tab Settings (⌘,)"
+        settingsButton.setAccessibilityLabel("my-alt-tab Settings")
         settingsButton.alphaValue = 0
         settingsButton.isEnabled = false
         settingsButton.setAccessibilityHidden(true)
@@ -216,17 +222,13 @@ public final class SwitcherPanel: NSPanel {
 
         chromeView.setAccessibilityElement(true)
         chromeView.setAccessibilityRole(.list)
-        chromeView.setAccessibilityLabel("WindowHop window switcher")
+        chromeView.setAccessibilityLabel("my-alt-tab window switcher")
 
         accessibilityDisplayObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
             object: nil,
             queue: .main) { [weak self] _ in
-                guard let self else { return }
-                for tile in self.tilePool.prefix(self.visibleTileCount) {
-                    tile.refreshMotionPreference()
-                }
-                self.updateSettingsButtonVisibility(animated: false)
+                self?.updateSettingsButtonVisibility(animated: false)
             }
 
         // pre-warm the tile pool off the first-trigger latency path; tiles beyond
@@ -286,7 +288,7 @@ public final class SwitcherPanel: NSPanel {
         DebugLog.log("panel shown: \(items.count) tiles (\(mode.rawValue)), frame \(frame)")
     }
 
-    /// Re-presents the panel after a confirmation dialog hid it.
+    /// Re-presents the panel after another modal UI temporarily hid it.
     public func presentAgain(presentationMode: SwitcherPresentationMode) {
         self.presentationMode = presentationMode
         orderFrontRegardless()
@@ -303,10 +305,14 @@ public final class SwitcherPanel: NSPanel {
         mode = Preferences.shared.appearanceMode
         self.items = items
         selectedIndex = index
-        itemIds = items.map { $0.id }
+        itemIndexByID.removeAll(keepingCapacity: true)
+        itemIndexByID.reserveCapacity(items.count)
+        for (itemIndex, item) in items.enumerated() where itemIndexByID[item.id] == nil {
+            itemIndexByID[item.id] = itemIndex
+        }
         rebuildTiles(items: items)
         layoutOnPlacementScreen(tileCount: items.count)
-        applySelection()
+        applySelection(fullRefresh: true)
     }
 
     public func select(_ index: Int) {
@@ -320,7 +326,7 @@ public final class SwitcherPanel: NSPanel {
     /// Delivery is keyed by the window's stable id — never by tile position —
     /// so a preview can never land on another window's card.
     public func updatePreview(id: AnyHashable, image: NSImage) {
-        guard let index = itemIds.firstIndex(of: id), index < visibleTileCount else { return }
+        guard let index = itemIndexByID[id], index < visibleTileCount else { return }
         tilePool[index].setPreview(image, fadeIn: true)
     }
 
@@ -328,7 +334,7 @@ public final class SwitcherPanel: NSPanel {
     /// available. The tile keeps its fixed geometry and shows a semantic
     /// fallback instead of looking empty or broken.
     public func updatePreviewUnavailable(id: AnyHashable) {
-        guard let index = itemIds.firstIndex(of: id), index < visibleTileCount else { return }
+        guard let index = itemIndexByID[id], index < visibleTileCount else { return }
         tilePool[index].setPreviewUnavailable()
     }
 
@@ -349,11 +355,16 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Shows the latest available snapshot at a larger size inside WindowHop.
+    private func item(forID id: AnyHashable) -> SwitcherItem? {
+        guard let index = itemIndexByID[id], index >= 0, index < items.count else { return nil }
+        return items[index]
+    }
+
+    /// Shows the latest available snapshot at a larger size inside my-alt-tab.
     /// This method performs no application/window action.
     public func showExpandedPreview(id: AnyHashable, image: NSImage) {
         guard mode == .windowPreviews,
-              let item = items.first(where: { $0.id == id }) else { return }
+              let item = item(forID: id) else { return }
         expandedPreviewID = id
         expandedPreviewView.configure(item: item, image: image)
         expandedPreviewView.isHidden = false
@@ -363,7 +374,7 @@ public final class SwitcherPanel: NSPanel {
 
     public func updateExpandedPreview(id: AnyHashable, image: NSImage) {
         guard expandedPreviewID == id,
-              let item = items.first(where: { $0.id == id }) else { return }
+              let item = item(forID: id) else { return }
         expandedPreviewView.configure(item: item, image: image)
     }
 
@@ -371,12 +382,17 @@ public final class SwitcherPanel: NSPanel {
         guard expandedPreviewID != nil else { return }
         expandedPreviewID = nil
         expandedPreviewView.isHidden = true
+        expandedPreviewView.clear()
         scrollView.isHidden = false
         layoutOnPlacementScreen(tileCount: visibleTileCount)
     }
 
     public func hide() {
         hostView.setPointerInside(false)
+        expandedPreviewView.clear()
+        for tile in tilePool.prefix(visibleTileCount) {
+            tile.releaseTransientPreview()
+        }
         orderOut(nil)
     }
 
@@ -401,6 +417,7 @@ public final class SwitcherPanel: NSPanel {
                 tile.isHidden = false
             } else {
                 tile.resetHoverState()
+                tile.releaseTransientPreview()
                 tile.isHidden = true
             }
         }
@@ -447,11 +464,17 @@ public final class SwitcherPanel: NSPanel {
         for (index, tile) in tilePool.prefix(tileCount).enumerated() {
             let column = index % columns
             let row = index / columns
-            // a partial row is centered, like the native switcher — never left-ragged
+            // Full rows naturally occupy the whole grid. Window Previews lets
+            // the user align only an incomplete row; App Icons preserve the
+            // original centered native-switcher behavior.
             let tilesInRow = min(columns, tileCount - row * columns)
             let rowWidth = CGFloat(tilesInRow) * tileSize.width
                 + CGFloat(max(0, tilesInRow - 1)) * spacing
-            let rowOffset = (contentGridWidth - rowWidth) / 2
+            let rowAlignment = mode == .windowPreviews
+                ? Preferences.shared.previewRowAlignment
+                : .center
+            let rowOffset = rowAlignment.leadingOffset(
+                remainingWidth: contentGridWidth - rowWidth)
             tile.frame = NSRect(x: leadingOverflow + rowOffset
                                     + CGFloat(column) * (tileSize.width + spacing),
                                 y: CGFloat(rows - 1 - row) * (tileSize.height + rowSpacing),
@@ -526,10 +549,21 @@ public final class SwitcherPanel: NSPanel {
         setFrame(NSRect(origin: origin, size: hostSize), display: true)
     }
 
-    private func applySelection() {
-        for (index, tile) in tilePool.prefix(visibleTileCount).enumerated() {
-            tile.isSelected = index == selectedIndex
+    private func applySelection(fullRefresh: Bool = false) {
+        if fullRefresh {
+            for (index, tile) in tilePool.prefix(visibleTileCount).enumerated() {
+                tile.isSelected = index == selectedIndex
+            }
+        } else {
+            if appliedSelectedIndex != selectedIndex,
+               appliedSelectedIndex >= 0, appliedSelectedIndex < visibleTileCount {
+                tilePool[appliedSelectedIndex].isSelected = false
+            }
+            if selectedIndex >= 0, selectedIndex < visibleTileCount {
+                tilePool[selectedIndex].isSelected = true
+            }
         }
+        appliedSelectedIndex = selectedIndex
         if selectedIndex >= 0, selectedIndex < visibleTileCount {
             tilePool[selectedIndex].scrollToVisible(tilePool[selectedIndex].bounds)
         }

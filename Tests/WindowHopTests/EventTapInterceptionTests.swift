@@ -70,6 +70,24 @@ final class EventTapInterceptionTests: XCTestCase {
             EventTapDecision(disposition: .consume, input: .openPersistent))
     }
 
+    func testSuppressedKeyUpBitsetAndOverflowFallbackRemainCorrect() {
+        for keyCode in [Int64(70), Int64(130)] {
+            var state = EventTapInterceptionState(
+                mode: .watching,
+                holdModifier: .maskCommand,
+                persistentShortcut: PersistentShortcut(keyCode: keyCode, modifiers: .maskAlternate))
+
+            XCTAssertEqual(
+                state.decide(type: .keyDown, keyCode: keyCode, flags: .maskAlternate),
+                EventTapDecision(disposition: .consume, input: .openPersistent))
+            XCTAssertTrue(state.suppressedKeyUps.contains(keyCode))
+            XCTAssertEqual(
+                state.decide(type: .keyUp, keyCode: keyCode, flags: .maskAlternate),
+                .consume)
+            XCTAssertFalse(state.suppressedKeyUps.contains(keyCode))
+        }
+    }
+
     func testStoppingResetsSuppressedReleasesAndInterception() {
         var state = EventTapInterceptionState(
             mode: .watching,

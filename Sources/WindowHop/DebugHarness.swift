@@ -225,10 +225,10 @@ enum DebugHarness {
             ("Untitled", "TextEdit", "com.apple.TextEdit", nil),
             ("Untitled", "TextEdit", "com.apple.TextEdit", nil),
             ("Terminal", "Terminal", "com.apple.Terminal", 2),
-            ("WindowHop Settings", "WindowHop", "com.perso.windowhop", nil),
+            ("my-alt-tab Settings", "my-alt-tab", "com.zhangqiaoran.myalttab", nil),
         ]
         return rows.enumerated().map { index, row in
-            let tileIcon = row.2 == "com.perso.windowhop"
+            let tileIcon = row.2 == "com.zhangqiaoran.myalttab"
                 ? (NSImage(contentsOfFile: "Support/AppIcon.icns")
                     ?? Bundle.main.image(forResource: "AppIcon") ?? icon(row.2))
                 : icon(row.2)

@@ -3,7 +3,7 @@ import ApplicationServices
 
 /// One real window we track. For other apps' windows the identity is the
 /// AXUIElement itself (CFEqual-stable for the lifetime of the owning process), so
-/// duplicate titles can never collide. WindowHop's own Settings window is the one
+/// duplicate titles can never collide. my-alt-tab's own Settings window is the one
 /// deliberate exception to the own-process exclusion: it is backed directly by its
 /// NSWindow instead of AX, keeping every other internal surface out by construction.
 public final class TrackedWindow {
@@ -15,7 +15,7 @@ public final class TrackedWindow {
     public let ax: AXUIElement?
     public let app: TrackedApp?
     public private(set) weak var nativeWindow: NSWindow?
-    /// True only for the registered WindowHop Settings window entry.
+    /// True only for the registered my-alt-tab Settings window entry.
     public let isOwnSettingsEntry: Bool
     public private(set) var title: String
     public private(set) var tabCount: Int?
@@ -50,7 +50,7 @@ public final class TrackedWindow {
         isActual = WindowEligibility.isActualWindow(app.windowFacts(from: attributes))
     }
 
-    /// The own-Settings-window exception: a native entry with the WindowHop icon.
+    /// The own-Settings-window exception: a native entry with the my-alt-tab icon.
     /// The entry title is fixed — the window's visible title follows the selected
     /// settings pane, which would make a confusing switcher label.
     init(settingsWindow: NSWindow) {
@@ -80,7 +80,7 @@ public final class TrackedWindow {
 
     /// Display values for the switcher entry.
     public var appName: String {
-        isOwnSettingsEntry ? "WindowHop" : (app?.name ?? "")
+        isOwnSettingsEntry ? "my-alt-tab" : (app?.name ?? "")
     }
 
     public var appIcon: NSImage? {

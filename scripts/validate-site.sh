@@ -20,14 +20,14 @@ grep -Fq "version: \"$VERSION\"" docs/scripts/main.js || {
   echo "website version does not match Support/Info.plist: $VERSION" >&2
   exit 1
 }
-grep -Fq "WindowHop-$VERSION-Installer.zip" docs/scripts/main.js || {
+grep -Fq "WindowHop-$VERSION.zip" docs/scripts/main.js || {
   echo "website installer URL does not match version $VERSION" >&2
   exit 1
 }
 
 for marker in 'id="features"' 'id="download"' 'data-link="download"' \
               'prefers-color-scheme: dark' 'prefers-reduced-motion: reduce' \
-              'Developed by Marton Paulo' 'AltTab on GitHub'; do
+              'Developed & maintained by zhangqiaoran' 'AltTab on GitHub'; do
   grep -R -Fq "$marker" docs/index.html docs/styles/main.css || {
     echo "website is missing required marker: $marker" >&2
     exit 1

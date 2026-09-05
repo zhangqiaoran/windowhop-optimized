@@ -9,7 +9,7 @@ public final class SettingsWindowController {
     public static let shared = SettingsWindowController()
 
     /// The switcher-entry title; the window's visible title follows the pane name.
-    public static let switcherEntryTitle = "WindowHop Settings"
+    public static let switcherEntryTitle = "my-alt-tab Settings"
 
     private var window: NSWindow?
 
@@ -152,7 +152,7 @@ struct GeneralPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enable WindowHop", isOn: $preferences.switcherEnabled)
+                Toggle("Enable my-alt-tab", isOn: $preferences.switcherEnabled)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
                         let succeeded = LoginItem.set(newValue)
@@ -164,12 +164,12 @@ struct GeneralPane: View {
                         }
                     }
                 if launchAtLoginFailed {
-                    Text("Launch at login could not be configured. Run WindowHop from the Applications folder and try again.")
+                    Text("Launch at login could not be configured. Run my-alt-tab from the Applications folder and try again.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Disabling WindowHop hands ⌘⇥ back to the native app switcher without quitting.")
+                Text("Disabling my-alt-tab hands ⌘⇥ back to the native app switcher without quitting.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -183,7 +183,7 @@ struct GeneralPane: View {
                 Button("Restore Defaults…") {
                     restoreConfirmationShown = true
                 }
-                .confirmationDialog("Restore all WindowHop settings?",
+                .confirmationDialog("Restore all my-alt-tab settings?",
                                     isPresented: $restoreConfirmationShown) {
                     Button("Restore Defaults") {
                         restoreFailed = !SettingsDefaultsRestorer.shared.restore()
@@ -194,7 +194,7 @@ struct GeneralPane: View {
                     Text("Shortcuts, appearance, window filters, update checks, and app visibility return to their original values. macOS permissions and cached previews are unchanged.")
                 }
                 if restoreFailed {
-                    Text("Defaults could not be restored because Launch at Login is unavailable. Run WindowHop from Applications and try again.")
+                    Text("Defaults could not be restored because Launch at Login is unavailable. Run my-alt-tab from Applications and try again.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -203,17 +203,17 @@ struct GeneralPane: View {
                 Button(role: .destructive) {
                     quitConfirmationShown = true
                 } label: {
-                    Text("Quit WindowHop…")
+                    Text("Quit my-alt-tab…")
                         .foregroundStyle(.red)
                 }
-                .confirmationDialog("Quit WindowHop?",
+                .confirmationDialog("Quit my-alt-tab?",
                                     isPresented: $quitConfirmationShown) {
-                    Button("Quit WindowHop", role: .destructive) {
+                    Button("Quit my-alt-tab", role: .destructive) {
                         NSApp.terminate(nil)
                     }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("The native ⌘⇥ app switcher takes over until you open WindowHop again.")
+                    Text("The native ⌘⇥ app switcher takes over until you open my-alt-tab again.")
                 }
             }
         }
@@ -244,7 +244,7 @@ struct ShortcutsPane: View {
                         shortcutValidationMessage = error.explanation
                     }
                 }
-                LabeledContent("Open WindowHop") {
+                LabeledContent("Open my-alt-tab") {
                     ShortcutRecorderField(shortcut: $preferences.persistentShortcut,
                                           validationMessage: $shortcutValidationMessage,
                                           switcherShortcut: preferences.shortcut)
@@ -255,7 +255,7 @@ struct ShortcutsPane: View {
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open WindowHop keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes a window after confirmation.")
+                Text("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open my-alt-tab keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes the selected window directly.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -302,8 +302,13 @@ struct WindowsPane: View {
     var body: some View {
         Form {
             Section {
+                Toggle("Focused multi-display mode",
+                       isOn: $preferences.focusedMultiDisplayMode)
                 Toggle("Include windows from other Spaces", isOn: $preferences.includeOtherSpaces)
-                Toggle("Include windows from other displays", isOn: $preferences.includeOtherDisplays)
+                if !preferences.focusedMultiDisplayMode {
+                    Toggle("Include windows from other displays",
+                           isOn: $preferences.includeOtherDisplays)
+                }
                 Toggle("Include minimized windows", isOn: $preferences.includeMinimizedWindows)
                 Toggle("Include windows from hidden applications",
                        isOn: $preferences.includeHiddenApplicationWindows)
@@ -312,31 +317,35 @@ struct WindowsPane: View {
             } header: {
                 Text("Windows shown")
             } footer: {
-                Text("WindowHop shows a curated set of normal windows by default. Additional categories are opt-in and update the switcher immediately. Menus, tooltips, tab siblings, and system overlays are never listed.")
+                Text(preferences.focusedMultiDisplayMode
+                     ? "Focused multi-display mode shows one switcher on the display with the pointer while loading windows from every display. Other window filters still apply."
+                     : "my-alt-tab shows a curated set of normal windows by default. Additional categories are opt-in and update the switcher immediately. Menus, tooltips, tab siblings, and system overlays are never listed.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
-            Section {
-                Picker("Show the switcher on",
-                       selection: $preferences.switcherDisplayPlacement) {
-                    ForEach(SwitcherDisplayPlacement.allCases) { placement in
-                        Text(placement.displayName).tag(placement)
-                    }
-                }
-                if preferences.switcherDisplayPlacement == .specificDisplay {
-                    Picker("Display", selection: chosenDisplay) {
-                        ForEach(displayOptions) { option in
-                            Text(option.label).tag(option.id)
+            if !preferences.focusedMultiDisplayMode {
+                Section {
+                    Picker("Show the switcher on",
+                           selection: $preferences.switcherDisplayPlacement) {
+                        ForEach(SwitcherDisplayPlacement.allCases) { placement in
+                            Text(placement.displayName).tag(placement)
                         }
                     }
+                    if preferences.switcherDisplayPlacement == .specificDisplay {
+                        Picker("Display", selection: chosenDisplay) {
+                            ForEach(displayOptions) { option in
+                                Text(option.label).tag(option.id)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Switcher placement")
+                } footer: {
+                    Text("Legacy placement options are available when focused multi-display mode is off. The display with the pointer is the one you are looking at, which is not always the one holding keyboard focus.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
-            } header: {
-                Text("Switcher placement")
-            } footer: {
-                Text("This is where the switcher appears, not which windows it lists. The display with the pointer is the one you are looking at, which is not always the one holding keyboard focus. If a specific display is disconnected, the switcher opens on the display with the pointer and returns to your choice when that display is reconnected.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
         }
         .settingsPane()
@@ -381,8 +390,16 @@ struct AppearancePane: View {
                     }
                 }
                 Toggle("Show tab counts", isOn: $preferences.showTabCounts)
+                Picker("Preview row alignment",
+                       selection: $preferences.previewRowAlignment) {
+                    ForEach(PreviewRowAlignment.allCases) { alignment in
+                        Text(alignment.displayName).tag(alignment)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!previewsSelected)
             } footer: {
-                Text("App Icons shows each window as a large application icon. Window Previews shows a snapshot of each window instead. Both show one entry per window with its title.")
+                Text("App Icons shows each window as a large application icon. Window Previews shows a snapshot of each window instead. Preview row alignment controls how an incomplete thumbnail row is placed; Center preserves the original layout.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -397,7 +414,7 @@ struct AppearancePane: View {
             } header: {
                 Text("Expanded Preview")
             } footer: {
-                Text("After you pause, WindowHop enlarges the latest snapshot inside the switcher. The real window is not activated until you confirm; cancelling leaves the desktop unchanged. The default delay is 3 seconds.")
+                Text("After you pause, my-alt-tab enlarges the latest snapshot inside the switcher. The real window is not activated until you confirm; cancelling leaves the desktop unchanged. The default delay is 3 seconds.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -466,7 +483,7 @@ struct UpdatesPane: View {
                             UpdateManager.shared.checkForUpdates()
                         }
                     } label: {
-                        Label("WindowHop \(availableVersion) is available",
+                        Label("my-alt-tab \(availableVersion) is available",
                               systemImage: "arrow.down.circle.fill")
                             .foregroundStyle(.tint)
                     }
@@ -486,12 +503,12 @@ struct UpdatesPane: View {
                     .disabled(!UpdateManager.shared.isAvailable)
                 }
                 if !UpdateManager.shared.isAvailable {
-                    Text("Updates are available in the installed app (WindowHop.app), not in development builds.")
+                    Text("Automatic updates are disabled in this community build. Install releases from the zhangqiaoran GitHub repository or build from source.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Update checks against GitHub are WindowHop's only routine network activity. No telemetry, no accounts. Updates are cryptographically verified before installing.")
+                Text("This build performs no automatic update checks. No telemetry, no accounts. Releases are published through the project GitHub repository.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -512,7 +529,7 @@ struct AboutPane: View {
     }
 
     private var bundleIdentifier: String {
-        Bundle.main.bundleIdentifier ?? "com.perso.windowhop"
+        Bundle.main.bundleIdentifier ?? "com.zhangqiaoran.myalttab"
     }
 
     var body: some View {
@@ -523,13 +540,13 @@ struct AboutPane: View {
                         .resizable()
                         .frame(width: DesignTokens.settingsAboutIconSize,
                                height: DesignTokens.settingsAboutIconSize)
-                        .accessibilityLabel("WindowHop application icon")
+                        .accessibilityLabel("my-alt-tab application icon")
                     VStack(alignment: .leading, spacing: DesignTokens.settingsAboutTitleSpacing) {
-                        Text("WindowHop")
+                        Text("my-alt-tab")
                             .font(.title2.weight(.semibold))
                         Text("Switch between windows, not just apps.")
                             .foregroundStyle(.secondary)
-                        Text("Developed by Marton Paulo")
+                        Text("Developed & maintained by zhangqiaoran")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .padding(.top, DesignTokens.settingsAboutTitleSpacing)
@@ -540,21 +557,21 @@ struct AboutPane: View {
                 LabeledContent("Bundle identifier", value: bundleIdentifier)
             }
             Section {
-                Link("WindowHop Website", destination: ProjectLinks.website)
-                Link("WindowHop on GitHub",
+                Link("Project Website", destination: ProjectLinks.website)
+                Link("Source on GitHub",
                      destination: ProjectLinks.repository)
                 Link("Report an issue",
                      destination: ProjectLinks.issues)
             }
             Section {
                 LabeledContent("License", value: "GPL-3.0")
-                Text("Derived from AltTab by Louis Pontoise (lwouis) and contributors. Thank you.")
+                Text("my-alt-tab is developed, maintained, and released by zhangqiaoran. GPL-3.0 upstream attribution is preserved in the source repository.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Link("AltTab on GitHub",
                      destination: ProjectLinks.altTabRepository)
             } footer: {
-                Text("© 2026 WindowHop contributors. Free software under the GNU GPL-3.0.")
+                Text("© 2026 zhangqiaoran and my-alt-tab contributors. Free software under the GNU GPL-3.0.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

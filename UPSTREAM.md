@@ -1,5 +1,7 @@
 # Upstream: AltTab
 
+> Current maintained release line: **zhangqiaoran / v1.0.0+**. This file records upstream source history and does not identify the current maintainer.
+
 WindowHop is derived from **AltTab** — <https://github.com/lwouis/alt-tab-macos> —
 by Louis Pontoise (lwouis) and contributors, licensed GPL-3.0.
 

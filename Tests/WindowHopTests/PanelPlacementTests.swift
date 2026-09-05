@@ -28,6 +28,18 @@ final class PanelPlacementTests: XCTestCase {
         XCTAssertEqual(targets, [laptop, external])
     }
 
+    func testFocusedMultiDisplayModeAlwaysTargetsOnlyThePointerDisplay() {
+        let targets = PanelDisplayResolver.targets(
+            focusedMultiDisplayMode: true,
+            placement: .allDisplays,
+            chosenDisplayID: external.id,
+            available: [laptop, external],
+            pointerDisplayID: external.id)
+
+        XCTAssertEqual(targets, [external],
+                       "focused mode must never mirror the switcher across displays")
+    }
+
     func testPointerDisplayTargetsOnlyTheDisplayHoldingThePointer() {
         let targets = PanelDisplayResolver.targets(
             placement: .pointerDisplay,

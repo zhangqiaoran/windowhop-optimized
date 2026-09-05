@@ -6,14 +6,13 @@
 - Public name: `WindowHop`
 - Benefit-first description: Switch between windows, not just apps. Fast, native macOS
   window switcher with large app icons or live previews — free, GPL, no telemetry.
-- Repository: `martonpaulo/windowhop` (public)
-- Public identifiers: bundle identifier `com.perso.windowhop`; SwiftPM package, executable
+- Repository: `zhangqiaoran/windowhop-optimized` (public)
+- Public identifiers: bundle identifier `com.zhangqiaoran.myalttab`; SwiftPM package, executable
   target, and app name `WindowHop`; library target `WindowHopCore`
-- Landing page: <https://martonpaulo.github.io/windowhop/>, published from `docs/` by
+- Landing page: <https://zhangqiaoran.github.io/windowhop-optimized/>, published from `docs/` by
   `.github/workflows/pages.yml`. It lives in this repository; there is no separate site repo.
 - License: `GPL-3.0-only`, with AltTab attribution recorded in `UPSTREAM.md`
-- Copyright: GPL-3.0. Derived from AltTab, © lwouis and contributors
-  (`NSHumanReadableCopyright` in `Support/Info.plist` is the canonical string).
+- Current maintainer/release author: `zhangqiaoran`. The codebase is GPL-3.0 modified software; upstream attribution is preserved in `UPSTREAM.md` and `AUTHORS.md`. `NSHumanReadableCopyright` in `Support/Info.plist` is the canonical current-project string.
 - Development language: English.
 - Product copy: English only, authored inline. There is no localization layer, no `.lproj`
   bundle, and no fallback locale; adding one is a migration, not an incidental change.
@@ -34,14 +33,12 @@
 - Merge policy: merge commits only, every commit of the branch preserved. Never squash.
 - Commit subject: a commit made for an issue ends with `(#<issue number>)`.
 - Delete branches after merge: enabled on GitHub.
-- Release, signing, and secret-storage policy: distributed as a signed, notarized, stapled
-  `.app` in a DMG plus ZIP on GitHub Releases, updated in place by Sparkle from
-  `appcast.xml` on `raw.githubusercontent.com`. Tag `vX.Y.Z` triggers
-  `.github/workflows/release.yml`; local equivalents live in `scripts/`. Signing uses one
-  stable identity from the `DEVELOPER_ID_CERT_P12` / `DEVELOPER_ID_CERT_PASSWORD` GitHub
-  secrets; the Sparkle EdDSA private key lives in the login Keychain and the
-  `SPARKLE_PRIVATE_KEY` secret. No key material, certificate password, or signing log ever
-  enters the repository.
+- Release policy: Tag `vX.Y.Z` triggers `.github/workflows/release-community.yml`, which
+  validates, tests, builds an ad-hoc signed `.app`, packages `WindowHop-X.Y.Z.zip`, and
+  creates the GitHub Release. The upstream Sparkle feed/signing chain is intentionally
+  disconnected. If a future Developer ID/notarized channel is added, all signing keys,
+  Team ID, Apple credentials, appcast URLs, and Sparkle keys must belong to zhangqiaoran
+  and live only in GitHub Secrets/Keychain — never in versioned files.
 
 Treat these values as stable project decisions. Change an established identifier, license,
 visibility, branch policy, versioning model, localization strategy, landing-page contract, or
@@ -54,7 +51,7 @@ effects.
 swift build && swift test        # must pass, zero warnings
 scripts/validate.sh              # repository invariants (must pass)
 scripts/package-app.sh [ver] [build]  # release .app with Sparkle embedded + zip
-scripts/make-dmg.sh [ver]        # DMG (expects build/WindowHop.app)
+scripts/make-dmg.sh [ver]        # DMG (expects build/my-alt-tab.app)
 ```
 
 Runtime checks (Accessibility permission is inherited when run from a trusted terminal):
@@ -88,12 +85,14 @@ Keep task logs in `artifacts/` (gitignored). Inspect a failed log before rerunni
   The own-process exclusion has exactly one exception: the registered Settings window.
 - **Sparkle is the only runtime dependency**, and update checks are the only permitted
   network activity. No telemetry, no analytics, no accounts, no Pro/license code.
-- The bundle identifier is `com.perso.windowhop` — everywhere, always.
-- Closing a window always goes through the confirmation dialog (Cancel is default);
-  Quit is graceful termination only; Force Quit requires its own second confirmation.
+- The bundle identifier is `com.zhangqiaoran.myalttab` — everywhere, always.
+- Closing from the switcher acts on the selected window immediately through its native
+  close button. It never offers to quit or force-quit the owning application; native
+  unsaved-changes handling remains the target application's responsibility.
 - **Appearance is fixed**: icon size is Large, the only appearance options are App Icons
   (default) and Window Previews, and theming is system Light/Dark only. No themes, no
-  custom sizes, no layout or opacity options. This rule governs how the panel *looks*.
+  custom sizes or opacity options. Window Previews additionally allows Left/Center/Right
+  alignment for an incomplete thumbnail row. This rule governs how the panel *looks*.
   Where the panel is drawn is display behavior, not appearance, and lives with the other
   display settings in Settings → Windows (see `Core/PanelPlacement.swift`).
 - All shortcut strings render through `Core/ShortcutFormatter` — never hardcode a
@@ -112,8 +111,8 @@ Keep task logs in `artifacts/` (gitignored). Inspect a failed log before rerunni
   New behavior rules go here **with unit tests**.
 - `Engine/` — AX integration: `TrackedApp`/`TrackedWindow`, `WindowStore` (main-thread
   source of truth), `AXNotificationRouter` (AX thread → reads queue → main).
-- `Input/` — `EventTap` (tap thread; modes off/watching/sessionHeld/sessionSticky/
-  passthrough) and `SwitcherController` (main-thread orchestration).
+- `Input/` — `EventTap` (tap thread; modes off/watching/sessionHeld/sessionSticky)
+  and `SwitcherController` (main-thread orchestration).
 - `UI/` — AppKit switcher panel (horizontal large-icon tiles, pooled); SwiftUI
   Settings/onboarding; native shortcut recorder.
 - `App/` — lifecycle and `UpdateManager` (Sparkle; only starts from a real bundle).
@@ -125,7 +124,7 @@ mutation and UI on main only.
 
 Two explicit session modes share one pure state machine (`SwitcherState`):
 - **held** (`⌘Tab`): modifier release activates; guarded by a session-scoped timer.
-- **sticky** (`Open WindowHop` shortcut, or after a close confirmation): modifier
+- **sticky** (`Open WindowHop` shortcut): modifier
   release is meaningless; Return/Space/click/Escape end it.
 Fixing one mode must not silently change the other — both are covered by tests.
 
@@ -321,12 +320,12 @@ notes. A missing configurability decision is a review failure.
 - Inspect the diff before committing. Never commit secrets, caches, generated logs, temporary
   artifacts, or unrelated formatting churn.
 - If a commit or push fails, report the exact failure without claiming success.
-- Release flow: bump the version and build number, update `CHANGELOG.md`, build and validate
-  from a clean tree, sign and notarize, verify the install and Sparkle update paths, then tag
-  `vX.Y.Z` → `.github/workflows/release.yml` (or the local `scripts/`), commit the appcast
-  entry, and verify the published download surfaces.
+- Release flow: bump the version and build number, update `CHANGELOG.md` and
+  `RELEASE_NOTES_vX.Y.Z.md`, build and validate from a clean tree, then tag `vX.Y.Z` →
+  `.github/workflows/release-community.yml`. Verify the resulting GitHub Release artifact.
+  Developer ID notarization is a separate future capability, not assumed by the community build.
 - Do not publish a release or change a version unless the task explicitly authorizes it.
-- Pass `-R martonpaulo/windowhop` to `gh`; without it the wrong repository can be selected.
+- Pass `-R zhangqiaoran/windowhop-optimized` to `gh`; without it the wrong repository can be selected.
 
 ## Completion report
 

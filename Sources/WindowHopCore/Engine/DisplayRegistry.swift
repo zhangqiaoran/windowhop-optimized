@@ -23,6 +23,19 @@ public enum DisplayRegistry {
         connectedDisplays().map(\.descriptor)
     }
 
+    /// Returns the connected display currently containing the pointer without a
+    /// second display-UUID lookup. Callers that already resolved `connectedDisplays()`
+    /// should use this path so a switcher open performs exactly one CoreGraphics
+    /// identity pass across the display set.
+    public static func pointerDisplay(
+        in connected: [(descriptor: DisplayDescriptor, screen: NSScreen)]
+    ) -> (descriptor: DisplayDescriptor, screen: NSScreen)? {
+        guard !connected.isEmpty else { return nil }
+        let location = NSEvent.mouseLocation
+        return connected.first { NSMouseInRect(location, $0.screen.frame, false) }
+            ?? connected.first
+    }
+
     /// The display containing the pointer, or nil when it cannot be resolved.
     ///
     /// `NSEvent.mouseLocation` is in Cocoa screen coordinates, the same space as

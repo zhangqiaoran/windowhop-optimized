@@ -112,40 +112,29 @@ final class SwitcherStateTests: XCTestCase {
         XCTAssertEqual(state.deleteKey(), .none)
     }
 
-    // MARK: - Close confirmation
+    // MARK: - Direct close
 
-    func testDeleteRequestsCloseAndSuspendsSession() {
+    func testDeleteRequestsCloseWithoutChangingHeldSession() {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 3)
         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
-        XCTAssertEqual(state.phase, .confirming)
+        XCTAssertEqual(state.phase, .held)
     }
 
-    func testModifierReleaseDuringConfirmationDoesNotActivate() {
+    func testModifierReleaseAfterCloseRequestStillEndsHeldSessionNormally() {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 3)
         _ = state.deleteKey()
-        XCTAssertEqual(state.modifierReleased(), .none)
-        XCTAssertEqual(state.phase, .confirming)
+        XCTAssertEqual(state.modifierReleased(), .activate(index: 1))
+        XCTAssertEqual(state.phase, .inactive)
     }
 
-    func testTriggerDuringConfirmationIsIgnored() {
+    func testTriggerAfterCloseRequestContinuesCycling() {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 3)
         _ = state.deleteKey()
-        XCTAssertEqual(state.trigger(backward: false, itemCount: 3), .none)
-    }
-
-    func testSessionContinuesStickyAfterConfirmation() {
-        var state = SwitcherState()
-        _ = state.trigger(backward: false, itemCount: 3)
-        _ = state.deleteKey()
-        XCTAssertEqual(state.confirmationFinished(), .none)
-        XCTAssertEqual(state.phase, .sticky)
-        // navigation still works without a held modifier
-        XCTAssertEqual(state.step(backward: false), .select(index: 2))
-        XCTAssertEqual(state.modifierReleased(), .none)
-        XCTAssertEqual(state.returnKey(), .activate(index: 2))
+        XCTAssertEqual(state.trigger(backward: false, itemCount: 3), .select(index: 2))
+        XCTAssertEqual(state.phase, .held)
     }
 
     // MARK: - List changes while open
@@ -181,9 +170,7 @@ extension SwitcherStateTests {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 4) // selection 1
         XCTAssertEqual(state.closeRequested(index: 3), .requestClose(index: 3))
-        XCTAssertEqual(state.phase, .confirming)
-        // cancelling restores the exact previous selection
-        _ = state.confirmationFinished()
+        XCTAssertEqual(state.phase, .held)
         XCTAssertEqual(state.selectedIndex, 1)
     }
 
@@ -198,7 +185,7 @@ extension SwitcherStateTests {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 3)
         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
-        XCTAssertEqual(state.phase, .confirming)
+        XCTAssertEqual(state.phase, .held)
     }
 
     func testAppearanceModeDefaultsToAppIcons() {
