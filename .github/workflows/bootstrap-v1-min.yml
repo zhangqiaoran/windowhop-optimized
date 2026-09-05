@@ -1,4 +1,4 @@
-name: Import upstream source
+name: Bootstrap my-alt-tab v1.1.0
 
 on:
   push:
@@ -10,21 +10,59 @@ permissions:
   contents: write
 
 jobs:
-  import:
+  bootstrap:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout staging repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Import WindowHop v1.6.0 source tree
+      - name: Rebuild canonical my-alt-tab v1.1.0 source tree
         shell: bash
         run: |
           set -euxo pipefail
+
+          # Start from the exact GPL upstream source used by the frozen v1.0 baseline.
           git clone --depth 1 --branch v1.6.0 https://github.com/martonpaulo/windowhop.git /tmp/upstream
-          rsync -a --exclude=.git --exclude=.github/workflows /tmp/upstream/ ./
+          mkdir -p /tmp/final
+          rsync -a --exclude='.git/' /tmp/upstream/ /tmp/final/
+
+          # Reconstruct the frozen zhangqiaoran v1.0 baseline.
+          cat "$GITHUB_WORKSPACE"/.bootstrap/part-*.patch > /tmp/v1.patch
+          cd /tmp/final
+          git init
           git config user.name zhangqiaoran
           git config user.email liuzijiang_work@163.com
           git add -A
-          git commit -m "chore: import WindowHop v1.6.0 source base"
-          git push origin HEAD:main
+          git commit -m "base: upstream v1.6.0"
+          git apply --binary /tmp/v1.patch
+
+          # Apply the tested v1.1 performance/UI/runtime delta.
+          cat "$GITHUB_WORKSPACE"/.bootstrap-v11-final/part-*.b64 | tr -d '\n' | base64 -d > /tmp/v11.patch
+          git apply --binary /tmp/v11.patch
+
+          # The zhangqiaoran release line does not inherit upstream signing/update release assets.
+          rm -f appcast.xml
+          rm -f Support/ExpectedDesignatedRequirement.txt Support/WindowHopCodeSigning.cer
+          rm -f .github/workflows/release.yml
+
+          # Keep workflow files controlled by the connected GitHub account, because
+          # GitHub's ephemeral Actions token is intentionally not used to rewrite workflows.
+          rm -rf /tmp/final/.github/workflows
+
+          cd "$GITHUB_WORKSPACE"
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/' \
+            /tmp/final/ ./
+
+          rm -rf .bootstrap .bootstrap-v11 .bootstrap-v11-code .bootstrap-v11-code2 .bootstrap-v11-final .bootstrap-v11-final2
+
+          git config user.name zhangqiaoran
+          git config user.email liuzijiang_work@163.com
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "release: my-alt-tab v1.1.0 source by zhangqiaoran"
+            git push origin HEAD:main
+          fi
