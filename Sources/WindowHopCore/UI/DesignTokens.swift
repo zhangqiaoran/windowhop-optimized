@@ -5,7 +5,7 @@ import AppKit
 /// dimensions — change a token here and every surface follows.
 enum DesignTokens {
     // MARK: Panel chrome
-    static let panelPadding: CGFloat = 12
+    /// Keeps the complete 44×44 close hit target inside the visible panel.\n    static let panelPadding: CGFloat = 14
     static let panelCornerRadius: CGFloat = 22
     /// The grid may use up to this fraction of the screen's width/height.
     static let panelMaxWidthFraction: CGFloat = 0.90

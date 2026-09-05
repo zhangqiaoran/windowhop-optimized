@@ -597,6 +597,11 @@ final class SwitcherTileView: NSView {
         previewView.isHidden = true
         previewState = .loading
         updateSkeletonPresentation()
+        // A pooled tile may be shown again with no cached image and the same
+        // identity. Restore the lightweight placeholder immediately so a
+        // previous loaded state cannot leave a blank canvas on reuse.
+        skeletonView.isHidden = mode != .windowPreviews
+        needsLayout = true
     }
 
 

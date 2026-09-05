@@ -17,7 +17,7 @@ final class SettingsWindowEntryTests: XCTestCase {
                           styleMask: [.titled, .closable, .miniaturizable],
                           backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
-        window.title = "WindowHop Settings"
+        window.title = "my-alt-tab Settings"
     }
 
     override func tearDown() {
@@ -30,8 +30,8 @@ final class SettingsWindowEntryTests: XCTestCase {
         store.registerOwnWindow(window)
         let items = store.snapshot()
         XCTAssertEqual(items.count, 1)
-        XCTAssertEqual(items[0].title, "WindowHop Settings")
-        XCTAssertEqual(items[0].appName, "WindowHop")
+        XCTAssertEqual(items[0].title, "my-alt-tab Settings")
+        XCTAssertEqual(items[0].appName, "my-alt-tab")
     }
 
     func testDoubleRegistrationDoesNotDuplicate() {
