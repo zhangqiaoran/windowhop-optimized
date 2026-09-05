@@ -39,12 +39,12 @@ jobs:
           git config user.email liuzijiang_work@163.com
           git add -A
           git commit -m "base: upstream v1.6.0"
-          git apply --binary --check /tmp/my-alt-tab.patch
-          git apply --binary /tmp/my-alt-tab.patch
+          git apply --binary --exclude=appcast.xml --check /tmp/my-alt-tab.patch
+          git apply --binary --exclude=appcast.xml /tmp/my-alt-tab.patch
 
           # Workflow files are managed by the connected GitHub account rather than
           # rewritten by GitHub's ephemeral Actions token.
-          rm -rf /tmp/final/.github/workflows
+          rm -f /tmp/final/appcast.xml\n          rm -rf /tmp/final/.github/workflows
 
           cd "$GITHUB_WORKSPACE"
           rsync -a --delete \
