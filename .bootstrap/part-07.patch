@@ -1,0 +1,500 @@
++            PreviewRefreshPlanner.Entry(id: "missing-2", hasCachedImage: false,
++                                        signatureMatches: false, age: nil),
++        ]
++
++        XCTAssertEqual(
++            PreviewRefreshPlanner.plan(entries: entries, selectedID: nil,
++                                       freshnessInterval: 2),
++            ["missing-1", "missing-2", "cached-1", "cached-2"])
++    }
++
++    func testSelectedMissingWindowIsFirst() {
++        let entries = [
++            PreviewRefreshPlanner.Entry(id: 1, hasCachedImage: false,
++                                        signatureMatches: false, age: nil),
++            PreviewRefreshPlanner.Entry(id: 2, hasCachedImage: false,
++                                        signatureMatches: false, age: nil),
++            PreviewRefreshPlanner.Entry(id: 3, hasCachedImage: false,
++                                        signatureMatches: false, age: nil),
++        ]
++
++        XCTAssertEqual(
++            PreviewRefreshPlanner.plan(entries: entries, selectedID: 3,
++                                       freshnessInterval: 2),
++            [3, 1, 2])
++    }
++
++    func testFreshCacheIsSkippedButSignatureChangeForcesRefresh() {
++        let entries = [
++            PreviewRefreshPlanner.Entry(id: "fresh", hasCachedImage: true,
++                                        signatureMatches: true, age: 0.2),
++            PreviewRefreshPlanner.Entry(id: "moved", hasCachedImage: true,
++                                        signatureMatches: false, age: 0.1),
++            PreviewRefreshPlanner.Entry(id: "old", hasCachedImage: true,
++                                        signatureMatches: true, age: 3),
++        ]
++
++        XCTAssertEqual(
++            PreviewRefreshPlanner.plan(entries: entries, selectedID: "fresh",
++                                       freshnessInterval: 2),
++            ["moved", "old"])
++    }
++
++    func testSelectedStaleCacheBeatsOtherStaleCachesButNotMissingWindows() {
++        let entries = [
++            PreviewRefreshPlanner.Entry(id: "stale-a", hasCachedImage: true,
++                                        signatureMatches: true, age: 10),
++            PreviewRefreshPlanner.Entry(id: "missing", hasCachedImage: false,
++                                        signatureMatches: false, age: nil),
++            PreviewRefreshPlanner.Entry(id: "selected", hasCachedImage: true,
++                                        signatureMatches: true, age: 10),
++        ]
++
++        XCTAssertEqual(
++            PreviewRefreshPlanner.plan(entries: entries, selectedID: "selected",
++                                       freshnessInterval: 2),
++            ["missing", "selected", "stale-a"])
++    }
++}
+diff --git a/Tests/WindowHopTests/SettingsDefaultsRestorerTests.swift b/Tests/WindowHopTests/SettingsDefaultsRestorerTests.swift
+index f6c69e7a32ccefb2ea5f2bc314cbdc8e0555986b..dc89a82a4c19a97abd5f6f5b14415e8fb04b16b4 100644
+--- a/Tests/WindowHopTests/SettingsDefaultsRestorerTests.swift
++++ b/Tests/WindowHopTests/SettingsDefaultsRestorerTests.swift
+@@ -45,7 +45,7 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
+         XCTAssertEqual(preferences.shortcut, .commandTab)
+         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
+         XCTAssertFalse(preferences.showTabCounts)
+-        XCTAssertTrue(preferences.automaticUpdateChecks)
++        XCTAssertFalse(preferences.automaticUpdateChecks)
+         let restored = Preferences(defaults: defaults)
+         XCTAssertEqual(restored.persistentShortcut, .optionTab)
+         XCTAssertFalse(restored.showTabCounts)
+diff --git a/Tests/WindowHopTests/SwitcherLayoutTests.swift b/Tests/WindowHopTests/SwitcherLayoutTests.swift
+index 98de80b0978b20a2c36d47685fb711557e037ce0..2e3e820ba0a49c99cf0407206bde02bf7d2aabc3 100644
+--- a/Tests/WindowHopTests/SwitcherLayoutTests.swift
++++ b/Tests/WindowHopTests/SwitcherLayoutTests.swift
+@@ -4,18 +4,42 @@ import XCTest
+ 
+ final class SwitcherLayoutTests: XCTestCase {
+     private var savedAppearanceMode: AppearanceMode!
++    private var savedPreviewRowAlignment: PreviewRowAlignment!
+ 
+     override func setUp() {
+         super.setUp()
+         savedAppearanceMode = Preferences.shared.appearanceMode
++        savedPreviewRowAlignment = Preferences.shared.previewRowAlignment
+         Preferences.shared.appearanceMode = .windowPreviews
+     }
+ 
+     override func tearDown() {
+         Preferences.shared.appearanceMode = savedAppearanceMode
++        Preferences.shared.previewRowAlignment = savedPreviewRowAlignment
+         super.tearDown()
+     }
+ 
++    func testIncompletePreviewRowCanAlignLeftCenterOrRight() throws {
++        let panel = SwitcherPanel(rasterizableBackground: true)
++        panel.sharedColumnLimit = 2
++        let items = [item("a"), item("b"), item("c")]
++
++        Preferences.shared.previewRowAlignment = .left
++        panel.update(items: items, selectedIndex: 0)
++        let leftX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
++
++        Preferences.shared.previewRowAlignment = .center
++        panel.update(items: items, selectedIndex: 0)
++        let centerX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
++
++        Preferences.shared.previewRowAlignment = .right
++        panel.update(items: items, selectedIndex: 0)
++        let rightX = try XCTUnwrap(panel.tileFrameForTesting(at: 2)).minX
++
++        XCTAssertLessThan(leftX, centerX)
++        XCTAssertLessThan(centerX, rightX)
++    }
++
+     func testOverlaysStayCanvasAlignedAcrossSourceAspectRatios() {
+         let wide = configuredTile(imageSize: NSSize(width: 400, height: 100))
+         let tall = configuredTile(imageSize: NSSize(width: 100, height: 400))
+diff --git a/Tests/WindowHopTests/SwitcherStateTests.swift b/Tests/WindowHopTests/SwitcherStateTests.swift
+index e74ce4f73847db31f45cdad38311426f6d9f9808..444ee1119dc802ca8ed12f08b8b6de0240acfe3a 100644
+--- a/Tests/WindowHopTests/SwitcherStateTests.swift
++++ b/Tests/WindowHopTests/SwitcherStateTests.swift
+@@ -112,40 +112,29 @@ final class SwitcherStateTests: XCTestCase {
+         XCTAssertEqual(state.deleteKey(), .none)
+     }
+ 
+-    // MARK: - Close confirmation
++    // MARK: - Direct close
+ 
+-    func testDeleteRequestsCloseAndSuspendsSession() {
++    func testDeleteRequestsCloseWithoutChangingHeldSession() {
+         var state = SwitcherState()
+         _ = state.trigger(backward: false, itemCount: 3)
+         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
+-        XCTAssertEqual(state.phase, .confirming)
+-    }
+-
+-    func testModifierReleaseDuringConfirmationDoesNotActivate() {
+-        var state = SwitcherState()
+-        _ = state.trigger(backward: false, itemCount: 3)
+-        _ = state.deleteKey()
+-        XCTAssertEqual(state.modifierReleased(), .none)
+-        XCTAssertEqual(state.phase, .confirming)
++        XCTAssertEqual(state.phase, .held)
+     }
+ 
+-    func testTriggerDuringConfirmationIsIgnored() {
++    func testModifierReleaseAfterCloseRequestStillEndsHeldSessionNormally() {
+         var state = SwitcherState()
+         _ = state.trigger(backward: false, itemCount: 3)
+         _ = state.deleteKey()
+-        XCTAssertEqual(state.trigger(backward: false, itemCount: 3), .none)
++        XCTAssertEqual(state.modifierReleased(), .activate(index: 1))
++        XCTAssertEqual(state.phase, .inactive)
+     }
+ 
+-    func testSessionContinuesStickyAfterConfirmation() {
++    func testTriggerAfterCloseRequestContinuesCycling() {
+         var state = SwitcherState()
+         _ = state.trigger(backward: false, itemCount: 3)
+         _ = state.deleteKey()
+-        XCTAssertEqual(state.confirmationFinished(), .none)
+-        XCTAssertEqual(state.phase, .sticky)
+-        // navigation still works without a held modifier
+-        XCTAssertEqual(state.step(backward: false), .select(index: 2))
+-        XCTAssertEqual(state.modifierReleased(), .none)
+-        XCTAssertEqual(state.returnKey(), .activate(index: 2))
++        XCTAssertEqual(state.trigger(backward: false, itemCount: 3), .select(index: 2))
++        XCTAssertEqual(state.phase, .held)
+     }
+ 
+     // MARK: - List changes while open
+@@ -181,9 +170,7 @@ extension SwitcherStateTests {
+         var state = SwitcherState()
+         _ = state.trigger(backward: false, itemCount: 4) // selection 1
+         XCTAssertEqual(state.closeRequested(index: 3), .requestClose(index: 3))
+-        XCTAssertEqual(state.phase, .confirming)
+-        // cancelling restores the exact previous selection
+-        _ = state.confirmationFinished()
++        XCTAssertEqual(state.phase, .held)
+         XCTAssertEqual(state.selectedIndex, 1)
+     }
+ 
+@@ -198,7 +185,7 @@ extension SwitcherStateTests {
+         var state = SwitcherState()
+         _ = state.trigger(backward: false, itemCount: 3)
+         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
+-        XCTAssertEqual(state.phase, .confirming)
++        XCTAssertEqual(state.phase, .held)
+     }
+ 
+     func testAppearanceModeDefaultsToAppIcons() {
+diff --git a/UPSTREAM.md b/UPSTREAM.md
+index b2232d31e5cdc94f9d51623a7f66b3f0bb90b139..46fd660ecdc892a2d2ba39e581d3d961b2ef9e89 100644
+--- a/UPSTREAM.md
++++ b/UPSTREAM.md
+@@ -1,5 +1,7 @@
+ # Upstream: AltTab
+ 
++> Current maintained release line: **zhangqiaoran / v1.0.0+**. This file records upstream source history and does not identify the current maintainer.
++
+ WindowHop is derived from **AltTab** — <https://github.com/lwouis/alt-tab-macos> —
+ by Louis Pontoise (lwouis) and contributors, licensed GPL-3.0.
+ 
+diff --git a/appcast.xml b/appcast.xml
+deleted file mode 100644
+index b644e19314c029f41ae74906158429050d20d317..0000000000000000000000000000000000000000
+--- a/appcast.xml
++++ /dev/null
+@@ -1,121 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+-  <channel>
+-    <title>WindowHop</title>
+-    <link>https://github.com/martonpaulo/windowhop</link>
+-    <description>Most recent updates to WindowHop</description>
+-    <language>en</language>
+-    <item>
+-      <title>1.6.0</title>
+-      <pubDate>Fri, 07 Aug 2026 01:49:13 +0000</pubDate>
+-      <sparkle:version>10600</sparkle:version>
+-      <sparkle:shortVersionString>1.6.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.6.0/WindowHop-1.6.0.zip" sparkle:edSignature="/eEW2sKzTKhRB+v7FkH1dMg2/bYy3Yu7ijzdXtn5V9M7WuCqMWGfCkF7WcaLziJ2J5UkKesffeieBM5ZzLcPDw==" length="1644705" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.5.0</title>
+-      <pubDate>Mon, 27 Jul 2026 09:24:38 +0000</pubDate>
+-      <sparkle:version>10500</sparkle:version>
+-      <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.5.0/WindowHop-1.5.0.zip" sparkle:edSignature="jKyA4D07ao+GSE7z5SYAfBokLdU9N6sSkbXkDpniEvU8SgRtz6oXgw+QAVaGNNZzna8cJxmXJ4Tz3uGFh17VBA==" length="1605794" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.4.0</title>
+-      <pubDate>Fri, 24 Jul 2026 18:45:06 +0000</pubDate>
+-      <sparkle:version>10400</sparkle:version>
+-      <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.4.0/WindowHop-1.4.0.zip" sparkle:edSignature="iv9e/aR7aMGVg47qHopmmAW56Oo05UPxAo4hxLhX+MmThgExtP00fuh4fCKt/ZfdXn2S1bQOJOwylqNiDX5dDw==" length="1598961" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.3.1</title>
+-      <pubDate>Sat, 18 Jul 2026 07:06:55 +0000</pubDate>
+-      <sparkle:version>10301</sparkle:version>
+-      <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.3.1/WindowHop-1.3.1.zip" sparkle:edSignature="F3Y0Wz2oltHGMI7ZkYdKL/rxb9jvXtQ1mWUY42eL8INJaBpjP4Ygn8WJmrh/o59ZyrEx5+wgfFHbYiSaUnGsAg==" length="1580873" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.2.0</title>
+-      <pubDate>Sat, 18 Jul 2026 06:15:21 +0000</pubDate>
+-      <sparkle:version>10200</sparkle:version>
+-      <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.2.0/WindowHop-1.2.0.zip" sparkle:edSignature="pV1qiDO8v9s+H6UZYv1c09nk4tnGaHq0hTv3y/s2mNPbEJnmnwmQfovMydbIcXiAsPK7qM4m62zmBtgBrV7GDg==" length="1558467" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.1.2</title>
+-      <pubDate>Sat, 18 Jul 2026 04:35:09 +0000</pubDate>
+-      <sparkle:version>10102</sparkle:version>
+-      <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.1.2/WindowHop-1.1.2.zip" sparkle:edSignature="IRbNTYsiKbSrdJpCMyZxWxZ3JtwN6vWfZorT1FH9DqFzymVFHt+oVOj3jF+4Bc1tdwzYJuA8HmZFs6m2+oeyDA==" length="1545084" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.1.1</title>
+-      <pubDate>Sat, 18 Jul 2026 02:23:47 +0000</pubDate>
+-      <sparkle:version>10101</sparkle:version>
+-      <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.1.1/WindowHop-1.1.1.zip" sparkle:edSignature="FKKuFkkqsj+g/lp2vydciUnNLSHaA5bsDiXpa6+Iv1+wZa5EoDSv/euW2uWwn+vuNAEyBW6nZp4C8xfk4SnfAg==" length="1520737" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.1.0</title>
+-      <pubDate>Sat, 18 Jul 2026 01:10:45 +0000</pubDate>
+-      <sparkle:version>10100</sparkle:version>
+-      <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.1.0/WindowHop-1.1.0.zip" sparkle:edSignature="cumZl/ZkBk5QJbQydxAd2ZoWnL46XmMaWgGHCU+rt3AYrxpxzkjHNEsfCaL3KZClIK26TzUSz33M2TOGFxffDA==" length="1491053" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.5</title>
+-      <pubDate>Wed, 08 Jul 2026 14:22:38 +0000</pubDate>
+-      <sparkle:version>10005</sparkle:version>
+-      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.5/WindowHop-1.0.5.zip" sparkle:edSignature="Wi5mdJEHfVcTLAOEKm5qKndmqk4MlngQXWFNJy/eTUOZgertIGkVMrKqr+rBmhERSavpEkVXiG3EJfG98szJDA==" length="1480115" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.4</title>
+-      <pubDate>Wed, 08 Jul 2026 14:13:06 +0000</pubDate>
+-      <sparkle:version>10004</sparkle:version>
+-      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.4/WindowHop-1.0.4.zip" sparkle:edSignature="ebGLaSnnnaI1M8avaxsbizagtjcrkYmvllvBa99enWlKFLxKiScglgFi/xISkSH4rHpDxhJ6TH5x7eUpmFsODA==" length="1493793" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.3</title>
+-      <pubDate>Tue, 07 Jul 2026 22:53:08 +0000</pubDate>
+-      <sparkle:version>10003</sparkle:version>
+-      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.3/WindowHop-1.0.3.zip" sparkle:edSignature="q+++OETNDwdFX9MKDRZIa4zLB8RLsms7Sq2UzbpnRxy+x1bVx80FwNA9EE+XQYCgtbLVrwqdGoryTIfDfu5gCg==" length="1479474" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.2</title>
+-      <pubDate>Tue, 07 Jul 2026 22:23:44 +0000</pubDate>
+-      <sparkle:version>10002</sparkle:version>
+-      <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.2/WindowHop-1.0.2.zip" sparkle:edSignature="Z1RXmgdonENfOVyUnZDtth2KnU2m3uAGYmZdxO9fEJOsLraCuMnn/LKb8KO+2dABLbmFLjd6h50Qq8IxJe+zBg==" length="1470041" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.1</title>
+-      <pubDate>Mon, 06 Jul 2026 22:01:16 +0000</pubDate>
+-      <sparkle:version>10001</sparkle:version>
+-      <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.1/WindowHop-1.0.1.zip" sparkle:edSignature="wbgqZU8twLugdh2qBrWwNEL76GPdRgYPuo2CXYFAjsNx3/xena8HuGcHnZ4cE48jGFJrLhnvKfrQaeIeNK6KDQ==" length="1425933" type="application/octet-stream"/>
+-    </item>
+-    <item>
+-      <title>1.0.0</title>
+-      <pubDate>Fri, 03 Jul 2026 21:13:07 +0000</pubDate>
+-      <sparkle:version>10000</sparkle:version>
+-      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+-      <enclosure url="https://github.com/martonpaulo/windowhop/releases/download/v1.0.0/WindowHop-1.0.0.zip" sparkle:edSignature="etoUPQuvC8IrvUNTUVAd2VIey9UZWkd0FVqfr6HU0z27syB1seETBiDMuJNMHpTebVhmgdT3z4PQBaI92aOcDA==" length="1404527" type="application/octet-stream"/>
+-    </item>
+-  </channel>
+-</rss>
+diff --git a/docs/GITHUB_PUBLISH.md b/docs/GITHUB_PUBLISH.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..5c1910b4b8d7861ac3984c8ca3a005822408665a
+--- /dev/null
++++ b/docs/GITHUB_PUBLISH.md
+@@ -0,0 +1,54 @@
++# GitHub 发布与后续迭代
++
++目标仓库：`https://github.com/zhangqiaoran/windowhop-optimized`
++
++## 第一次上传
++
++仓库创建为空仓库后：
++
++```bash
++git init
++git branch -M main
++git add .
++git commit -m "release: WindowHop v1.0.0 by zhangqiaoran"
++git remote add origin git@github.com:zhangqiaoran/windowhop-optimized.git
++git push -u origin main
++```
++
++发布 1.0.0：
++
++```bash
++git tag -a v1.0.0 -m "WindowHop v1.0.0"
++git push origin v1.0.0
++```
++
++`Release Community Build` Workflow 会自动测试、构建并创建 GitHub Release。
++
++## 后续开发
++
++正常迭代：
++
++```bash
++git checkout main
++git pull
++# 修改源码
++git add .
++git commit -m "feat: describe your change"
++git push
++```
++
++发布新版本时，先同步修改：
++
++- `Support/Info.plist` → `CFBundleShortVersionString`
++- `Support/Info.plist` → `CFBundleVersion`
++- `CHANGELOG.md`
++- 对应 `RELEASE_NOTES_vX.Y.Z.md`（建议）
++
++然后创建匹配 Tag：
++
++```bash
++git tag -a v1.1.0 -m "WindowHop v1.1.0"
++git push origin v1.1.0
++```
++
++Tag 与 Info.plist 版本不一致时，Release workflow 会直接失败，避免错误发行。
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 70a0aafdbbfa4c5f330c6243fe87105160f8fa92..4145d326d2612fce9366ff2ae726cb25787e79af 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -54,13 +54,13 @@ through plain AppKit.
+ 
+ 1. `EventTap` owns a consuming CGEvent tap (keyDown/keyUp/flagsChanged) on its own
+    thread. The callback reads a lock-protected mode — `off`, `watching`, `sessionHeld`,
+-   `sessionSticky`, `passthrough` — and decides synchronously whether to consume;
++   `sessionSticky` — and decides synchronously whether to consume;
+    semantic events are posted to the main thread. `flagsChanged` is never consumed.
+ 2. In `watching` it matches two chords: the switcher shortcut (modifier+Tab, Shift
+    reverses) opening a **held** session, and the optional persistent shortcut
+    (`PersistentShortcut`, exact modifier match) opening a **sticky** session.
+ 3. `SwitcherController` (main) feeds events into the pure `SwitcherState` machine
+-   (phases: inactive → held/sticky → confirming) and executes the returned commands:
++   (phases: inactive → held/sticky) and executes the returned commands:
+    show/select on the panel, activate/close via `WindowActions`, cancel.
+ 4. `ExpandedPreviewSession` owns only targeted and expanded identities. The `Preferences`
+    delay is the single source of truth: Off, 1, 2, 3 (default), or 5 seconds. Target
+@@ -96,16 +96,22 @@ pieces with one responsibility each:
+   the same command surface `SwitcherController` used against a single panel. Callbacks
+   are index-based, so which panel a click came from never reaches the controller.
+ 
+-Mirrored panels are identical by construction. They share one grid derived from the
+-most constrained target display, because `SwitcherState` tracks a single column count
+-for arrow navigation and per-display grids would make ↑/↓ mean different things
+-depending on which display the user is looking at. One capture per window feeds every
+-panel, sized for the sharpest target scale, so mirroring does not multiply
+-ScreenCaptureKit work.
++Focused multi-display mode is the default. It resolves the pointer display from the same
++`connectedDisplays()` snapshot used for placement, creates exactly one panel there, and
++forces cross-display window inclusion while preserving every other eligibility filter. This
++keeps presentation local to where the user is looking without losing windows from the other
++monitors. No mouse polling or idle display observer is added; the target is resolved when a
++session opens.
+ 
+-`Include windows from other displays` is a different concern with a different owner:
+-it decides which *windows* are listed, through `WindowInclusionPolicy`, and is
+-unaffected by placement.
++When focused multi-display mode is disabled, the legacy placement behavior remains available.
++Mirrored panels are then identical by construction. They share one grid derived from the most
++constrained target display, because `SwitcherState` tracks a single column count for arrow
++navigation and per-display grids would make ↑/↓ mean different things depending on which
++display the user is looking at. One capture per window feeds every panel, sized for the
++sharpest target scale, so mirroring does not multiply ScreenCaptureKit work.
++
++The stored `Include windows from other displays` choice remains separate. Focused mode only
++overrides it at runtime; disabling focused mode restores the stored choice immediately.
+ 
+ ## Presentation
+ 
+@@ -131,8 +137,8 @@ appearance-aware keyboard focus color; no neutral border remains underneath it.
+ has no border and uses the native switcher's soft rounded background for selection and
+ hover. Selection surrounds only the fixed content canvas
+ — the title stays outside — and every overlay is excluded from layout measurement.
+-Hovering a tile reveals an overlay close control (routed through the same
+-confirmation as ⌫; also a VoiceOver custom action). Its center equals the canvas's
++Hovering a tile reveals an overlay close control (routed through the same direct
++window-close path as ⌫; also a VoiceOver custom action). Its center equals the canvas's
+ top-left point; the scroll document reuses the panel's existing padding as a clip-safe,
+ hit-testable overflow gutter, so the card and panel do not grow. A compact Settings
+ control (⌘, works without a pointer) keeps most of its 44 pt target inside the panel and
+@@ -145,7 +151,9 @@ into **rows** when one row can't fit ~88 % of the screen width (the AltTab
+ layout model) — there is no horizontal scrolling and tiles never shrink; ←/→
+ step linearly while ↑/↓ move by one row. Only an extreme window count exceeds
+ the ~85 % height budget and falls back to vertical scrolling with the selection
+-kept visible. Tile views are pooled and reconfigured, so repeated opens and
++kept visible. In Window Previews mode an incomplete row can be aligned Left,
++Center (default, preserving the original layout), or Right without changing the
++grid capacity or tile size. Tile views are pooled and reconfigured, so repeated opens and
+ live updates are single-digit milliseconds even with 100+ windows. System
+ materials and semantic colors handle Light/Dark, Increase Contrast, and Reduce
+ Transparency.
+@@ -160,16 +168,20 @@ provider emits a loading state, so unavailable authorization never starts captur
+ retry loop. One panel-level action requests a not-determined grant or opens the correct
+ Privacy & Security pane; cards never duplicate that action. App activation refreshes the
+ status after the user returns from System Settings. App Icons never needs this permission.
+-The cache is memory-only and app-lifetime: opening
+-the switcher shows the last known snapshot of every window instantly. The
+-session recaptures in parallel waves of four and delivers every result live —
+-a tile that opened with a cached snapshot crossfades to the fresh capture the
+-moment it lands (constant geometry, no layout shift; Reduce Motion disables
+-the fade), and tiles that opened with none fill in. Captures are taken without
+-the system window shadow (`ignoreShadowsSingleWindow`); the tile draws its own
+-shadow along the preview's rounded clip. WindowHop's own Settings window is
+-captured too (own pid + converted frame). Entries are evicted the moment their
+-window disappears and when the user switches back to App Icons.
++The cache is memory-only and bounded to roughly 64 MiB with LRU eviction. Opening the
++switcher shows any cached tile immediately. A pure O(n) refresh planner schedules the
++selected uncached window first, then every other uncached or geometry/title-invalidated
++window, then stale cached windows. Cache entries younger than two seconds are reused without
++recapture, so rapid repeated switching does not hammer WindowServer. Missing windows always
++beat stale cached windows, which guarantees that large multi-display inventories progressively
++fill instead of repeatedly refreshing only the first few MRU entries.
++
++Capture still runs in parallel waves of four and delivers results live. Matching first filters
++window-server candidates to relevant pids, then `PreviewMatcher` partitions by pid and reuses
++a compact precomputed score matrix inside each app. Expanded dwell images are transient and
++never enter the thumbnail cache, preventing large preview images from accumulating. Captures
++remain tile-sized, shadow-free (`ignoreShadowsSingleWindow`), memory-only, and session-scoped.
++WindowHop's own Settings window is captured too (own pid + converted frame).
+ 
+ Captures finish asynchronously and out of order, so the pure, unit-tested
+ `PreviewLedger` decides what a late result may do: results for evicted windows
+@@ -245,40 +257,31 @@ off the main thread — on Space changes (elements missing from `kAXWindows`) an
+ every switcher open (the visible entries) — and removes the dead ones. Ported in
+ spirit from AltTab's missing-window checks on trigger (upstream `39070383`).
+ 
