@@ -1,0 +1,54 @@
+name: Build my-alt-tab App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Support/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'scripts/**'
+      - '.github/workflows/build-app.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Repository validation
+        run: scripts/validate.sh
+
+      - name: Package ad-hoc signed app
+        run: |
+          chmod +x scripts/package-app.sh
+          ./scripts/package-app.sh
+
+      - name: Verify bundle
+        run: |
+          test -x build/my-alt-tab.app/Contents/MacOS/my-alt-tab
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/my-alt-tab.app/Contents/Info.plist)" = "my-alt-tab"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/my-alt-tab.app/Contents/Info.plist)" = "com.zhangqiaoran.myalttab"
+          codesign --verify --deep --strict build/my-alt-tab.app
+          ls -lh artifacts/
+
+      - name: Upload my-alt-tab archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-alt-tab-app
+          path: artifacts/my-alt-tab-*.zip
+          if-no-files-found: error
+          retention-days: 14
