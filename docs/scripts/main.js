@@ -1,11 +1,11 @@
 const WINDOWHOP_SITE = Object.freeze({
-  version: "1.1.0",
+  version: "2.0.0",
   website: "https://zhangqiaoran.github.io/windowhop-optimized/",
   github: "https://github.com/zhangqiaoran/windowhop-optimized",
   issues: "https://github.com/zhangqiaoran/windowhop-optimized/issues",
   releases: "https://github.com/zhangqiaoran/windowhop-optimized/releases",
-  releaseNotes: "https://github.com/zhangqiaoran/windowhop-optimized/releases/tag/v1.1.0",
-  download: "https://github.com/zhangqiaoran/windowhop-optimized/releases/latest/download/my-alt-tab-1.1.0.zip",
+  releaseNotes: "https://github.com/zhangqiaoran/windowhop-optimized/releases/tag/v2.0.0",
+  download: "https://github.com/zhangqiaoran/windowhop-optimized/releases/latest/download/my-alt-tab-2.0.0.zip",
   license: "https://github.com/zhangqiaoran/windowhop-optimized/blob/main/LICENSE",
   altTab: "https://github.com/lwouis/alt-tab-macos",
 });
