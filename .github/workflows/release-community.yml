@@ -1,0 +1,66 @@
+name: Release my-alt-tab
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.release/v1.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'zhangqiaoran/windowhop-optimized'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)
+          test "$VERSION" = "1.1.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Support/Info.plist)" = "my-alt-tab"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.zhangqiaoran.myalttab"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Repository validation
+        run: scripts/validate.sh
+
+      - name: Package ad-hoc signed app
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          chmod +x scripts/package-app.sh
+          ./scripts/package-app.sh "$VERSION"
+          codesign --verify --deep --strict build/my-alt-tab.app
+          shasum -a 256 "artifacts/my-alt-tab-${VERSION}.zip" > "artifacts/my-alt-tab-${VERSION}.zip.sha256"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+          ZIP="artifacts/my-alt-tab-${VERSION}.zip"
+          SHA="artifacts/my-alt-tab-${VERSION}.zip.sha256"
+          NOTES="RELEASE_NOTES_v${VERSION}.md"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" "$SHA" --clobber
+            gh release edit "$TAG" --title "my-alt-tab ${VERSION}" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" "$ZIP" "$SHA" \
+              --target "$GITHUB_SHA" \
+              --title "my-alt-tab ${VERSION}" \
+              --notes-file "$NOTES"
+          fi
