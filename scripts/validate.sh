@@ -50,10 +50,10 @@ fi
 # --- updater configuration ---------------------------------------------------
 # Community builds deliberately have no upstream Sparkle feed/key so they can
 # never replace themselves with another project's release channel.
-if /usr/libexec/PlistBuddy -c 'Print :WindowHopForkUpdatesDisabled' Support/Info.plist 2>/dev/null | grep -qx true; then
+if /usr/libexec/PlistBuddy -c 'Print :MyAltTabForkUpdatesDisabled' Support/Info.plist 2>/dev/null | grep -qx true; then
     pass "community auto-updates are disabled"
 else
-    fail "WindowHopForkUpdatesDisabled must be true"
+    fail "MyAltTabForkUpdatesDisabled must be true"
 fi
 if /usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' Support/Info.plist 2>/dev/null | grep -qx false; then
     pass "automatic update checks are disabled"
@@ -74,8 +74,8 @@ done
 
 # --- documentation/release synchronization ----------------------------------
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)
-README_ZIP_VERSIONS=$(grep -oE 'WindowHop-[0-9]+\.[0-9]+\.[0-9]+\.zip' README.md | sort -u)
-if [ "$README_ZIP_VERSIONS" = "WindowHop-$VERSION.zip" ]; then
+README_ZIP_VERSIONS=$(grep -oE 'my-alt-tab-[0-9]+\.[0-9]+\.[0-9]+\.zip' README.md | sort -u)
+if [ "$README_ZIP_VERSIONS" = "my-alt-tab-$VERSION.zip" ]; then
     pass "README artifact matches version $VERSION"
 else
     fail "README artifact does not uniquely match version $VERSION: $README_ZIP_VERSIONS"
@@ -98,7 +98,7 @@ done <<< "$MARKDOWN_FILES"
 
 while IFS= read -r screenshot; do
     [ -n "$screenshot" ] || continue
-    if grep -qF "($screenshot)" $MARKDOWN_FILES; then
+    if grep -qF "($screenshot)" $MARKDOWN_FILES || grep -qF "${screenshot#docs/}" docs/index.html; then
         :
     else
         fail "unreferenced screenshot is tracked: $screenshot"
