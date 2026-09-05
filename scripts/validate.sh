@@ -35,9 +35,12 @@ if grep -rn "CGWindowListCreateImage\|CGDisplayStream" Sources/ 2>/dev/null; the
 else
     pass "no legacy screen capture"
 fi
-if grep -rln "ScreenCaptureKit\|SCShareableContent\|SCScreenshotManager" Sources/ 2>/dev/null \
+# A Swift source file cannot use ScreenCaptureKit types without importing the
+# module. Check real import statements rather than prose comments that explain
+# why another subsystem deliberately avoids capture work.
+if grep -rlnE '^[[:space:]]*import[[:space:]]+ScreenCaptureKit([[:space:]]|$)' Sources/ 2>/dev/null \
     | grep -v "Sources/WindowHopCore/Engine/PreviewProvider.swift"; then
-    fail "ScreenCaptureKit used outside Engine/PreviewProvider.swift"
+    fail "ScreenCaptureKit imported outside Engine/PreviewProvider.swift"
 else
     pass "ScreenCaptureKit confined to the preview provider"
 fi
