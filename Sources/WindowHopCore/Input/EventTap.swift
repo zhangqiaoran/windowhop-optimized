@@ -59,6 +59,14 @@ struct EventTapInterceptionState {
     private var suppressedHigh: UInt64 = 0
     private var suppressedOverflow: Set<Int64> = []
 
+    init(mode: TapMode = .off,
+         holdModifier: CGEventFlags = .maskCommand,
+         persistentShortcut: PersistentShortcut? = nil) {
+        self.mode = mode
+        self.holdModifier = holdModifier
+        self.persistentShortcut = persistentShortcut
+    }
+
     var suppressedKeyUps: Set<Int64> {
         var result = suppressedOverflow
         for bit in 0..<64 where suppressedLow & (UInt64(1) << UInt64(bit)) != 0 {
