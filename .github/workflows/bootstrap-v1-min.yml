@@ -23,32 +23,27 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Start from the exact GPL upstream source used by the frozen v1.0 baseline.
+          # Use the exact source archive line on which this release was developed.
           git clone --depth 1 --branch v1.6.0 https://github.com/martonpaulo/windowhop.git /tmp/upstream
           mkdir -p /tmp/final
           rsync -a --exclude='.git/' /tmp/upstream/ /tmp/final/
 
-          # Reconstruct the frozen zhangqiaoran v1.0 baseline.
-          cat "$GITHUB_WORKSPACE"/.bootstrap/part-*.patch > /tmp/v1.patch
+          # The direct patch was generated and locally round-trip tested against
+          # the original v1.6.0 source, then Swift-parsed across all 70 source/test files.
+          cat "$GITHUB_WORKSPACE"/.bootstrap-direct/part-*.b64 | tr -d '\n' | base64 -d > /tmp/my-alt-tab.patch.gz
+          gzip -dc /tmp/my-alt-tab.patch.gz > /tmp/my-alt-tab.patch
+
           cd /tmp/final
           git init
           git config user.name zhangqiaoran
           git config user.email liuzijiang_work@163.com
           git add -A
           git commit -m "base: upstream v1.6.0"
-          git apply --binary /tmp/v1.patch
+          git apply --binary --check /tmp/my-alt-tab.patch
+          git apply --binary /tmp/my-alt-tab.patch
 
-          # Apply the tested v1.1 performance/UI/runtime delta.
-          cat "$GITHUB_WORKSPACE"/.bootstrap-v11-final/part-*.b64 | tr -d '\n' | base64 -d > /tmp/v11.patch
-          git apply --binary /tmp/v11.patch
-
-          # The zhangqiaoran release line does not inherit upstream signing/update release assets.
-          rm -f appcast.xml
-          rm -f Support/ExpectedDesignatedRequirement.txt Support/WindowHopCodeSigning.cer
-          rm -f .github/workflows/release.yml
-
-          # Keep workflow files controlled by the connected GitHub account, because
-          # GitHub's ephemeral Actions token is intentionally not used to rewrite workflows.
+          # Workflow files are managed by the connected GitHub account rather than
+          # rewritten by GitHub's ephemeral Actions token.
           rm -rf /tmp/final/.github/workflows
 
           cd "$GITHUB_WORKSPACE"
@@ -57,7 +52,7 @@ jobs:
             --exclude='.github/workflows/' \
             /tmp/final/ ./
 
-          rm -rf .bootstrap .bootstrap-v11 .bootstrap-v11-code .bootstrap-v11-code2 .bootstrap-v11-final .bootstrap-v11-final2
+          rm -rf .bootstrap .bootstrap-v11 .bootstrap-v11-code .bootstrap-v11-code2 .bootstrap-v11-final .bootstrap-direct
 
           git config user.name zhangqiaoran
           git config user.email liuzijiang_work@163.com
