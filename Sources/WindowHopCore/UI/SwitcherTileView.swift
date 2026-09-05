@@ -24,7 +24,7 @@ private final class OverlayCloseButton: NSButton {
 }
 
 /// A native, dependency-free placeholder that reads as a simplified macOS
-/// window. v1.1 deliberately keeps it static: ScreenCaptureKit already does the
+/// window. v2.0 keeps it static: ScreenCaptureKit already does the
 /// expensive work during fill-in, so placeholders add no continuous animation
 /// or card-level error copy.
 private final class PreviewSkeletonView: NSView {
@@ -187,6 +187,7 @@ final class SwitcherTileView: NSView {
     private let closeButton = OverlayCloseButton()
     private var trackingArea: NSTrackingArea?
     private var suppressHoverForRendering = false
+    private var selectionScale: CGFloat = 1
 
     /// Cheap fingerprint for pooled-tile reuse. Window-store notifications can
     /// rebuild the visible list without changing most cards; unchanged cards no
@@ -205,6 +206,7 @@ final class SwitcherTileView: NSView {
         didSet {
             guard oldValue != isSelected else { return }
             applySelectionStyle()
+            applySelectionMotion()
         }
     }
 
@@ -251,6 +253,7 @@ final class SwitcherTileView: NSView {
     var metadataFrameForTesting: NSRect { tabsLabel.frame }
     var titleFontForTesting: NSFont? { titleLabel.font }
     var metadataFontForTesting: NSFont? { tabsLabel.font }
+    var selectionScaleForTesting: CGFloat { selectionScale }
 
     /// Tiles are pooled and reconfigured (never recreated per session) so the
     /// panel opens fast even with 100+ windows.
@@ -258,6 +261,9 @@ final class SwitcherTileView: NSView {
         super.init(frame: NSRect(
             origin: .zero,
             size: Metrics.appIcons(showTabCounts: false).tileSize))
+
+        wantsLayer = true
+        layer?.masksToBounds = false
 
         selectionBackgroundView.wantsLayer = true
         selectionBackgroundView.layer?.cornerRadius = DesignTokens.iconSelectionCornerRadius
@@ -543,6 +549,37 @@ final class SwitcherTileView: NSView {
         // Selection/hover only changes paint. Forcing layout here used to make
         // every rapid ⌘⇥ step relayout the selected and previously selected
         // tiles even though no geometry changed.
+    }
+
+    private func applySelectionMotion() {
+        let target = isSelected ? DesignTokens.selectedTileScale : 1
+        guard selectionScale != target else { return }
+        selectionScale = target
+        guard let layer else { return }
+
+        let presentationScale = (layer.presentation()?
+            .value(forKeyPath: "transform.scale") as? NSNumber)?.doubleValue
+        let fromScale = presentationScale ?? Double(
+            isSelected ? 1 : DesignTokens.selectedTileScale)
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.setAffineTransform(CGAffineTransform(scaleX: target, y: target))
+        CATransaction.commit()
+
+        let shouldAnimate = window?.isVisible == true && !isHidden
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        guard shouldAnimate else {
+            layer.removeAnimation(forKey: "selectionScale")
+            return
+        }
+
+        let animation = CABasicAnimation(keyPath: "transform.scale")
+        animation.fromValue = fromScale
+        animation.toValue = target
+        animation.duration = DesignTokens.selectedTileScaleDuration
+        animation.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.82, 0.20, 1.0)
+        layer.add(animation, forKey: "selectionScale")
     }
 
     private func updateSkeletonPresentation() {
