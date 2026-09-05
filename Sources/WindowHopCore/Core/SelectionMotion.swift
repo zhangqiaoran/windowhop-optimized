@@ -3,7 +3,7 @@ import Foundation
 /// Constant-time motion planning for the shared selection lens.
 ///
 /// The duration adapts to grid distance without sorting, searching, or
-/// allocating. Adjacent Cmd-Tab steps stay immediate; longer arrow-key jumps
+/// allocating. This is the v2.0 constant-cost focus path: adjacent Cmd-Tab steps stay immediate; longer arrow-key jumps
 /// get slightly more travel time so the user's eye can follow the focus.
 public enum SelectionMotion {
     public static let minimumDuration: TimeInterval = 0.075
