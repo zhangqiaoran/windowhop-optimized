@@ -1,0 +1,420 @@
+-## Close, Quit, Force Quit
+-
+-The confirmation dialog hides the switcher panel while it runs (so it is always on
+-top and keyboard-focused) and restores it afterwards with the previous selection.
+-Buttons: Cancel (default), Close Window (AX close button; the app's own
+-unsaved-changes flow runs), and Quit <App> (`NSRunningApplication.terminate()` —
+-never injected keystrokes). If a quit was already requested and the app still runs,
+-the offer escalates to "Force Quit <App>…", which opens a second, explicitly
+-destructive confirmation before `forceTerminate()`. WindowHop's own Settings entry
+-offers Cancel/Close only.
+-
+-## Updates
+-
+-`UpdateManager` wraps Sparkle 2's `SPUStandardUpdaterController` and only starts from a
+-real bundle (`com.perso.windowhop` with `SUFeedURL` present). As the updater
+-delegate it mirrors the latest found update version (`availableVersion`,
+-observable) so the Settings Updates pane can show "X.Y.Z is available" with an
+-install button; the standard Sparkle dialog still owns install / remind-later /
+-skip-this-version, so the same version never nags twice and a failed check
+-changes nothing. The appcast lives at
+-`https://raw.githubusercontent.com/martonpaulo/windowhop/main/appcast.xml`; archives are
+-EdDSA-signed (`SUPublicEDKey` embedded in Info.plist, private key in Keychain/CI secret).
+-Update checks are the app's only network activity.
+-
+-Official tag builds are fail-closed: the workflow accepts only the current `main` commit,
+-requires an Apple-issued Developer ID Application identity plus Apple ID notarization
+-credentials, and validates the final app against `Support/ExpectedDesignatedRequirement.txt`
+-and the stable public leaf certificate in `Support/WindowHopCodeSigning.cer`. The validator
+-checks bundle id, Team ID, hardened runtime, entitlements, every nested Mach-O signature,
+-and the exact designated requirement. The workflow submits both the app archive and final
+-DMG with `notarytool --wait`, staples and validates both tickets, runs Gatekeeper on the
+-app and DMG, preserves the branded DMG resource fork in an installer ZIP, then signs the
+-Sparkle archive and publishes. Local packages may remain ad-hoc signed only when release
+-identity validation is explicitly inapplicable.
++## Close
++
++Delete and the hover close control act on the selected top-level window immediately.
++`WindowActions.close` presses that window's native close button through Accessibility
++(or `performClose` for WindowHop's own Settings window), so the target application's
++normal unsaved-changes workflow is preserved. The switcher never turns a window-close
++request into Quit or Force Quit; closing a Finder window therefore closes only that
++Finder window and never offers to quit Finder.
++
++## Updates and releases
++
++The zhangqiaoran v1.0.0 community build intentionally ships with automatic Sparkle
++updates disabled. `Support/Info.plist` contains no upstream `SUFeedURL` or
++`SUPublicEDKey`, and `WindowHopForkUpdatesDisabled` prevents `UpdateManager` from
++starting. This prevents the maintained build from replacing itself with another
++project's release line.
++
++The canonical release path is `.github/workflows/release-community.yml`: a matching
++`vX.Y.Z` tag is checked against `CFBundleShortVersionString`, tests and repository
++validation run on a macOS runner, `scripts/package-app.sh` creates an ad-hoc signed app
++archive, and GitHub CLI publishes the ZIP as a GitHub Release.
++
++A future notarized Developer ID/Sparkle channel may be added only with zhangqiaoran-owned
++credentials, Team ID, public/private update keys, and repository URLs. No upstream
++certificate or private signing material is part of the current project.
+ 
+ ## Public-API replacements for AltTab's private calls
+ 
+diff --git a/docs/feature-defaults.md b/docs/feature-defaults.md
+index c42694f2417917e5ebba4b77f27365b562ae7781..97a8f9470a50247608dcacc034c848963b3d77aa 100644
+--- a/docs/feature-defaults.md
++++ b/docs/feature-defaults.md
+@@ -35,11 +35,15 @@ centralized default through the registration domain; migrations are explicit and
+ |---|---|---|---|
+ | Windows appearing mid-session | Shown | No | Correctness fix: a window the user cannot see is a window they cannot reach, and the existing inclusion policy already decides what qualifies. The stability concern that motivated the frozen list is met by appending instead of reordering (see `SessionListReconciler`), so no legitimate "hide new windows" state remains. No persistence or reset entry. |
+ 
+-## WindowHop 1.6.0 decisions
++## WindowHop 1.0.0 (zhangqiaoran release line) decisions
+ 
+ | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
+ |---|---|---|---|
++| Focused multi-display mode | On | Yes | Windows pane; typed `UserDefaults` (`focusedMultiDisplayMode`); one switcher is drawn on the pointer display while eligible windows from every display remain in the list. Turning it off restores the pre-existing placement and cross-display inclusion controls. Restore Defaults resets to On. |
+ | Switcher placement across displays | All displays | Yes | Windows pane; typed `UserDefaults` (`switcherDisplayPlacement`); no migration — an installation with no stored value takes the new default and every other stored choice is untouched; resets to All displays. Placement is display *behavior*, so it lives beside the inclusion filters rather than under Appearance. |
+ | Chosen display for "a specific display" | None | Yes | Windows pane; typed `UserDefaults` (`switcherDisplayID`), a display UUID from `CGDisplayCreateUUIDFromDisplayID` so it survives reconnect and reboot. A disconnected choice is kept verbatim, shown in the picker as disconnected, and falls back to the pointer display until it returns; resets to none. |
+ | Pointer display rather than keyboard focus | Pointer | No | One valid outcome: `NSScreen.main` is documented to misreport the active screen (fullscreen app, or `screensHaveSeparateSpaces` off), and the pointer is what tracks where the user is looking. No persistence or reset entry. See `UPSTREAM.md`. |
+ | Identical grid on mirrored panels | Enabled | No | Correctness constraint: `SwitcherState` holds one column count for arrow navigation, so per-display grids would make the arrow keys ambiguous. The shared grid comes from the most constrained target display. No persistence or reset entry. |
++| Preview row alignment | Center | Yes | Appearance pane; typed `UserDefaults` (`previewRowAlignment`); applies only to incomplete rows in Window Previews mode, so full-row geometry and App Icons remain unchanged. Missing or invalid stored values fall back to Center; Restore Defaults resets to Center. |
++| Direct window close | Enabled | No | Delete and the hover close control invoke the selected window's native close action immediately. They never offer application Quit/Force Quit; app-owned unsaved-changes dialogs remain intact. No persistence or reset entry. |
++| Event-tap self-healing | Enabled | No | Reliability fix: wake/session recovery first re-enables the existing CGEvent tap and rebuilds it only when invalid or unable to re-enable. No idle polling, timer, persistence, or reset entry. |
+diff --git a/docs/index.html b/docs/index.html
+index ca00f3a81a741c93593ff97335b0f056520ee159..f1fb5bb285ecb6ca28abfa5b60bd5de108aecb55 100644
+--- a/docs/index.html
++++ b/docs/index.html
+@@ -6,20 +6,20 @@
+   <meta name="color-scheme" content="light dark">
+   <title>WindowHop — Switch between windows, not just apps.</title>
+   <meta name="description" content="A fast, native macOS window switcher with visual previews, keyboard navigation, and configurable window filtering.">
+-  <link rel="canonical" href="https://martonpaulo.github.io/windowhop/">
++  <link rel="canonical" href="https://zhangqiaoran.github.io/windowhop-optimized/">
+   <link rel="icon" type="image/png" href="assets/favicon.png">
+   <link rel="apple-touch-icon" href="assets/app-icon.png">
+   <meta property="og:type" content="website">
+   <meta property="og:site_name" content="WindowHop">
+   <meta property="og:title" content="WindowHop — Switch between windows, not just apps.">
+   <meta property="og:description" content="A native, keyboard-first visual window switcher for macOS.">
+-  <meta property="og:url" content="https://martonpaulo.github.io/windowhop/">
+-  <meta property="og:image" content="https://martonpaulo.github.io/windowhop/assets/social-preview.png">
++  <meta property="og:url" content="https://zhangqiaoran.github.io/windowhop-optimized/">
++  <meta property="og:image" content="https://zhangqiaoran.github.io/windowhop-optimized/assets/social-preview.png">
+   <meta property="og:image:alt" content="WindowHop showing visual previews for individual macOS windows">
+   <meta name="twitter:card" content="summary_large_image">
+   <meta name="twitter:title" content="WindowHop — Switch between windows, not just apps.">
+   <meta name="twitter:description" content="A native, keyboard-first visual window switcher for macOS.">
+-  <meta name="twitter:image" content="https://martonpaulo.github.io/windowhop/assets/social-preview.png">
++  <meta name="twitter:image" content="https://zhangqiaoran.github.io/windowhop-optimized/assets/social-preview.png">
+   <link rel="stylesheet" href="styles/main.css">
+   <script src="scripts/main.js" defer></script>
+ </head>
+@@ -109,7 +109,7 @@
+     <section class="open-source section" aria-labelledby="open-source-title">
+       <p class="eyebrow">Open source</p>
+       <h2 id="open-source-title">Built in public.</h2>
+-      <p>WindowHop is GPL-3.0 free software developed by Marton Paulo. It is derived from AltTab by Louis Pontoise (lwouis) and contributors, with gratitude and upstream attribution preserved.</p>
++      <p>WindowHop Optimized is GPL-3.0 free software maintained and released by zhangqiaoran. It is based on WindowHop by Marton Paulo and AltTab by Louis Pontoise (lwouis) and contributors, with upstream attribution preserved.</p>
+       <div class="link-row">
+         <a data-link="github" href="#">Source code</a>
+         <a data-link="issues" href="#">Report an issue</a>
+@@ -120,7 +120,7 @@
+   </main>
+ 
+   <footer>
+-    <p>Developed by Marton Paulo · © <span data-site-year></span> WindowHop contributors.</p>
++    <p>Developed & maintained by zhangqiaoran · © <span data-site-year></span> WindowHop contributors.</p>
+     <p>No telemetry. No accounts. Update checks are WindowHop's only network activity.</p>
+   </footer>
+ </body>
+diff --git a/docs/product.md b/docs/product.md
+index 77a43b80b31cb6aa5d835ad4c2d802aa8281162a..ffa633bb66a42a106166945312c1ae2854d9571d 100644
+--- a/docs/product.md
++++ b/docs/product.md
+@@ -72,8 +72,8 @@ to reopen the non-goal — an inconvenient feature request is not.
+   a working switcher. This is the fail-safe the whole design is arranged around.
+ 
+ Appearance customization is deliberately *not* on this list. It is currently constrained to two
+-modes and system Light/Dark by an implementation rule in `AGENTS.md`, which is a narrower and
+-more reversible commitment than a product non-goal.
++modes, system Light/Dark, and a small preview-row alignment choice by an implementation rule in
++`AGENTS.md`, which is a narrower and more reversible commitment than a product non-goal.
+ 
+ ## How you know it worked
+ 
+diff --git a/docs/scripts/main.js b/docs/scripts/main.js
+index fd96eb1db0036d7274886db5a7fec93377e9853f..75fb93229af540542e1302ad0505e3204928af6b 100644
+--- a/docs/scripts/main.js
++++ b/docs/scripts/main.js
+@@ -1,12 +1,12 @@
+ const WINDOWHOP_SITE = Object.freeze({
+-  version: "1.6.0",
+-  website: "https://martonpaulo.github.io/windowhop/",
+-  github: "https://github.com/martonpaulo/windowhop",
+-  issues: "https://github.com/martonpaulo/windowhop/issues",
+-  releases: "https://github.com/martonpaulo/windowhop/releases",
+-  releaseNotes: "https://github.com/martonpaulo/windowhop/releases/tag/v1.6.0",
+-  download: "https://github.com/martonpaulo/windowhop/releases/latest/download/WindowHop-1.6.0-Installer.zip",
+-  license: "https://github.com/martonpaulo/windowhop/blob/main/LICENSE",
++  version: "1.0.0",
++  website: "https://zhangqiaoran.github.io/windowhop-optimized/",
++  github: "https://github.com/zhangqiaoran/windowhop-optimized",
++  issues: "https://github.com/zhangqiaoran/windowhop-optimized/issues",
++  releases: "https://github.com/zhangqiaoran/windowhop-optimized/releases",
++  releaseNotes: "https://github.com/zhangqiaoran/windowhop-optimized/releases/tag/v1.0.0",
++  download: "https://github.com/zhangqiaoran/windowhop-optimized/releases/latest/download/WindowHop-1.0.0.zip",
++  license: "https://github.com/zhangqiaoran/windowhop-optimized/blob/main/LICENSE",
+   altTab: "https://github.com/lwouis/alt-tab-macos",
+ });
+ 
+diff --git a/docs/testing.md b/docs/testing.md
+index e6ac7b9a0ef2014d2201198509b41641d7726ac4..1e1ff03a2505bce6bcab000293aaea168885c900 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -38,23 +38,17 @@ Preview regressions pin:
+ ```sh
+ scripts/verify-release-identity.sh build/WindowHop.app
+ scripts/verify-update-continuity.sh <previous.app> <candidate.app>
+-scripts/verify-dmg-branding.sh artifacts/WindowHop-1.3.1.dmg
+ ```
+ 
+-`verify-release-identity.sh` fails unless the app has:
++`verify-release-identity.sh` validates the current bundle identity
++`com.zhangqiaoran.windowhop` and a valid deep code signature. Community builds may be
++ad-hoc signed. If a future Developer ID release is used, set `EXPECTED_TEAM_ID` to the
++zhangqiaoran-controlled Team ID; non-ad-hoc releases must use Hardened Runtime.
+ 
+-- bundle id `com.perso.windowhop` and Team ID `TBN79KU9ML`;
+-- the reviewed stable Developer ID Application leaf certificate;
+-- the exact expected designated requirement;
+-- hardened runtime and the expected entitlement set;
+-- a valid deep signature and no nested executable signed by another team.
+-
+-`verify-update-continuity.sh` applies the same contract to both releases and compares
+-their effective designated requirements, identifiers, teams, and entitlements.
+-`verify-dmg-branding.sh` validates the image, Finder resource icon, mounted volume icon,
+-background, `.DS_Store`, app, and Applications alias. The official workflow then waits
+-for notarization, staples and validates app and DMG tickets, and runs Gatekeeper before
+-creating a release.
++The project no longer carries or validates against the upstream author's certificate,
++Team ID, or designated requirement. Those credentials do not belong to this release line.
++`verify-update-continuity.sh` can still compare two builds when a stable signing identity
++is introduced later.
+ 
+ ## Debug and visual harness
+ 
+diff --git a/docs/website.md b/docs/website.md
+index f6411bf3a9f5d1f10b3595b891e70b533b7b68fc..abc33ad51231ad90c703bece63d1f4c7a2090715 100644
+--- a/docs/website.md
++++ b/docs/website.md
+@@ -1,7 +1,7 @@
+ # WindowHop website deployment
+ 
+ The static product site lives directly in `docs/` and is served at
+-<https://martonpaulo.github.io/windowhop/>. It has no backend, package manager, generated
++<https://zhangqiaoran.github.io/windowhop-optimized/>. It has no backend, package manager, generated
+ bundle, analytics, or runtime dependency.
+ 
+ ## Local preview
+diff --git a/scripts/make-appcast.sh b/scripts/make-appcast.sh
+index 352482079d8076bde013a2ef18ac929d24c6a194..4d5766592973a9dff7d2d15f2084fb196d19dda1 100755
+--- a/scripts/make-appcast.sh
++++ b/scripts/make-appcast.sh
+@@ -9,7 +9,7 @@ VERSION="$1"
+ BUILD_NUMBER="$2"
+ ZIP_PATH="$3"
+ SIGNATURE_ATTRS="$4"
+-URL="https://github.com/martonpaulo/windowhop/releases/download/v$VERSION/$(basename "$ZIP_PATH")"
++URL="https://github.com/zhangqiaoran/windowhop-optimized/releases/download/v$VERSION/$(basename "$ZIP_PATH")"
+ DATE=$(LC_ALL=en_US.UTF-8 date -u "+%a, %d %b %Y %H:%M:%S +0000")
+ 
+ # BSD awk rejects newlines in -v values, so the item travels via a temp file
+@@ -32,7 +32,7 @@ if [ ! -f appcast.xml ]; then
+ <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+   <channel>
+     <title>WindowHop</title>
+-    <link>https://github.com/martonpaulo/windowhop</link>
++    <link>https://github.com/zhangqiaoran/windowhop-optimized</link>
+     <description>Most recent updates to WindowHop</description>
+     <language>en</language>
+   </channel>
+diff --git a/scripts/validate-site.sh b/scripts/validate-site.sh
+index d31b168f2536c2a5cf07bb631bbf9f65c1c0696b..91e07b5af4542ab3879f23d5976aa6177502ce79 100755
+--- a/scripts/validate-site.sh
++++ b/scripts/validate-site.sh
+@@ -20,14 +20,14 @@ grep -Fq "version: \"$VERSION\"" docs/scripts/main.js || {
+   echo "website version does not match Support/Info.plist: $VERSION" >&2
+   exit 1
+ }
+-grep -Fq "WindowHop-$VERSION-Installer.zip" docs/scripts/main.js || {
++grep -Fq "WindowHop-$VERSION.zip" docs/scripts/main.js || {
+   echo "website installer URL does not match version $VERSION" >&2
+   exit 1
+ }
+ 
+ for marker in 'id="features"' 'id="download"' 'data-link="download"' \
+               'prefers-color-scheme: dark' 'prefers-reduced-motion: reduce' \
+-              'Developed by Marton Paulo' 'AltTab on GitHub'; do
++              'Developed & maintained by zhangqiaoran' 'AltTab on GitHub'; do
+   grep -R -Fq "$marker" docs/index.html docs/styles/main.css || {
+     echo "website is missing required marker: $marker" >&2
+     exit 1
+diff --git a/scripts/validate.sh b/scripts/validate.sh
+index 502ac032f4ec0fb0626bd22aa4114e9304004f27..c9998c0c171c2400753911a64f081490f3808011 100755
+--- a/scripts/validate.sh
++++ b/scripts/validate.sh
+@@ -16,10 +16,10 @@ if grep -rn "com\.martonpss\|com\.lwouis\|lwouis\.alt-tab" $TRACKED 2>/dev/null
+ else
+     pass "no obsolete bundle identifiers"
+ fi
+-if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.perso.windowhop" ]; then
+-    pass "bundle identifier is com.perso.windowhop"
++if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Support/Info.plist)" = "com.zhangqiaoran.windowhop" ]; then
++    pass "bundle identifier is com.zhangqiaoran.windowhop"
+ else
+-    fail "Support/Info.plist bundle identifier is not com.perso.windowhop"
++    fail "Support/Info.plist bundle identifier is not com.zhangqiaoran.windowhop"
+ fi
+ 
+ # --- no private API, no capture outside the preview subsystem ----------------
+@@ -48,35 +48,37 @@ else
+ fi
+ 
+ # --- updater configuration ---------------------------------------------------
+-for key in SUFeedURL SUPublicEDKey SUEnableAutomaticChecks; do
++# Community builds deliberately have no upstream Sparkle feed/key so they can
++# never replace themselves with another project's release channel.
++if /usr/libexec/PlistBuddy -c 'Print :WindowHopForkUpdatesDisabled' Support/Info.plist 2>/dev/null | grep -qx true; then
++    pass "community auto-updates are disabled"
++else
++    fail "WindowHopForkUpdatesDisabled must be true"
++fi
++if /usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' Support/Info.plist 2>/dev/null | grep -qx false; then
++    pass "automatic update checks are disabled"
++else
++    fail "SUEnableAutomaticChecks must be false"
++fi
++for key in SUFeedURL SUPublicEDKey; do
+     if /usr/libexec/PlistBuddy -c "Print :$key" Support/Info.plist >/dev/null 2>&1; then
+-        pass "Info.plist has $key"
++        fail "community Info.plist must not contain $key"
+     else
+-        fail "Info.plist missing $key"
++        pass "community Info.plist omits $key"
+     fi
+ done
+-FEED=$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Support/Info.plist)
+-case "$FEED" in
+-    https://*) pass "appcast feed is HTTPS" ;;
+-    *) fail "appcast feed is not HTTPS: $FEED" ;;
+-esac
+ 
+ # --- appcast/release metadata consistency ------------------------------------
+-if [ -f appcast.xml ]; then
+-    if grep -q "sparkle:edSignature=" appcast.xml && grep -q "https://github.com/martonpaulo/windowhop/releases/download/" appcast.xml; then
+-        pass "appcast entries are signed and point at GitHub Releases"
+-    else
+-        fail "appcast.xml missing edSignature or GitHub release URLs"
+-    fi
+-fi
++# appcast.xml is retained only as upstream historical material. The community
++# build intentionally has no active feed or Sparkle public key.
+ 
+ # --- documentation/release synchronization ----------------------------------
+ VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)
+-README_DMG_VERSIONS=$(grep -oE 'WindowHop-[0-9]+\.[0-9]+\.[0-9]+\.dmg' README.md | sort -u)
+-if [ "$README_DMG_VERSIONS" = "WindowHop-$VERSION.dmg" ]; then
+-    pass "README download matches version $VERSION"
++README_ZIP_VERSIONS=$(grep -oE 'WindowHop-[0-9]+\.[0-9]+\.[0-9]+\.zip' README.md | sort -u)
++if [ "$README_ZIP_VERSIONS" = "WindowHop-$VERSION.zip" ]; then
++    pass "README artifact matches version $VERSION"
+ else
+-    fail "README download does not uniquely match version $VERSION: $README_DMG_VERSIONS"
++    fail "README artifact does not uniquely match version $VERSION: $README_ZIP_VERSIONS"
+ fi
+ 
+ MARKDOWN_FILES=$(git ls-files '*.md')
+diff --git a/scripts/verify-release-identity.sh b/scripts/verify-release-identity.sh
+index 79216bd61be748979dda756b18843c5cc626eb74..7ed31b096891a061d459b2c512a7cd006fe2504e 100755
+--- a/scripts/verify-release-identity.sh
++++ b/scripts/verify-release-identity.sh
+@@ -1,14 +1,12 @@
+ #!/bin/bash
+-# Rejects artifacts that would change WindowHop's effective macOS identity and
+-# invalidate an existing TCC grant. Run after signing and again from the DMG.
++# Validates the zhangqiaoran WindowHop release identity without depending on
++# another project's certificate or Team ID. Optional EXPECTED_TEAM_ID can be
++# supplied for a future Developer ID release.
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ 
+ APP="${1:-build/WindowHop.app}"
+-EXPECTED_IDENTIFIER=com.perso.windowhop
+-EXPECTED_TEAM=TBN79KU9ML
+-EXPECTED_CERT=Support/WindowHopCodeSigning.cer
+-EXPECTED_REQUIREMENT=$(tr -d '\n' < Support/ExpectedDesignatedRequirement.txt)
++EXPECTED_IDENTIFIER=com.zhangqiaoran.windowhop
+ 
+ [ -d "$APP" ] || { echo "Identity validation failed: app not found: $APP" >&2; exit 1; }
+ codesign --verify --deep --strict --verbose=2 "$APP"
+@@ -18,47 +16,20 @@ grep -qx "Identifier=$EXPECTED_IDENTIFIER" <<< "$SIGNATURE" || {
+     echo "Identity validation failed: signing identifier is not $EXPECTED_IDENTIFIER." >&2
+     exit 1
+ }
+-grep -qx "TeamIdentifier=$EXPECTED_TEAM" <<< "$SIGNATURE" || {
+-    echo "Identity validation failed: TeamIdentifier is not $EXPECTED_TEAM." >&2
+-    exit 1
+-}
+-grep -q '^Authority=Developer ID Application: Marton Paulo (TBN79KU9ML)$' <<< "$SIGNATURE" || {
+-    echo "Identity validation failed: expected Developer ID Application authority is absent." >&2
+-    exit 1
+-}
+-grep -q 'flags=.*runtime' <<< "$SIGNATURE" || {
+-    echo "Identity validation failed: Hardened Runtime is absent." >&2
+-    exit 1
+-}
+-if codesign -d --entitlements - "$APP" 2>/dev/null | grep -q .; then
+-    echo "Identity validation failed: application entitlements changed from the stable empty set." >&2
+-    exit 1
+-fi
+ 
+-ACTUAL_REQUIREMENT=$(codesign -dr - "$APP" 2>&1 | sed -n 's/^designated => //p')
+-[ "$ACTUAL_REQUIREMENT" = "$EXPECTED_REQUIREMENT" ] || {
+-    echo "Identity validation failed: designated requirement changed." >&2
+-    echo "expected: $EXPECTED_REQUIREMENT" >&2
+-    echo "actual:   $ACTUAL_REQUIREMENT" >&2
+-    exit 1
+-}
+-
+-CERT_DIR=$(mktemp -d)
+-trap 'find "$CERT_DIR" -type f -delete; rmdir "$CERT_DIR"' EXIT
+-codesign -d --extract-certificates="$CERT_DIR/leaf" "$APP" 2>/dev/null
+-cmp -s "$EXPECTED_CERT" "$CERT_DIR/leaf0" || {
+-    echo "Identity validation failed: release certificate differs from the stable WindowHop certificate." >&2
+-    exit 1
+-}
++if [ -n "${EXPECTED_TEAM_ID:-}" ]; then
++    grep -qx "TeamIdentifier=$EXPECTED_TEAM_ID" <<< "$SIGNATURE" || {
++        echo "Identity validation failed: TeamIdentifier is not $EXPECTED_TEAM_ID." >&2
++        exit 1
++    }
++fi
+ 
+-while IFS= read -r executable; do
+-    file "$executable" | grep -q 'Mach-O' || continue
+-    codesign --verify --strict "$executable"
+-    NESTED_SIGNATURE=$(codesign -dvvv "$executable" 2>&1)
+-    grep -qx "TeamIdentifier=$EXPECTED_TEAM" <<< "$NESTED_SIGNATURE" || {
+-        echo "Identity validation failed: nested code uses another team: $executable" >&2
++# Developer-ID releases should have Hardened Runtime. Ad-hoc builds may not.
++if ! grep -q 'Signature=adhoc' <<< "$SIGNATURE"; then
++    grep -q 'flags=.*runtime' <<< "$SIGNATURE" || {
++        echo "Identity validation failed: non-ad-hoc build is missing Hardened Runtime." >&2
+         exit 1
+     }
+-done < <(find "$APP/Contents" -type f -perm -111 -print)
++fi
+ 
+-echo "release identity: ok ($EXPECTED_IDENTIFIER, team $EXPECTED_TEAM, stable certificate and requirement)"
++echo "release identity: ok ($EXPECTED_IDENTIFIER${EXPECTED_TEAM_ID:+, team $EXPECTED_TEAM_ID})"
