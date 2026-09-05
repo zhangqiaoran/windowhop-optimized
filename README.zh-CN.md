@@ -1,69 +1,84 @@
 # my-alt-tab
 
-**zhangqiaoran 维护的轻量 macOS 窗口切换器。**
-当前版本：**v1.1.0** · macOS 14+ · 原生 Swift / AppKit · GPL-3.0
+**zhangqiaoran 维护的原生 macOS 窗口切换器。**  
+当前版本线：**v2.0.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
-my-alt-tab 从 v1.0.0 开始以 **zhangqiaoran** 作为当前项目作者、维护者和发行者。v1.0.0 作为正式基线冻结；v1.1.0 在不堆功能、不增加后台轮询、不增加新运行时依赖的前提下，继续优化性能、内存、稳定性和 UI。
+my-alt-tab 从 v1.0.0 起由 **zhangqiaoran** 作为当前项目作者、维护者和发行者。2.0 开始进入新的产品阶段：**UI 更高级，但绝不靠堆 Blur、堆动画、堆后台任务换视觉效果。**
 
-> 继承代码所需的 GPL-3.0 上游版权/来源信息单独保留在 [`UPSTREAM.md`](UPSTREAM.md) 和 [`LICENSE`](LICENSE) 中。
+> 继承代码所需的 GPL-3.0 上游来源与版权信息继续保留在 [`UPSTREAM.md`](UPSTREAM.md) 和 [`LICENSE`](LICENSE) 中。
 
-## v1.1.0：性能 + 轻量 UI
+## 2.0：Glass Focus Engine
 
-### 性能算法
+2.0 的缩略图列表采用**共享毛玻璃平面**：
 
-| 场景 | v1.1 做法 | 收益 |
+- macOS 26+：系统原生 `NSGlassEffectView`；
+- macOS 14 / 15：原生 `NSVisualEffectView` 回退；
+- 不给每个缩略图单独创建 Blur View；
+- 不让 GPU / 合成开销随着窗口数量线性叠加。
+
+选中反馈重新设计成三层：
+
+1. **Focus Lens**：只有一个高亮镜片，跟随当前选中缩略图移动；
+2. **Optical Lift**：当前缩略图轻微放大 2.2%，焦点非常明确；
+3. **Distance-Adaptive Motion**：相邻 Tab 切换更快，跨行方向键移动稍微延长运动时间，让视线能跟上。
+
+系统开启“减少动态效果”后，移动动画自动关闭。
+
+## 热路径算法
+
+| 场景 | 2.0 实现 | 复杂度 / 收益 |
 |---|---|---|
-| 切换选中窗口 | **O(1) 更新旧/新两个 Tile** | 连续按 Tab / 方向键不再遍历所有可见缩略图 |
-| Window ID 定位 | **Hash 索引** | 平均接近 O(1) |
-| 缩略图匹配 | **PID 分桶 + 扁平 Score Matrix + 稠密 Bool Mask** | 减少跨 App 无意义比较和 Set/Dictionary 分配 |
-| 缩略图刷新 | **O(n) 优先级规划器，直接返回下标** | 去掉 ID→Request 临时字典回查 |
-| 截图任务 | **Session in-flight 去重** | AX/窗口变化连续通知时，同一窗口不会重复抓图 |
-| `CGEventTap` 热路径 | **128-bit key-up BitSet** | 常规键码不再经过 Set 哈希和分配 |
-| 会话窗口同步 | **单次遍历 + 预分配 Hash 容器** | Chrome / IDEA / Finder 多窗口变化时减少临时对象 |
-| 缩略图缓存 | **约 64 MiB 成本受控 LRU 思路** | 长时间运行不会因为历史缩略图无限涨内存 |
-| Tile 复用 | **隐藏时主动释放 transient preview** | 被 LRU 淘汰的图片不会又被隐藏 Tile 强引用 |
-| 放大预览 | **隐藏即释放大图** | 减少大尺寸截图驻留 |
+| 选中窗口移动 | 预缓存 Lens Frame + 只修改旧/新 Tile | **O(1)** |
+| 选中动画 | 1 个共享 Lens + 最多 2 个 Tile Transform | **常数级 compositor 工作量** |
+| Preview 回填 | Window ID Hash 索引 | 平均 **O(1)** |
+| Preview 刷新规划 | 无排序 Priority Buckets | **O(n)** |
+| 缩略图匹配 | PID 分桶 + Flat Score Matrix + Dense Mask | 减少无意义跨 App 比较 |
+| 截图任务 | Session in-flight 去重 | 同一窗口不重复抓图 |
+| EventTap | 128-bit BitSet 快路径 | 常规键码不走 Set 分配 |
+| 会话列表刷新 | 预分配 Hash + 单次遍历 | 降低 Chrome / IDEA / Finder 高频变化时的临时对象 |
+| 缩略图内存 | 约 64 MiB 字节预算缓存 + transient release | 长时间运行内存有上限 |
 
-这里不是为了“算法名字高级”而使用复杂结构。例如屏幕定位依旧是 O(屏幕数量) 的 point-in-rect；实际通常只有 1～4 块屏幕，比维护 R-Tree / QuadTree 更轻、更快、更稳定。
+这里不会为了“算法听起来高级”而硬塞复杂结构。例如扩展屏定位仍然使用 O(屏幕数) 的 point-in-rect，因为现实里通常只有 1～4 块屏幕，比维护 R-Tree / QuadTree 更轻。
 
-### UI 轻量化
+## UI 为什么更高级但更轻
 
-v1.1 的 UI 方向不是增加特效，而是减少没有必要的绘制：
+2.0 不采用“每张卡片一个实时毛玻璃层”的方式。整个列表只保留一个系统 Blur Surface，选中态使用轻量 Lens + Transform。
 
-- 面板边距、Tile 间距和缩略图尺寸更紧凑；
-- 加载占位改成**静态 Skeleton**，取消无限循环动画；
-- 去掉每张缩略图的实时阴影，减少 compositor 合成；
-- 选中/悬停只更新绘制，不再触发布局计算；
-- 缩短缩略图淡入时间；
-- 关闭按钮视觉尺寸更小，但仍保留 44×44 点击区域；
-- 缩略图行仍支持 **左 / 中 / 右** 三种对齐。
+因此仍然坚持：
 
-## 多扩展屏逻辑
+- 无每卡实时阴影；
+- 无无限 Skeleton 动画；
+- 连续按 Tab 不触发整列表 Layout；
+- Preview 只做短时 Crossfade；
+- 隐藏 Tile 主动释放重图片引用；
+- 关闭按钮视觉紧凑，但仍保留 44×44 点击区域；
+- 左 / 中 / 右缩略图排版继续保留。
 
-开启 **Focused multi-display mode** 后：
+## 多扩展屏
 
-- 鼠标在哪块屏，切换面板就只显示在哪块屏；
-- 缩略图候选仍然包含**所有扩展屏上的窗口**；
-- 只在打开切换器时读取一次鼠标所在屏幕；
-- 不增加持续 `mouseMoved` 监听，也不增加后台 Timer 轮询。
+开启 Focused multi-display mode：
+
+- 鼠标在哪块屏，面板只出现在哪块屏；
+- 候选窗口仍然包含所有扩展屏符合规则的窗口；
+- 只在打开切换器时解析鼠标所在屏；
+- 不持续监听 `mouseMoved`；
+- 不增加后台轮询 Timer。
 
 ## 关闭窗口
 
-- 缩略图关闭按钮：直接关闭当前窗口；
+- 关闭按钮：直接关闭当前窗口；
 - Delete / Backspace：直接关闭当前窗口；
-- my-alt-tab 不再二次确认“关闭窗口还是退出应用”；
-- Finder 只关闭选中的 Finder 窗口；
-- 如果目标 App 自己存在“文件未保存”提示，仍然尊重目标 App 的系统/原生确认，避免数据丢失。
+- Finder：只关闭当前 Finder 窗口；
+- my-alt-tab 不增加“关闭窗口还是退出应用”的二次确认；
+- 如果目标 App 自己有“文件未保存”确认，仍然尊重它。
 
-## 实际效果图
+## 产品界面
 
-### 多窗口切换
+仓库截图来自项目自己的 UI / Demo Harness。不同 macOS 版本的系统玻璃材质会存在轻微视觉差异。
 
-![my-alt-tab v1.1 多窗口切换](docs/screenshots/v1.1-switcher.jpg)
+![my-alt-tab 缩略图界面](docs/screenshots/switcher-previews-light.png)
 
-### Appearance / 缩略图排版
-
-![my-alt-tab v1.1 设置界面](docs/screenshots/v1.1-settings.jpg)
+![my-alt-tab Windows 设置](docs/screenshots/settings-windows.png)
 
 ## 快捷键
 
@@ -75,18 +90,18 @@ v1.1 的 UI 方向不是增加特效，而是减少没有必要的绘制：
 | **← → ↑ ↓** | 导航 |
 | **Return / Space** | 确认 |
 | **Esc** | 取消 |
-| **Delete / Backspace** | 直接关闭选中窗口 |
+| **Delete / Backspace** | 关闭当前窗口 |
 | **⌘,** | 设置 |
 
-## 资源与隐私原则
+## 隐私与资源原则
 
 - 原生 Swift / AppKit；
-- ScreenCaptureKit 只允许出现在 PreviewProvider；
-- 无遥测、无账号；
-- v1.1 不新增运行时依赖；
-- 不新增后台轮询；
-- 窗口截图只存在内存，不写磁盘、不上传；
-- 在 zhangqiaoran 自己的签名和 appcast 更新链建立之前，社区版自动更新保持关闭。
+- ScreenCaptureKit 只允许存在于 PreviewProvider；
+- 截图只存在内存，不写磁盘、不上传；
+- 无账号、无遥测、无 Analytics SDK；
+- 2.0 不新增后台轮询；
+- 2.0 不新增运行时依赖；
+- zhangqiaoran 自有签名 / appcast 更新链完成前，社区版自动更新保持关闭。
 
 ## 构建
 
@@ -101,22 +116,24 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-1.1.0.zip
+artifacts/my-alt-tab-2.0.0.zip
 ```
 
-个人/社区构建不需要付费 Apple Developer 账号，脚本没有 Developer ID 时会自动使用 ad-hoc 签名。
+没有 Developer ID 时使用 ad-hoc 签名。
 
 ## 版本线
 
-- **v1.0.0**：zhangqiaoran 正式基线，多屏聚焦显示、全屏窗口候选、直接关闭、缩略图缓存、EventTap 自愈。
-- **v1.1.0**：热路径算法、截图去重、内存释放、O(1) 选中绘制和轻量 UI/compositor 优化。
+- **v1.0.0**：zhangqiaoran 正式基线；
+- **v1.1.0**：热路径优化、缩略图内存预算、O(1) 选中刷新；
+- **v2.0.0**：Glass Focus Engine、共享毛玻璃、常数级选中运动、更加明确的焦点视觉。
 
-完整发行说明：[`RELEASE_NOTES_v1.1.0.md`](RELEASE_NOTES_v1.1.0.md)
+完整发行说明：[`RELEASE_NOTES_v2.0.0.md`](RELEASE_NOTES_v2.0.0.md)
 
 ## 项目信息
 
 - 作者 / 维护者 / 发行者：**zhangqiaoran**
-- 当前版本：**1.1.0**
+- 当前版本：**2.0.0**
+- Build：**20000**
 - Bundle ID：`com.zhangqiaoran.myalttab`
 - GitHub：`zhangqiaoran/windowhop-optimized`
 - License：GNU GPL-3.0
