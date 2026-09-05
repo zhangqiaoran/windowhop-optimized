@@ -42,6 +42,22 @@ enum DesignTokens {
     /// Preview selection is a single accent-colored plate behind the canvas,
     /// not a border stacked over the image.
     static let previewSelectionPadding: CGFloat = 2
+
+    // MARK: Glass Focus Engine
+    /// v2.0 uses one shared moving lens instead of one blur surface per tile.
+    /// Selection therefore stays constant-cost as the number of windows grows.
+    static let selectionLensInset: CGFloat = 4
+    static let selectionLensCornerRadius: CGFloat = 16
+    static let selectionLensBorderWidth: CGFloat = 2
+    static let selectedTileScale: CGFloat = 1.022
+    static let selectedTileScaleDuration: TimeInterval = 0.105
+    static var selectionLensFill: NSColor {
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.13)
+    }
+    static var selectionLensStroke: NSColor {
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.92)
+    }
+
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
     static let tileSpacing: CGFloat = 12
@@ -128,10 +144,12 @@ enum DesignTokens {
     static let previewSkeletonUnavailableLineFractions: [CGFloat] = [0.62, 0.78, 0.48]
 
     // MARK: Colors
-    static var iconSelectionFill: NSColor { .labelColor.withAlphaComponent(0.14) }
+    static var iconSelectionFill: NSColor {
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.12)
+    }
     static var iconEmphasisFill: NSColor { .labelColor.withAlphaComponent(0.075) }
     static var previewSelectionFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.70)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.20)
     }
     static var previewEmphasisFill: NSColor {
         NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.10)
