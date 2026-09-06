@@ -9,7 +9,9 @@ public final class SettingsWindowController {
     public static let shared = SettingsWindowController()
 
     /// The switcher-entry title; the window's visible title follows the pane name.
-    public static let switcherEntryTitle = "my-alt-tab Settings"
+    public static var switcherEntryTitle: String {
+        SettingsL10n.t("my-alt-tab Settings")
+    }
 
     private var window: NSWindow?
 
@@ -55,12 +57,12 @@ enum SettingsPane: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .shortcuts: "Shortcuts"
-        case .windows: "Windows"
-        case .appearance: "Appearance"
-        case .updates: "Updates"
-        case .about: "About"
+        case .general: SettingsL10n.t("General")
+        case .shortcuts: SettingsL10n.t("Shortcuts")
+        case .windows: SettingsL10n.t("Windows")
+        case .appearance: SettingsL10n.t("Appearance")
+        case .updates: SettingsL10n.t("Updates")
+        case .about: SettingsL10n.t("About")
         }
     }
 
@@ -96,6 +98,8 @@ enum SettingsPane: String, CaseIterable {
 
 /// Toolbar-style panes with SF Symbols; the selected pane persists across launches.
 final class SettingsTabViewController: NSTabViewController {
+    private var languageObserver: NSObjectProtocol?
+
     /// Stores the pane's stable identifier, so adding or reordering panes never
     /// reopens Settings on a different one.
     private static let selectedPaneKey = "settingsSelectedPaneIdentifier"
@@ -116,6 +120,33 @@ final class SettingsTabViewController: NSTabViewController {
         if let saved = UserDefaults.standard.string(forKey: Self.selectedPaneKey),
            let index = SettingsPane.allCases.firstIndex(where: { $0.rawValue == saved }) {
             selectedTabViewItemIndex = index
+        }
+
+        languageObserver = NotificationCenter.default.addObserver(
+            forName: Preferences.settingsLanguageDidChange,
+            object: Preferences.shared,
+            queue: .main) { [weak self] _ in
+                self?.applyLanguage()
+            }
+    }
+
+    deinit {
+        if let languageObserver {
+            NotificationCenter.default.removeObserver(languageObserver)
+        }
+    }
+
+    private func applyLanguage() {
+        for (index, pane) in SettingsPane.allCases.enumerated()
+            where index < tabViewItems.count {
+            let item = tabViewItems[index]
+            item.label = pane.title
+            item.viewController?.title = pane.title
+            item.image = NSImage(systemSymbolName: pane.symbol,
+                                 accessibilityDescription: pane.title)
+        }
+        if let selectedTabViewItem {
+            title = selectedTabViewItem.label
         }
     }
 
@@ -152,8 +183,21 @@ struct GeneralPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enable my-alt-tab", isOn: $preferences.switcherEnabled)
-                Toggle("Launch at login", isOn: $launchAtLogin)
+                Picker(SettingsL10n.t("Language"), selection: $preferences.settingsLanguage) {
+                    ForEach(SettingsLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+            } footer: {
+                Text(SettingsL10n.t("Changes apply immediately to the Settings window."))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(SettingsL10n.t("Enable my-alt-tab"), isOn: $preferences.switcherEnabled)
+                Toggle(SettingsL10n.t("Launch at login"), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
                         let succeeded = LoginItem.set(newValue)
                         launchAtLoginFailed = !succeeded
@@ -164,37 +208,37 @@ struct GeneralPane: View {
                         }
                     }
                 if launchAtLoginFailed {
-                    Text("Launch at login could not be configured. Run my-alt-tab from the Applications folder and try again.")
+                    Text(SettingsL10n.t("Launch at login could not be configured. Run my-alt-tab from the Applications folder and try again."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Disabling my-alt-tab hands ⌘⇥ back to the native app switcher without quitting.")
+                Text(SettingsL10n.t("Disabling my-alt-tab hands ⌘⇥ back to the native app switcher without quitting."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Section {
-                Toggle("Show menu bar item", isOn: $preferences.showMenuBarItem)
-                Toggle("Show Dock icon", isOn: $preferences.showDockIcon)
+                Toggle(SettingsL10n.t("Show menu bar item"), isOn: $preferences.showMenuBarItem)
+                Toggle(SettingsL10n.t("Show Dock icon"), isOn: $preferences.showDockIcon)
             } header: {
-                Text("Appears in")
+                Text(SettingsL10n.t("Appears in"))
             }
             Section {
-                Button("Restore Defaults…") {
+                Button(SettingsL10n.t("Restore Defaults…")) {
                     restoreConfirmationShown = true
                 }
-                .confirmationDialog("Restore all my-alt-tab settings?",
+                .confirmationDialog(SettingsL10n.t("Restore all my-alt-tab settings?"),
                                     isPresented: $restoreConfirmationShown) {
-                    Button("Restore Defaults") {
+                    Button(SettingsL10n.t("Restore Defaults")) {
                         restoreFailed = !SettingsDefaultsRestorer.shared.restore()
                         launchAtLogin = LoginItem.isEnabled
                     }
-                    Button("Cancel", role: .cancel) {}
+                    Button(SettingsL10n.t("Cancel"), role: .cancel) {}
                 } message: {
-                    Text("Shortcuts, appearance, window filters, update checks, and app visibility return to their original values. macOS permissions and cached previews are unchanged.")
+                    Text(SettingsL10n.t("Shortcuts, appearance, window filters, update checks, and app visibility return to their original values. macOS permissions and cached previews are unchanged."))
                 }
                 if restoreFailed {
-                    Text("Defaults could not be restored because Launch at Login is unavailable. Run my-alt-tab from Applications and try again.")
+                    Text(SettingsL10n.t("Defaults could not be restored because Launch at Login is unavailable. Run my-alt-tab from Applications and try again."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -203,17 +247,17 @@ struct GeneralPane: View {
                 Button(role: .destructive) {
                     quitConfirmationShown = true
                 } label: {
-                    Text("Quit my-alt-tab…")
+                    Text(SettingsL10n.t("Quit my-alt-tab…"))
                         .foregroundStyle(.red)
                 }
-                .confirmationDialog("Quit my-alt-tab?",
+                .confirmationDialog(SettingsL10n.t("Quit my-alt-tab?"),
                                     isPresented: $quitConfirmationShown) {
-                    Button("Quit my-alt-tab", role: .destructive) {
+                    Button(SettingsL10n.t("Quit my-alt-tab"), role: .destructive) {
                         NSApp.terminate(nil)
                     }
-                    Button("Cancel", role: .cancel) {}
+                    Button(SettingsL10n.t("Cancel"), role: .cancel) {}
                 } message: {
-                    Text("The native ⌘⇥ app switcher takes over until you open my-alt-tab again.")
+                    Text(SettingsL10n.t("The native ⌘⇥ app switcher takes over until you open my-alt-tab again."))
                 }
             }
         }
@@ -230,7 +274,7 @@ struct ShortcutsPane: View {
     var body: some View {
         Form {
             Section {
-                Picker("Switcher shortcut", selection: $preferences.shortcut) {
+                Picker(SettingsL10n.t("Switcher shortcut"), selection: $preferences.shortcut) {
                     ForEach(ShortcutSpec.allCases) { spec in
                         Text(spec.displayName).tag(spec)
                     }
@@ -244,18 +288,19 @@ struct ShortcutsPane: View {
                         shortcutValidationMessage = error.explanation
                     }
                 }
-                LabeledContent("Open my-alt-tab") {
+                LabeledContent(SettingsL10n.t("Open my-alt-tab")) {
                     ShortcutRecorderField(shortcut: $preferences.persistentShortcut,
                                           validationMessage: $shortcutValidationMessage,
-                                          switcherShortcut: preferences.shortcut)
+                                          switcherShortcut: preferences.shortcut,
+                                          language: preferences.settingsLanguage)
                 }
                 if let shortcutValidationMessage {
-                    Text(shortcutValidationMessage)
+                    Text(SettingsL10n.t(shortcutValidationMessage))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open my-alt-tab keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes the selected window directly.")
+                Text(SettingsL10n.t("The switcher shortcut cycles while you hold the modifier (add ⇧ to go backward); releasing it switches windows. Open my-alt-tab keeps the switcher open without holding anything: ⇥ and arrows navigate, ↩ or Space switches, ⎋ cancels, ⌫ closes the selected window directly."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -287,7 +332,7 @@ struct WindowsPane: View {
         }
         if let chosen = preferences.switcherDisplayID,
            !connectedDisplays.displays.contains(where: { $0.id == chosen }) {
-            options.append(DisplayOption(id: chosen, label: "Selected display (disconnected)"))
+            options.append(DisplayOption(id: chosen, label: SettingsL10n.t("Selected display (disconnected)")))
         }
         return options
     }
@@ -302,47 +347,47 @@ struct WindowsPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Focused multi-display mode",
+                Toggle(SettingsL10n.t("Focused multi-display mode"),
                        isOn: $preferences.focusedMultiDisplayMode)
-                Toggle("Include windows from other Spaces", isOn: $preferences.includeOtherSpaces)
+                Toggle(SettingsL10n.t("Include windows from other Spaces"), isOn: $preferences.includeOtherSpaces)
                 if !preferences.focusedMultiDisplayMode {
-                    Toggle("Include windows from other displays",
+                    Toggle(SettingsL10n.t("Include windows from other displays"),
                            isOn: $preferences.includeOtherDisplays)
                 }
-                Toggle("Include minimized windows", isOn: $preferences.includeMinimizedWindows)
-                Toggle("Include windows from hidden applications",
+                Toggle(SettingsL10n.t("Include minimized windows"), isOn: $preferences.includeMinimizedWindows)
+                Toggle(SettingsL10n.t("Include windows from hidden applications"),
                        isOn: $preferences.includeHiddenApplicationWindows)
-                Toggle("Include Picture-in-Picture windows",
+                Toggle(SettingsL10n.t("Include Picture-in-Picture windows"),
                        isOn: $preferences.includePictureInPictureWindows)
             } header: {
-                Text("Windows shown")
+                Text(SettingsL10n.t("Windows shown"))
             } footer: {
-                Text(preferences.focusedMultiDisplayMode
+                Text(SettingsL10n.t(preferences.focusedMultiDisplayMode
                      ? "Focused multi-display mode shows one switcher on the display with the pointer while loading windows from every display. Other window filters still apply."
-                     : "my-alt-tab shows a curated set of normal windows by default. Additional categories are opt-in and update the switcher immediately. Menus, tooltips, tab siblings, and system overlays are never listed.")
+                     : "my-alt-tab shows a curated set of normal windows by default. Additional categories are opt-in and update the switcher immediately. Menus, tooltips, tab siblings, and system overlays are never listed."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
             if !preferences.focusedMultiDisplayMode {
                 Section {
-                    Picker("Show the switcher on",
+                    Picker(SettingsL10n.t("Show the switcher on"),
                            selection: $preferences.switcherDisplayPlacement) {
                         ForEach(SwitcherDisplayPlacement.allCases) { placement in
-                            Text(placement.displayName).tag(placement)
+                            Text(SettingsL10n.t(placement.displayName)).tag(placement)
                         }
                     }
                     if preferences.switcherDisplayPlacement == .specificDisplay {
-                        Picker("Display", selection: chosenDisplay) {
+                        Picker(SettingsL10n.t("Display"), selection: chosenDisplay) {
                             ForEach(displayOptions) { option in
                                 Text(option.label).tag(option.id)
                             }
                         }
                     }
                 } header: {
-                    Text("Switcher placement")
+                    Text(SettingsL10n.t("Switcher placement"))
                 } footer: {
-                    Text("Legacy placement options are available when focused multi-display mode is off. The display with the pointer is the one you are looking at, which is not always the one holding keyboard focus.")
+                    Text(SettingsL10n.t("Legacy placement options are available when focused multi-display mode is off. The display with the pointer is the one you are looking at, which is not always the one holding keyboard focus."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -372,9 +417,9 @@ struct AppearancePane: View {
     var body: some View {
         Form {
             Section {
-                Picker("Switcher shows", selection: $preferences.appearanceMode) {
+                Picker(SettingsL10n.t("Switcher shows"), selection: $preferences.appearanceMode) {
                     ForEach(AppearanceMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
+                        Text(SettingsL10n.t(mode.displayName)).tag(mode)
                     }
                 }
                 .pickerStyle(.radioGroup)
@@ -389,23 +434,22 @@ struct AppearancePane: View {
                         PreviewProvider.shared.evictAll()
                     }
                 }
-                Toggle("Show tab counts", isOn: $preferences.showTabCounts)
-                Picker("Preview row alignment",
+                Picker(SettingsL10n.t("Preview row alignment"),
                        selection: $preferences.previewRowAlignment) {
                     ForEach(PreviewRowAlignment.allCases) { alignment in
-                        Text(alignment.displayName).tag(alignment)
+                        Text(SettingsL10n.t(alignment.displayName)).tag(alignment)
                     }
                 }
                 .pickerStyle(.segmented)
                 .disabled(!previewsSelected)
             } footer: {
-                Text("App Icons shows each window as a large application icon. Window Previews shows a snapshot of each window instead. Preview row alignment controls how an incomplete thumbnail row is placed; Center preserves the original layout.")
+                Text(SettingsL10n.t("App Icons shows each window as a large application icon. Window Previews shows a snapshot of each window instead. Preview row alignment controls how an incomplete thumbnail row is placed; Center preserves the original layout."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Section {
                 HStack {
-                    Text("Glass transparency")
+                    Text(SettingsL10n.t("Glass transparency"))
                     Spacer()
                     Text("\(Int(preferences.glassTransparencyPercent.rounded()))%")
                         .monospacedDigit()
@@ -414,27 +458,28 @@ struct AppearancePane: View {
                 Slider(value: $preferences.glassTransparencyPercent,
                        in: 0...100,
                        step: 1)
-                    .accessibilityLabel("Glass transparency")
-                    .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
+                    .accessibilityLabel(SettingsL10n.t("Glass transparency"))
+                    .accessibilityValue(SettingsL10n.percentAccessibilityValue(
+                        Int(preferences.glassTransparencyPercent.rounded())))
             } header: {
-                Text("Liquid Glass")
+                Text(SettingsL10n.t("Liquid Glass"))
             } footer: {
-                Text("Higher values mean more native Liquid Glass: 100% keeps the system Clear Glass fully materialized with no white tint, preserving its refraction, adaptive highlights, and background color sampling. Lower values progressively add a perceptual milky-white glass tint; 0% is the strongest milk. Foreground previews, text, controls, and the blue focus ring remain inside the glass content view for correct AppKit adaptation.")
+                Text(SettingsL10n.t("Higher values make the background Clear Glass more transparent. 100% is the clearest state with no extra milky layer; lower values progressively strengthen the glass body and milk. Window previews, text, controls, and the blue focus ring remain fully opaque above the glass."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Section {
-                Picker("Show an expanded preview after pausing",
+                Picker(SettingsL10n.t("Show an expanded preview after pausing"),
                        selection: $preferences.expandedPreviewDelay) {
                     ForEach(ExpandedPreviewDelay.allCases) { delay in
-                        Text(delay.displayName).tag(delay)
+                        Text(SettingsL10n.t(delay.displayName)).tag(delay)
                     }
                 }
                 .pickerStyle(.menu)
             } header: {
-                Text("Expanded Preview")
+                Text(SettingsL10n.t("Expanded Preview"))
             } footer: {
-                Text("After you pause, my-alt-tab enlarges the latest snapshot inside the switcher. The real window is not activated until you confirm; cancelling leaves the desktop unchanged. The default delay is 3 seconds.")
+                Text(SettingsL10n.t("After you pause, my-alt-tab enlarges the latest snapshot inside the switcher. The real window is not activated until you confirm; cancelling leaves the desktop unchanged. The default delay is 3 seconds."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -442,26 +487,26 @@ struct AppearancePane: View {
             // when the appearance mode changes
             Section {
                 if !previewsSelected {
-                    Label("App Icons never needs any extra permission.", systemImage: "checkmark.circle.fill")
+                    Label(SettingsL10n.t("App Icons never needs any extra permission."), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.secondary)
-                    Text("Window Previews will ask for Screen Recording when you select it — macOS requires that permission for window snapshots.")
+                    Text(SettingsL10n.t("Window Previews will ask for Screen Recording when you select it — macOS requires that permission for window snapshots."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else if screenRecordingStatus.isAuthorized {
-                    Label("Screen Recording access is granted.", systemImage: "checkmark.circle.fill")
+                    Label(SettingsL10n.t("Screen Recording access is granted."), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                    Text("Snapshots are captured only while the switcher is open.")
+                    Text(SettingsL10n.t("Snapshots are captured only while the switcher is open."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    Label("Window Previews needs Screen Recording access.", systemImage: "exclamationmark.triangle.fill")
+                    Label(SettingsL10n.t("Window Previews needs Screen Recording access."), systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Text("Until it is granted, cached previews remain visible and other cards use a static fallback instead of an indefinite loading animation.")
+                    Text(SettingsL10n.t("Until it is granted, cached previews remain visible and other cards use a static fallback instead of an indefinite loading animation."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                    Button(screenRecordingStatus == .notDetermined
+                    Button(SettingsL10n.t(screenRecordingStatus == .notDetermined
                            ? "Grant Permission"
-                           : "Open System Settings") {
+                           : "Open System Settings")) {
                         if screenRecordingStatus == .notDetermined {
                             _ = ScreenRecordingPermission.request()
                             screenRecordingStatus = ScreenRecordingPermission.status
@@ -471,9 +516,9 @@ struct AppearancePane: View {
                     }
                 }
             } header: {
-                Text("Screen Recording")
+                Text(SettingsL10n.t("Screen Recording"))
             } footer: {
-                Text("Captures run only while the switcher is open. Recent tile-sized previews may remain in memory for the next open; they are never written to disk or transmitted.")
+                Text(SettingsL10n.t("Captures run only while the switcher is open. Recent tile-sized previews may remain in memory for the next open; they are never written to disk or transmitted."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -494,7 +539,9 @@ struct UpdatesPane: View {
 
     private var lastCheckedText: String? {
         guard let date = updateManager.lastCheckDate else { return nil }
-        return date.formatted(date: .omitted, time: .shortened)
+        return date.formatted(
+            Date.FormatStyle(date: .omitted, time: .shortened)
+                .locale(Locale(identifier: preferences.settingsLanguage.localeIdentifier)))
     }
 
     var body: some View {
@@ -502,14 +549,14 @@ struct UpdatesPane: View {
             if let availableVersion = updateManager.availableVersion {
                 Section {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("my-alt-tab \(availableVersion) is available",
+                        Label(SettingsL10n.format("my-alt-tab %@ is available", availableVersion),
                               systemImage: "arrow.down.circle.fill")
                             .font(.headline)
                             .foregroundStyle(.tint)
-                        Text("This release is signed with the my-alt-tab Sparkle key. Update Now opens Sparkle's verified installer and relaunches my-alt-tab when installation completes.")
+                        Text(SettingsL10n.t("This release is signed with the my-alt-tab Sparkle key. Update Now opens Sparkle's verified installer and relaunches my-alt-tab when installation completes."))
                             .font(.callout)
                             .foregroundStyle(.secondary)
-                        Button("Update Now…") {
+                        Button(SettingsL10n.t("Update Now…")) {
                             updateManager.checkForUpdates()
                         }
                         .buttonStyle(.borderedProminent)
@@ -520,59 +567,59 @@ struct UpdatesPane: View {
             }
 
             Section {
-                Toggle("Automatically check for updates",
+                Toggle(SettingsL10n.t("Automatically check for updates"),
                        isOn: $preferences.automaticUpdateChecks)
                     .onChange(of: preferences.automaticUpdateChecks) { _, newValue in
                         updateManager.automaticallyChecksForUpdates = newValue
                     }
                     .disabled(!updateManager.isAvailable)
 
-                LabeledContent("Current version",
+                LabeledContent(SettingsL10n.t("Current version"),
                                value: updateManager.currentVersion)
 
-                LabeledContent("Latest version") {
+                LabeledContent(SettingsL10n.t("Latest version")) {
                     if updateManager.isChecking {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("Checking…")
+                            Text(SettingsL10n.t("Checking…"))
                                 .foregroundStyle(.secondary)
                         }
                     } else if let availableVersion = updateManager.availableVersion {
                         Text(availableVersion)
                             .foregroundStyle(.tint)
                     } else if updateManager.isAvailable {
-                        Text("Up to date")
+                        Text(SettingsL10n.t("Up to date"))
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Unavailable in development build")
+                        Text(SettingsL10n.t("Unavailable in development build"))
                             .foregroundStyle(.secondary)
                     }
                 }
 
                 if updateManager.isAvailable {
                     HStack {
-                        Label("Signed automatic updates are ready.",
+                        Label(SettingsL10n.t("Signed automatic updates are ready."),
                               systemImage: "checkmark.seal.fill")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Button("Check Now") {
+                        Button(SettingsL10n.t("Check Now")) {
                             updateManager.checkForUpdates()
                         }
                         .disabled(!updateManager.canCheckForUpdates)
                     }
                 } else {
-                    Link("View Releases", destination: ProjectLinks.releases)
+                    Link(SettingsL10n.t("View Releases"), destination: ProjectLinks.releases)
                 }
 
                 if let lastCheckedText {
-                    Text("Last checked at \(lastCheckedText)")
+                    Text(SettingsL10n.format("Last checked at %@", lastCheckedText))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
             } footer: {
-                Text("Opening this pane performs a silent Sparkle version probe. Scheduled checks remain Sparkle-managed, and every downloaded archive is EdDSA verified before installation. No telemetry, accounts, or system-profile reporting.")
+                Text(SettingsL10n.t("Opening this pane performs a silent Sparkle version probe. Scheduled checks remain Sparkle-managed, and every downloaded archive is EdDSA verified before installation. No telemetry, accounts, or system-profile reporting."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -601,6 +648,8 @@ private struct AboutLinkButton: View {
 }
 
 struct AboutPane: View {
+    @ObservedObject private var preferences = Preferences.shared
+
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
@@ -621,20 +670,20 @@ struct AboutPane: View {
                         .resizable()
                         .frame(width: DesignTokens.settingsAboutIconSize,
                                height: DesignTokens.settingsAboutIconSize)
-                        .accessibilityLabel("my-alt-tab application icon")
+                        .accessibilityLabel(SettingsL10n.t("my-alt-tab application icon"))
 
                     VStack(spacing: DesignTokens.settingsAboutTitleSpacing) {
                         Text("my-alt-tab")
                             .font(.title.weight(.semibold))
-                        Text("Switch between windows, not just apps.")
+                        Text(SettingsL10n.t("Switch between windows, not just apps."))
                             .font(.headline)
                             .foregroundStyle(.secondary)
-                        Text("Version \(version) · Build \(build)")
+                        Text(SettingsL10n.format("Version %@ · Build %@", version, build))
                             .font(.callout.monospacedDigit())
                             .foregroundStyle(.tertiary)
                     }
 
-                    Text("A fast, native macOS window switcher focused on getting you to the exact window you want.")
+                    Text(SettingsL10n.t("A fast, native macOS window switcher focused on getting you to the exact window you want."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -642,13 +691,13 @@ struct AboutPane: View {
                         .frame(maxWidth: DesignTokens.settingsAboutSummaryMaxWidth)
 
                     HStack(spacing: DesignTokens.settingsAboutLinkSpacing) {
-                        AboutLinkButton(title: "Website",
+                        AboutLinkButton(title: SettingsL10n.t("Website"),
                                         systemImage: "globe",
                                         destination: ProjectLinks.website)
-                        AboutLinkButton(title: "GitHub",
+                        AboutLinkButton(title: SettingsL10n.t("GitHub"),
                                         systemImage: "chevron.left.forwardslash.chevron.right",
                                         destination: ProjectLinks.repository)
-                        AboutLinkButton(title: "Report Issue",
+                        AboutLinkButton(title: SettingsL10n.t("Report Issue"),
                                         systemImage: "exclamationmark.bubble",
                                         destination: ProjectLinks.issues)
                     }
@@ -658,29 +707,29 @@ struct AboutPane: View {
             }
 
             Section {
-                LabeledContent("Application", value: "my-alt-tab")
-                LabeledContent("Bundle identifier", value: bundleIdentifier)
-                LabeledContent("License", value: "GNU GPL-3.0")
+                LabeledContent(SettingsL10n.t("Application"), value: "my-alt-tab")
+                LabeledContent(SettingsL10n.t("Bundle identifier"), value: bundleIdentifier)
+                LabeledContent(SettingsL10n.t("License"), value: "GNU GPL-3.0")
             } header: {
-                Text("Details")
+                Text(SettingsL10n.t("Details"))
             }
 
             Section {
                 VStack(alignment: .leading,
                        spacing: DesignTokens.settingsAboutOpenSourceSpacing) {
-                    Label("Free and open source", systemImage: "checkmark.seal.fill")
+                    Label(SettingsL10n.t("Free and open source"), systemImage: "checkmark.seal.fill")
                         .font(.headline)
                         .foregroundStyle(.tint)
-                    Text("Developed & maintained by zhangqiaoran. my-alt-tab builds on WindowHop and AltTab, with upstream attribution preserved under GPL-3.0.")
+                    Text(SettingsL10n.t("Developed & maintained by zhangqiaoran. my-alt-tab builds on WindowHop and AltTab, with upstream attribution preserved under GPL-3.0."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Link("AltTab upstream on GitHub",
+                    Link(SettingsL10n.t("AltTab upstream on GitHub"),
                          destination: ProjectLinks.altTabRepository)
                 }
                 .padding(.vertical, DesignTokens.settingsAboutOpenSourcePadding)
             } footer: {
-                Text("© 2026 zhangqiaoran and my-alt-tab contributors.")
+                Text(SettingsL10n.t("© 2026 zhangqiaoran and my-alt-tab contributors."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
