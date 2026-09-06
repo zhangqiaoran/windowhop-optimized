@@ -1,5 +1,13 @@
 # User-facing defaults and configurability
 
+## Unreleased v3.0 motion and update decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Stable-ID list shrink motion | Enabled | No | When an open switcher loses windows, surviving tiles are matched by stable window id and spring from their current presentation-layer positions while the centered panel uses native AppKit frame animation. Reduce Motion disables both. No timer or idle work. |
+| Window-close dusting | Enabled | No | One-shot 56-particle fixed budget using deterministic R2 low-discrepancy surface sampling, a gradient erosion mask, and cubic wind paths. No display link, repeating timer, random generator, or idle work. |
+| Updates-pane version probe | On pane open | No | Uses Sparkle `checkForUpdateInformation()`, which probes the signed appcast without presenting an up-to-date dialog. The user can invoke the standard verified installer immediately with **Update Now**. Scheduled checks remain controlled by the existing automatic-update preference. |
+
 `Preferences.Defaults` is the only runtime source of persisted defaults. Every typed
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.

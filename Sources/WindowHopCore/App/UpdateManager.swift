@@ -18,10 +18,15 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
     /// checks and manual ones alike — check failures just leave it unchanged
     /// and never block anything.
     @Published public private(set) var availableVersion: String?
+    @Published public private(set) var isChecking = false
+    @Published public private(set) var lastCheckDate: Date?
 
     override private init() {}
 
     public var isAvailable: Bool { controller != nil }
+    public var canCheckForUpdates: Bool {
+        controller?.updater.canCheckForUpdates ?? false
+    }
 
     public var currentVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -41,8 +46,23 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
             Preferences.shared.automaticUpdateChecks
     }
 
+    /// Fetches only update metadata for the custom Settings pane. Sparkle
+    /// validates the signed appcast but does not show an "up to date" modal.
+    public func probeForUpdateInformation() {
+        guard let updater = controller?.updater,
+              updater.canCheckForUpdates,
+              !updater.sessionInProgress else { return }
+        isChecking = true
+        updater.checkForUpdateInformation()
+    }
+
+    /// User-initiated immediate path. Sparkle foregrounds any existing update
+    /// session, or checks/downloads/installs the newest signed release.
     public func checkForUpdates() {
-        controller?.checkForUpdates(nil)
+        guard let controller,
+              controller.updater.canCheckForUpdates else { return }
+        isChecking = true
+        controller.checkForUpdates(nil)
     }
 
     public var automaticallyChecksForUpdates: Bool {
@@ -58,5 +78,17 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
 
     public func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
         availableVersion = nil
+    }
+
+    public func updater(_ updater: SPUUpdater,
+                        didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
+                        error: (any Error)?) {
+        isChecking = false
+        lastCheckDate = Date()
+    }
+
+    public func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+        isChecking = false
+        lastCheckDate = Date()
     }
 }

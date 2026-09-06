@@ -492,56 +492,95 @@ struct UpdatesPane: View {
     @ObservedObject private var preferences = Preferences.shared
     @ObservedObject private var updateManager = UpdateManager.shared
 
+    private var lastCheckedText: String? {
+        guard let date = updateManager.lastCheckDate else { return nil }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
     var body: some View {
         Form {
             if let availableVersion = updateManager.availableVersion {
                 Section {
-                    // mirrors Sparkle's own prompt: installing (or postponing/
-                    // skipping) continues in the standard Sparkle dialog
-                    LabeledContent {
-                        Button("Install Update…") {
-                            UpdateManager.shared.checkForUpdates()
-                        }
-                    } label: {
+                    VStack(alignment: .leading, spacing: 10) {
                         Label("my-alt-tab \(availableVersion) is available",
                               systemImage: "arrow.down.circle.fill")
+                            .font(.headline)
                             .foregroundStyle(.tint)
+                        Text("This release is signed with the my-alt-tab Sparkle key. Update Now opens Sparkle's verified installer and relaunches my-alt-tab when installation completes.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Button("Update Now…") {
+                            updateManager.checkForUpdates()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!updateManager.canCheckForUpdates)
                     }
+                    .padding(.vertical, 4)
                 }
             }
+
             Section {
                 Toggle("Automatically check for updates",
                        isOn: $preferences.automaticUpdateChecks)
                     .onChange(of: preferences.automaticUpdateChecks) { _, newValue in
-                        UpdateManager.shared.automaticallyChecksForUpdates = newValue
+                        updateManager.automaticallyChecksForUpdates = newValue
                     }
-                    .disabled(!UpdateManager.shared.isAvailable)
-                LabeledContent("Version \(UpdateManager.shared.currentVersion)") {
-                    if UpdateManager.shared.isAvailable {
-                        Button("Check for Updates…") {
-                            UpdateManager.shared.checkForUpdates()
+                    .disabled(!updateManager.isAvailable)
+
+                LabeledContent("Current version",
+                               value: updateManager.currentVersion)
+
+                LabeledContent("Latest version") {
+                    if updateManager.isChecking {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Checking…")
+                                .foregroundStyle(.secondary)
                         }
+                    } else if let availableVersion = updateManager.availableVersion {
+                        Text(availableVersion)
+                            .foregroundStyle(.tint)
+                    } else if updateManager.isAvailable {
+                        Text("Up to date")
+                            .foregroundStyle(.secondary)
                     } else {
-                        Link("View Releases", destination: ProjectLinks.releases)
+                        Text("Unavailable in development build")
+                            .foregroundStyle(.secondary)
                     }
                 }
-                if UpdateManager.shared.isAvailable {
-                    Label("Signed automatic updates are ready.",
-                          systemImage: "checkmark.seal.fill")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+
+                if updateManager.isAvailable {
+                    HStack {
+                        Label("Signed automatic updates are ready.",
+                              systemImage: "checkmark.seal.fill")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Check Now") {
+                            updateManager.checkForUpdates()
+                        }
+                        .disabled(!updateManager.canCheckForUpdates)
+                    }
                 } else {
-                    Text("Update checks are available in packaged my-alt-tab.app builds. Development and render-harness processes can use GitHub Releases instead.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    Link("View Releases", destination: ProjectLinks.releases)
+                }
+
+                if let lastCheckedText {
+                    Text("Last checked at \(lastCheckedText)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             } footer: {
-                Text("Updates come only from the official my-alt-tab GitHub release feed and are verified with Sparkle EdDSA before installation. No telemetry, no accounts, and no system-profile reporting.")
+                Text("Opening this pane performs a silent Sparkle version probe. Scheduled checks remain Sparkle-managed, and every downloaded archive is EdDSA verified before installation. No telemetry, accounts, or system-profile reporting.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
         .settingsPane()
+        .onAppear {
+            updateManager.probeForUpdateInformation()
+        }
     }
 }
 
