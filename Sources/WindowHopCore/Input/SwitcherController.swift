@@ -11,6 +11,10 @@ public final class SwitcherController {
     /// switcher is open. Store changes remove or refresh entries in place and append
     /// windows that appeared, but never reorder (see SessionListReconciler).
     private var items: [SwitcherItem] = []
+    /// IDs optimistically removed from the open switcher before the window
+    /// server finishes sending its destroy notification. Hash membership keeps
+    /// refresh filtering average O(1) per item and avoids the old delayed pop.
+    private var pendingCloseIDs = Set<AnyHashable>()
     private let panels = SwitcherPanelGroup()
     private var mouseMonitor: Any?
     private var heldModifierGuard: Timer?
@@ -79,6 +83,7 @@ public final class SwitcherController {
         switch event {
         case .trigger(let backward):
             let triggerStart = CFAbsoluteTimeGetCurrent()
+            pendingCloseIDs.removeAll(keepingCapacity: true)
             items = WindowStore.shared.snapshot()
             perform(state.trigger(backward: backward, itemCount: items.count))
             DebugLog.log("trigger handled: \(items.count) items, phase \(state.phase), "
@@ -90,6 +95,7 @@ public final class SwitcherController {
         case .openPersistent:
             let openStart = CFAbsoluteTimeGetCurrent()
             if !state.isActive {
+                pendingCloseIDs.removeAll(keepingCapacity: true)
                 items = WindowStore.shared.snapshot()
             }
             perform(state.openPersistent(itemCount: items.count))
@@ -204,9 +210,31 @@ public final class SwitcherController {
             cancelExpandedPreviewTimer()
             expandedPreview.reset()
             panels.hideExpandedPreview()
+
+            let closingID = items[index].id
+            pendingCloseIDs.insert(closingID)
+
+            // Snapshot first, then remove the tile from the session model in the
+            // same run-loop turn. The overlay keeps animating independently, so
+            // the user sees an immediate dissolve instead of waiting for AX.
             panels.playDismissalEffect(at: index)
-            // Close remains immediate; the one-shot overlay owns its snapshot
-            // independently, so we never delay the Accessibility close action.
+            items.remove(at: index)
+
+            let nextIndex = items.isEmpty ? nil : min(index, items.count - 1)
+            let listCommand = state.listChanged(
+                itemCount: items.count,
+                preferredIndex: nextIndex)
+
+            if state.isActive {
+                panels.update(items: items, selectedIndex: state.selectedIndex)
+                state.updateColumns(panels.columnsPerRow)
+                targetExpandedPreview(at: state.selectedIndex)
+            } else if case .cancel = listCommand {
+                endSession()
+            }
+
+            // The actual close request is sent immediately. No animation delay
+            // sits on this hot path; the visual layer is fully decoupled.
             WindowActions.close(window)
         }
     }
@@ -227,7 +255,18 @@ public final class SwitcherController {
     private func refreshDuringSession() {
         guard state.isActive else { return }
         let selectedId = state.selectedIndex < items.count ? items[state.selectedIndex].id : nil
-        let fresh = WindowStore.shared.snapshot()
+        let liveSnapshot = WindowStore.shared.snapshot()
+
+        // Retire pending IDs as soon as the window server confirms they are
+        // gone, and suppress still-pending windows from reappearing meanwhile.
+        // One pass builds the live ID set; filtering is average O(1) per item.
+        var liveIDs = Set<AnyHashable>()
+        liveIDs.reserveCapacity(liveSnapshot.count)
+        for item in liveSnapshot { liveIDs.insert(item.id) }
+        pendingCloseIDs.formIntersection(liveIDs)
+        let fresh = pendingCloseIDs.isEmpty
+            ? liveSnapshot
+            : liveSnapshot.filter { !pendingCloseIDs.contains($0.id) }
 
         // This path can run repeatedly while Chrome/IDE/Finder are changing
         // windows. Build IDs and lookup tables in one pass instead of creating
@@ -369,6 +408,7 @@ public final class SwitcherController {
 
     private func endSession() {
         storeRefreshScheduled = false
+        pendingCloseIDs.removeAll(keepingCapacity: true)
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
         panels.hide()
