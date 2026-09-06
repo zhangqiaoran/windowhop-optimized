@@ -498,6 +498,7 @@ public final class SwitcherPanel: NSPanel {
         let padding = DesignTokens.panelPadding
         let spacing = DesignTokens.tileSpacing
         let rowSpacing = DesignTokens.tileRowSpacing
+        let selectionOverflow = DesignTokens.selectionVisualOverflow
         let tileSize = SwitcherTileView.Metrics.metrics(
             for: mode,
             showTabCounts: Preferences.shared.showTabCounts).tileSize
@@ -507,7 +508,7 @@ public final class SwitcherPanel: NSPanel {
         // layout model); tiles never shrink. Only an extreme window count
         // exceeds the height budget and falls back to vertical scrolling.
         let horizontalCapacityPadding = padding
-            + DesignTokens.panelTrailingComfort / 2
+            + (DesignTokens.panelTrailingComfort + selectionOverflow) / 2
         let capacity = SwitcherGridCapacity.columns(
             visibleWidth: visibleFrame.width,
             tileWidth: tileSize.width,
@@ -530,7 +531,6 @@ public final class SwitcherPanel: NSPanel {
         // intentionally draws outside its nominal tile frame (glass lens +
         // glow + compositor scale), so reserve a real document gutter instead
         // of relying on panel padding that exists outside the clip view.
-        let selectionOverflow = DesignTokens.selectionVisualOverflow
         let leadingOverflow = max(
             DesignTokens.closeButtonLeadingOverflow, selectionOverflow)
         let trailingOverflow = selectionOverflow
@@ -570,7 +570,9 @@ public final class SwitcherPanel: NSPanel {
         }
 
         let verticalCapacityPadding = padding
-            + (DesignTokens.chromeReservedTop + DesignTokens.panelBottomComfort) / 2
+            + (DesignTokens.chromeReservedTop
+                + DesignTokens.panelBottomComfort
+                + selectionOverflow) / 2
         let rowCapacity = SwitcherGridCapacity.maxVisibleRows(
             visibleHeight: visibleFrame.height,
             tileHeight: tileSize.height,
