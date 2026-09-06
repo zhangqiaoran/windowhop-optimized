@@ -120,6 +120,11 @@ struct EventTapInterceptionState {
             guard mode == .sessionHeld, !flags.contains(holdModifier) else {
                 return .pass
             }
+            // End the tap-side held session synchronously. The semantic release
+            // still hops to main, but a new Alt/Option+Tab pressed before main
+            // catches up must already be recognized as a fresh trigger rather
+            // than a stale .step belonging to the previous session.
+            mode = .watching
             return EventTapDecision(disposition: .pass, input: .modifierReleased)
         }
 
