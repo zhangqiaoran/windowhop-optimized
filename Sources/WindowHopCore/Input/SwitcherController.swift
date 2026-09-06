@@ -204,10 +204,9 @@ public final class SwitcherController {
             cancelExpandedPreviewTimer()
             expandedPreview.reset()
             panels.hideExpandedPreview()
-            // Close the selected window only. We intentionally never offer to
-            // quit its application (Finder included); the app's own unsaved-
-            // changes UI still runs because WindowActions presses its native
-            // close button through Accessibility.
+            panels.playDismissalEffect(at: index)
+            // Close remains immediate; the one-shot overlay owns its snapshot
+            // independently, so we never delay the Accessibility close action.
             WindowActions.close(window)
         }
     }
