@@ -168,19 +168,19 @@ final class SwitcherLayoutTests: XCTestCase {
                            + DesignTokens.panelPadding * 2)
         XCTAssertEqual(panel.settingsButtonFrameForTesting.maxX,
                        panel.panelBackgroundFrameForTesting.maxX
-                           + DesignTokens.chromeButtonOutsideOverlap)
+                           - DesignTokens.settingsButtonInset)
         let close = try XCTUnwrap(panel.closeFrameForTesting(at: 0))
         XCTAssertTrue(panel.panelBackgroundFrameForTesting.contains(close),
-                      "the existing panel padding must keep the complete Close control visible")
+                      "panel padding must keep the complete Close control visible")
         XCTAssertEqual(panel.settingsButtonFrameForTesting.maxY,
                        panel.panelBackgroundFrameForTesting.maxY
-                           + DesignTokens.chromeButtonOutsideOverlap)
-        XCTAssertEqual(panel.frame.width,
-                       panel.panelBackgroundFrameForTesting.width
-                           + DesignTokens.chromeButtonOutsideOverlap)
-        XCTAssertEqual(panel.frame.height,
-                       panel.panelBackgroundFrameForTesting.height
-                           + DesignTokens.chromeButtonOutsideOverlap)
+                           - DesignTokens.settingsButtonInset)
+        XCTAssertEqual(panel.frame.size,
+                       panel.panelBackgroundFrameForTesting.size)
+        XCTAssertGreaterThanOrEqual(panel.gridRightInsetForTesting,
+                                    DesignTokens.panelPadding)
+        XCTAssertEqual(panel.settingsButtonToolTipForTesting,
+                       "More Options (⌘,)")
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
@@ -201,8 +201,9 @@ final class SwitcherLayoutTests: XCTestCase {
     }
 
     func testDismissalEffectUsesFixedBoundedParticleCount() {
-        XCTAssertEqual(WindowDismissalEffectView.particleCountForTesting, 12)
-        XCTAssertLessThanOrEqual(WindowDismissalEffectView.particleCountForTesting, 16)
+        XCTAssertEqual(WindowDismissalEffectView.particleCountForTesting, 18)
+        XCTAssertLessThanOrEqual(WindowDismissalEffectView.particleCountForTesting, 20)
+        XCTAssertLessThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 0.35)
     }
 
     func testPreviewTitleKeepsBottomBreathingRoom() {
