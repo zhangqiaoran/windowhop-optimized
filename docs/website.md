@@ -1,7 +1,7 @@
 # my-alt-tab website deployment
 
 The static product site lives directly in `docs/` and is served at
-<https://zhangqiaoran.github.io/windowhop-optimized/>. It has no backend, package manager, generated
+<https://zhangqiaoran.github.io/my-alt-tab/>. It has no backend, package manager, generated
 bundle, analytics, or runtime dependency.
 
 ## Local preview
