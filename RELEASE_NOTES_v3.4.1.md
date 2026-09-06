@@ -17,6 +17,7 @@
 - Global panel buttons accept first mouse in the nonactivating panel.
 - Close routing no longer depends on nested Glass / ScrollView `hitTest` forwarding.
 - Visible controls therefore remain clickable even when the native Liquid Glass hierarchy changes internally.
+- The session-wide global mouse monitor now checks the click's AppKit screen coordinate against every visible switcher panel before calling `outsideClick()`. A click inside a nonactivating panel can no longer cancel the whole switcher before its local control/tile handler runs.
 
 ## Dissolve tail refined
 
@@ -29,8 +30,8 @@
 ## Compatibility
 
 - Marketing version: **3.4.1**
-- Internal build: **30601**
-- The build number intentionally remains above the briefly published 3.5/3.6 builds so Sparkle can upgrade those installations to 3.4.1 instead of treating it as a downgrade.
+- Internal build: **30602**
+- The build number intentionally remains above the briefly published 3.5/3.6 builds, and 30602 supersedes the first 3.4.1 package so existing installations receive this input-routing hotfix.
 - Minimum macOS: **14.0**
 - Architectures: **arm64 + x86_64 (Universal 2)**
 - Bundle ID: `com.zhangqiaoran.myalttab`
