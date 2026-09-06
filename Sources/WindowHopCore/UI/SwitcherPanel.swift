@@ -229,18 +229,23 @@ public final class SwitcherPanel: NSPanel {
 
         // Global panel action: contextual during held cycling, persistent for
         // Open my-alt-tab sessions, and never measured as part of the grid.
-        settingsButton.image = NSImage(systemSymbolName: "gearshape.circle.fill",
-                                       accessibilityDescription: "my-alt-tab Settings")?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: DesignTokens.chromeButtonSymbolSize,
-                                                                  weight: .semibold)
-                .applying(.init(paletteColors: [DesignTokens.overlayGlyphColor,
-                                                DesignTokens.overlayCircleColor])))
+        settingsButton.image = NSImage(systemSymbolName: "ellipsis",
+                                       accessibilityDescription: "More Options")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: DesignTokens.chromeButtonSymbolSize,
+                weight: .bold))
+        settingsButton.contentTintColor = .labelColor
         settingsButton.isBordered = false
         settingsButton.imagePosition = .imageOnly
+        settingsButton.wantsLayer = true
+        settingsButton.layer?.cornerRadius = DesignTokens.chromeButtonHitSize / 2
+        settingsButton.layer?.cornerCurve = .continuous
+        settingsButton.layer?.backgroundColor = NSColor.controlBackgroundColor
+            .withAlphaComponent(0.42).cgColor
         settingsButton.target = self
         settingsButton.action = #selector(settingsClicked)
-        settingsButton.toolTip = "my-alt-tab Settings (⌘,)"
-        settingsButton.setAccessibilityLabel("my-alt-tab Settings")
+        settingsButton.toolTip = "More Options (⌘,)"
+        settingsButton.setAccessibilityLabel("More Options")
         settingsButton.alphaValue = 0
         settingsButton.isEnabled = false
         settingsButton.setAccessibilityHidden(true)
@@ -571,23 +576,22 @@ public final class SwitcherPanel: NSPanel {
                                height: visibleGridHeight + padding * 2)
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
 
-        // Keep most of the complete hit target inside the panel with only the
-        // named overlap outside. The transparent host preserves that overflow;
-        // the panel background and preview layout retain their exact size.
+        // v2.2 keeps global controls fully inside the glass surface. This gives
+        // the rightmost preview a stable breathing zone and removes the old
+        // top-right overflow that visually crowded the panel edge.
         let controlSize = DesignTokens.chromeButtonHitSize
-        let overflow = DesignTokens.chromeButtonOutsideOverlap
-        settingsButton.frame = NSRect(x: panelSize.width - controlSize + overflow,
-                                      y: panelSize.height - controlSize + overflow,
-                                      width: controlSize, height: controlSize)
-        permissionButton.frame = NSRect(
-            x: panelSize.width - controlSize * 2,
-            y: panelSize.height - controlSize,
+        let controlInset = DesignTokens.settingsButtonInset
+        settingsButton.frame = NSRect(
+            x: panelSize.width - controlSize - controlInset,
+            y: panelSize.height - controlSize - controlInset,
             width: controlSize, height: controlSize)
-        let hostSize = NSSize(width: panelSize.width + overflow,
-                              height: panelSize.height + overflow)
+        permissionButton.frame = NSRect(
+            x: panelSize.width - controlSize * 2 - controlInset - 6,
+            y: panelSize.height - controlSize - controlInset,
+            width: controlSize, height: controlSize)
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
-        setFrame(NSRect(origin: origin, size: hostSize), display: true)
+        setFrame(NSRect(origin: origin, size: panelSize), display: true)
     }
 
     private func layoutExpandedPreview() {
@@ -605,16 +609,15 @@ public final class SwitcherPanel: NSPanel {
             dx: DesignTokens.expandedPreviewPanelInset,
             dy: DesignTokens.expandedPreviewPanelInset)
         let controlSize = DesignTokens.chromeButtonHitSize
-        let overflow = DesignTokens.chromeButtonOutsideOverlap
-        settingsButton.frame = NSRect(x: panelSize.width - controlSize + overflow,
-                                      y: panelSize.height - controlSize + overflow,
-                                      width: controlSize, height: controlSize)
+        let controlInset = DesignTokens.settingsButtonInset
+        settingsButton.frame = NSRect(
+            x: panelSize.width - controlSize - controlInset,
+            y: panelSize.height - controlSize - controlInset,
+            width: controlSize, height: controlSize)
         permissionButton.isHidden = true
-        let hostSize = NSSize(width: panelSize.width + overflow,
-                              height: panelSize.height + overflow)
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
-        setFrame(NSRect(origin: origin, size: hostSize), display: true)
+        setFrame(NSRect(origin: origin, size: panelSize), display: true)
     }
 
     private func applySelection(fullRefresh: Bool = false) {
