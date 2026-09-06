@@ -503,11 +503,13 @@ public final class SwitcherPanel: NSPanel {
         // tiles wrap into rows instead of scrolling horizontally (the AltTab
         // layout model); tiles never shrink. Only an extreme window count
         // exceeds the height budget and falls back to vertical scrolling.
+        let horizontalCapacityPadding = padding
+            + DesignTokens.panelTrailingComfort / 2
         let capacity = SwitcherGridCapacity.columns(
             visibleWidth: visibleFrame.width,
             tileWidth: tileSize.width,
             spacing: spacing,
-            padding: padding,
+            padding: horizontalCapacityPadding,
             maxWidthFraction: DesignTokens.panelMaxWidthFraction,
             tileCount: tileCount)
         // a mirrored group imposes the most constrained display's grid on every
@@ -554,31 +556,37 @@ public final class SwitcherPanel: NSPanel {
                 dy: -DesignTokens.selectionLensInset))
         }
 
+        let verticalCapacityPadding = padding
+            + (DesignTokens.chromeReservedTop + DesignTokens.panelBottomComfort) / 2
         let rowCapacity = SwitcherGridCapacity.maxVisibleRows(
             visibleHeight: visibleFrame.height,
             tileHeight: tileSize.height,
             rowSpacing: rowSpacing,
-            padding: padding,
+            padding: verticalCapacityPadding,
             maxHeightFraction: DesignTokens.panelMaxHeightFraction)
         let maxVisibleRows = max(1, min(rowCapacity, sharedRowLimit ?? rowCapacity))
         let visibleRows = min(rows, maxVisibleRows)
         let visibleGridHeight = CGFloat(visibleRows) * tileSize.height
             + CGFloat(max(0, visibleRows - 1)) * rowSpacing
-        scrollView.frame = NSRect(x: padding - leadingOverflow, y: padding,
-                                  width: documentWidth,
-                                  height: visibleGridHeight + topOverflow)
+        scrollView.frame = NSRect(
+            x: padding - leadingOverflow,
+            y: padding + DesignTokens.panelBottomComfort,
+            width: documentWidth,
+            height: visibleGridHeight + topOverflow)
         // start reading from the first row (top of the grid)
         tilesContainer.scroll(NSPoint(
             x: 0,
             y: max(0, contentGridHeight - visibleGridHeight)))
 
-        let panelSize = NSSize(width: contentGridWidth + padding * 2,
-                               height: visibleGridHeight + padding * 2)
+        let panelSize = NSSize(
+            width: contentGridWidth + padding * 2 + DesignTokens.panelTrailingComfort,
+            height: visibleGridHeight + padding * 2
+                + DesignTokens.panelBottomComfort + DesignTokens.chromeReservedTop)
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
 
-        // v2.2 keeps global controls fully inside the glass surface. This gives
-        // the rightmost preview a stable breathing zone and removes the old
-        // top-right overflow that visually crowded the panel edge.
+        // v2.3 gives global controls their own top chrome strip. The ellipsis
+        // is still visually attached to the panel, but it never intersects a
+        // thumbnail or selection lens.
         let controlSize = DesignTokens.chromeButtonHitSize
         let controlInset = DesignTokens.settingsButtonInset
         settingsButton.frame = NSRect(
@@ -742,6 +750,12 @@ public final class SwitcherPanel: NSPanel {
     var gridFrameForTesting: NSRect { scrollView.frame }
     var gridRightInsetForTesting: CGFloat {
         panelBackgroundView.frame.maxX - scrollView.frame.maxX
+    }
+    var gridBottomInsetForTesting: CGFloat {
+        scrollView.frame.minY - panelBackgroundView.frame.minY
+    }
+    var settingsButtonIntersectsGridForTesting: Bool {
+        settingsButton.frame.intersects(scrollView.frame)
     }
     var panelBackgroundFrameForTesting: NSRect { panelBackgroundView.frame }
 
