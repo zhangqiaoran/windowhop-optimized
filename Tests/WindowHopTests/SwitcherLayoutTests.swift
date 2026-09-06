@@ -164,7 +164,8 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(second.minX - first.maxX, DesignTokens.tileSpacing)
         XCTAssertEqual(panel.panelBackgroundFrameForTesting.height,
                        panel.gridFrameForTesting.height
-                           - DesignTokens.closeButtonTopOverflow
+                           - max(DesignTokens.closeButtonTopOverflow,
+                                 DesignTokens.selectionVisualOverflow)
                            + DesignTokens.panelPadding * 2
                            + DesignTokens.panelBottomComfort
                            + DesignTokens.chromeReservedTop)
@@ -206,6 +207,22 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(panel.selectionLensFrameForTesting,
                        third.insetBy(dx: -DesignTokens.selectionLensInset,
                                      dy: -DesignTokens.selectionLensInset))
+    }
+
+    func testRightBottomSelectionLensHasRealClipSafeDocumentGutter() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.sharedColumnLimit = 2
+        panel.update(
+            items: [item("a"), item("b"), item("c"), item("d")],
+            selectedIndex: 3)
+
+        let document = panel.documentFrameForTesting
+        let visual = panel.selectionLensVisualBoundsForTesting
+
+        XCTAssertTrue(document.contains(visual),
+                      "glass lens + glow must stay inside the NSClipView document bounds")
+        XCTAssertGreaterThanOrEqual(document.maxX - visual.maxX, 4)
+        XCTAssertGreaterThanOrEqual(visual.minY - document.minY, 4)
     }
 
     func testDismissalEffectUsesFixedBoundedParticleCount() {
