@@ -2,21 +2,28 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v2.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v2.3.1** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-2.3.0.zip`.
+2. Download `my-alt-tab-2.3.1.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
 
+## v2.3.1
+
+- Refined **Liquid Glass** with a perceptual 0–100% transparency curve, so 90% is already visibly denser than the fully clear 100% endpoint.
+- Selected windows now use a layered native Liquid Glass focus surface on macOS 26+, with a visual-effect fallback on older systems.
+- Preserves the stronger selection glow while keeping the right and bottom edges clip-safe.
+- Signed Sparkle automatic updates remain enabled.
+
 ## v2.3
 
 - Signed Sparkle updates are enabled for future releases; automatic checks and native manual update checks are available in Settings.
-- Appearance now includes a live **Glass transparency** slider from 0% to 100%.
+- Appearance includes a live **Liquid Glass transparency** slider from 0% to 100%.
 - More breathing room on the right and bottom edges.
 - The top-right **ellipsis (…)** lives in its own chrome strip and no longer covers thumbnails.
 - Closing a window removes it from the switcher immediately while a denser 28-particle dissolve plays.
@@ -46,7 +53,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.3.0.zip
+artifacts/my-alt-tab-2.3.1.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

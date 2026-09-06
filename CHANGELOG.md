@@ -2,6 +2,17 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.3.1 — 2026-09-06 — zhangqiaoran
+
+- Renamed the appearance control to **Liquid Glass** and aligned its behavior with that visual model.
+- Replaced the linear transparency mapping with a perceptual density curve: 100% remains maximally clear while 90% is now visibly denser instead of nearly indistinguishable.
+- On macOS 26+, the selected-window focus surface now uses its own native `NSGlassEffectView`, producing a layered Liquid Glass selection instead of a flat translucent highlight.
+- Older macOS versions retain the closest native `NSVisualEffectView` fallback.
+- Increased selection visual overflow to preserve the stronger Liquid Glass glow without reintroducing right/bottom clipping.
+- Preserved the signed Sparkle update channel, automatic update checks, Universal 2 packaging, and all existing switcher behavior.
+
+Full notes: [`RELEASE_NOTES_v2.3.1.md`](RELEASE_NOTES_v2.3.1.md).
+
 ## 2.3.0 — 2026-09-06 — zhangqiaoran
 
 - Refreshed the public 2.3.0 package as build 20301 to make the signed update newer than the original 20300 build.
