@@ -61,7 +61,7 @@ enum DesignTokens {
     /// Selection therefore stays constant-cost as the number of windows grows.
     static let selectionLensInset: CGFloat = 4
     static let selectionLensCornerRadius: CGFloat = 17
-    static let selectionLensBorderWidth: CGFloat = 1.2
+    static let selectionLensBorderWidth: CGFloat = 2.0
     static let selectedTileScale: CGFloat = 1.018
     static let selectedTileScaleDuration: TimeInterval = 0.095
     // MARK: v3 motion
@@ -78,27 +78,21 @@ enum DesignTokens {
     /// frosting exists at all.
     static let frostedGlassBaseDensityAlpha: CGFloat = 0.16
     static let frostedGlassVariableDensityAlpha: CGFloat = 0.68
-    static let frostedGlassBaseTintAlpha: CGFloat = 0.045
-    static let frostedGlassVariableTintAlpha: CGFloat = 0.075
+    static let frostedGlassBaseTintAlpha: CGFloat = 0
+    static let frostedGlassVariableTintAlpha: CGFloat = 0.035
     static let frostedGlassBorderWidth: CGFloat = 0.8
     static var frostedGlassBorder: NSColor {
         NSColor.white.withAlphaComponent(0.24)
     }
-    /// The selected window uses the same regular glass, just a touch denser and
-    /// brighter so it reads as a raised Control Center tile rather than a blue
-    /// translucent plate.
-    static let selectionFrostedBaseDensityAlpha: CGFloat = 0.20
-    static let selectionFrostedVariableDensityAlpha: CGFloat = 0.34
-    static let selectionFrostedBaseTintAlpha: CGFloat = 0.035
-    static let selectionFrostedAccentTintAlpha: CGFloat = 0.055
-    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.42
+    /// Selection never paints over window content. A semantic system-blue ring
+    /// and a small blue glow provide focus without reducing preview clarity.
     static var selectionLensStroke: NSColor {
-        NSColor.white.withAlphaComponent(0.30)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.96)
     }
     static var selectionLensGlow: NSColor {
-        NSColor.black.withAlphaComponent(0.16)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.30)
     }
-    static let selectionLensGlowRadius: CGFloat = 12
+    static let selectionLensGlowRadius: CGFloat = 8
     /// The glass lens, its glow, and the compositor-only selected-tile scale all
     /// extend beyond the tile frame. NSClipView clips at the document-view
     /// boundary, so the document canvas must reserve this much space on every
@@ -191,13 +185,9 @@ enum DesignTokens {
     static let previewSkeletonUnavailableLineFractions: [CGFloat] = [0.62, 0.78, 0.48]
 
     // MARK: Colors
-    static var iconSelectionFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.12)
-    }
+    static var iconSelectionFill: NSColor { .clear }
     static var iconEmphasisFill: NSColor { .labelColor.withAlphaComponent(0.075) }
-    static var previewSelectionFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.20)
-    }
+    static var previewSelectionFill: NSColor { .clear }
     static var previewEmphasisFill: NSColor {
         NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.10)
     }

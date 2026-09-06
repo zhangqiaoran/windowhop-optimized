@@ -1,5 +1,12 @@
 # User-facing defaults and configurability
 
+## Unreleased transparent chrome + focus-ring refinement
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Transparent top chrome | Enabled | No | macOS 26+ uses clear native glass for the outer panel. The user-controlled milky density layer is localized to the window-content region and softly fades out before the reserved ellipsis row, so empty top chrome shows the desktop instead of a white slab. |
+| Selection focus | Blue outline | No | Selected tiles receive no fill and no second glass material. One shared moving focus view draws a 2 pt semantic system-blue border with a small blue glow, keeping preview pixels fully visible and preserving O(1) selection updates. |
+
 ## my-alt-tab 3.1.0 frosted-glass calibration
 
 | Feature | Default | Configurable | Settings / persistence / behavior |

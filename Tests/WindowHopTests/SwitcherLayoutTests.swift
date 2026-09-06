@@ -81,9 +81,7 @@ final class SwitcherLayoutTests: XCTestCase {
             XCTAssertFalse(tile.showsCardOutlineForTesting)
             XCTAssertEqual(tile.selectionBackgroundFrameForTesting,
                            loaded.selectionBackgroundFrameForTesting)
-            XCTAssertEqual(tile.selectionBackgroundAlphaForTesting,
-                           DesignTokens.previewSelectionFill.alphaComponent,
-                           accuracy: 0.001)
+            XCTAssertEqual(tile.selectionBackgroundAlphaForTesting, 0, accuracy: 0.001)
         }
         XCTAssertEqual(try rgba(try XCTUnwrap(loaded.selectionBackgroundColorForTesting)).3,
                        try rgba(try XCTUnwrap(permissionUnavailable.selectionBackgroundColorForTesting)).3,
@@ -99,8 +97,7 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(tile.selectionBackgroundAlphaForTesting, 0)
         tile.isSelected = true
         XCTAssertFalse(tile.showsCardOutlineForTesting)
-        XCTAssertEqual(tile.selectionBackgroundAlphaForTesting,
-                       DesignTokens.iconSelectionFill.alphaComponent)
+        XCTAssertEqual(tile.selectionBackgroundAlphaForTesting, 0)
     }
 
     func testUnselectedPreviewHasSurfaceButNoPermanentSelectionFrame() {
@@ -111,26 +108,24 @@ final class SwitcherLayoutTests: XCTestCase {
 
         tile.isSelected = true
         XCTAssertFalse(tile.showsCardOutlineForTesting)
-        XCTAssertGreaterThan(tile.selectionBackgroundAlphaForTesting, 0)
+        XCTAssertEqual(tile.selectionBackgroundAlphaForTesting, 0)
     }
 
-    func testSelectionUsesSemanticSystemFocusColorInBothAppearances() throws {
+    func testSelectionUsesTransparentTilesAndSemanticBlueFocusRing() throws {
         let tile = configuredTile(imageSize: NSSize(width: 300, height: 200))
-        tile.appearance = try XCTUnwrap(NSAppearance(named: .aqua))
         tile.isSelected = true
-        let light = try rgba(try XCTUnwrap(tile.selectionBackgroundColorForTesting))
+        XCTAssertEqual(tile.selectionBackgroundAlphaForTesting, 0)
 
-        tile.appearance = try XCTUnwrap(NSAppearance(named: .darkAqua))
-        tile.isSelected = false
-        tile.isSelected = true
-        let dark = try rgba(try XCTUnwrap(tile.selectionBackgroundColorForTesting))
-
-        XCTAssertEqual(light.3, DesignTokens.previewSelectionFill.alphaComponent,
-                       accuracy: 0.001)
-        XCTAssertEqual(dark.3, DesignTokens.previewSelectionFill.alphaComponent,
-                       accuracy: 0.001)
-        XCTAssertGreaterThan(light.0 + light.1 + light.2, 0)
-        XCTAssertGreaterThan(dark.0 + dark.1 + dark.2, 0)
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.update(items: [item("a")], selectedIndex: 0)
+        XCTAssertEqual(panel.selectionLensBorderWidthForTesting,
+                       DesignTokens.selectionLensBorderWidth)
+        let focus = try rgba(try XCTUnwrap(panel.selectionLensBorderColorForTesting))
+        let semantic = try rgba(NSColor.keyboardFocusIndicatorColor)
+        XCTAssertEqual(focus.0, semantic.0, accuracy: 0.08)
+        XCTAssertEqual(focus.1, semantic.1, accuracy: 0.08)
+        XCTAssertEqual(focus.2, semantic.2, accuracy: 0.08)
+        XCTAssertGreaterThan(focus.3, 0.90)
     }
 
     func testUnavailableToLoadedTransitionKeepsCanvasBadgeAndSelectionGeometry() {
@@ -192,6 +187,11 @@ final class SwitcherLayoutTests: XCTestCase {
             DesignTokens.panelPadding + DesignTokens.panelBottomComfort)
         XCTAssertFalse(panel.settingsButtonIntersectsGridForTesting,
                        "the ellipsis must live in its own top chrome strip")
+        XCTAssertLessThan(panel.liquidGlassDensityFrameForTesting.maxY,
+                          panel.panelBackgroundFrameForTesting.maxY,
+                          "the empty top chrome must remain outside the milky density layer")
+        XCTAssertGreaterThanOrEqual(panel.liquidGlassDensityFrameForTesting.maxY,
+                                    panel.gridFrameForTesting.maxY)
         XCTAssertEqual(panel.settingsButtonToolTipForTesting,
                        "More Options (⌘,)")
     }
@@ -204,10 +204,7 @@ final class SwitcherLayoutTests: XCTestCase {
             panel.liquidGlassDensityAlphaForTesting,
             DesignTokens.frostedGlassBaseDensityAlpha,
             accuracy: 0.001)
-        XCTAssertEqual(
-            panel.selectionLensDensityAlphaForTesting,
-            DesignTokens.selectionFrostedBaseDensityAlpha,
-            accuracy: 0.001)
+        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
         XCTAssertEqual(
@@ -215,11 +212,7 @@ final class SwitcherLayoutTests: XCTestCase {
             DesignTokens.frostedGlassBaseDensityAlpha
                 + DesignTokens.frostedGlassVariableDensityAlpha * 0.10,
             accuracy: 0.001)
-        XCTAssertEqual(
-            panel.selectionLensDensityAlphaForTesting,
-            DesignTokens.selectionFrostedBaseDensityAlpha
-                + DesignTokens.selectionFrostedVariableDensityAlpha * 0.10,
-            accuracy: 0.001)
+        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 50
         XCTAssertEqual(
@@ -241,7 +234,9 @@ final class SwitcherLayoutTests: XCTestCase {
         panel.update(items: [item("a"), item("b"), item("c")], selectedIndex: 0)
         let first = try XCTUnwrap(panel.tileFrameForTesting(at: 0))
         XCTAssertTrue(panel.selectionLensIsVisibleForTesting)
-        XCTAssertTrue(panel.selectionLensUsesGlassMaterialForTesting)
+        XCTAssertFalse(panel.selectionLensUsesGlassMaterialForTesting)
+        XCTAssertEqual(panel.selectionLensBorderWidthForTesting,
+                       DesignTokens.selectionLensBorderWidth)
         XCTAssertEqual(panel.selectionGeometryCountForTesting, 3)
         XCTAssertEqual(panel.selectionLensFrameForTesting,
                        first.insetBy(dx: -DesignTokens.selectionLensInset,
