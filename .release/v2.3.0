@@ -2,5 +2,5 @@ my-alt-tab 2.3.0
 author=zhangqiaoran
 validated_build_sha=d3cc6cca9bf3d56c1b051cf24ec7b71672de01d3
 validated_action_run=34009184978
-patch=clip-safe glass selection document gutters
+patch=clip-safe glass selection + unified my-alt-tab About interface
 package=Universal 2 my-alt-tab.app (arm64 + x86_64)

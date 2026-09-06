@@ -519,6 +519,20 @@ struct UpdatesPane: View {
 
 // MARK: - About
 
+private struct AboutLinkButton: View {
+    let title: String
+    let systemImage: String
+    let destination: URL
+
+    var body: some View {
+        Link(destination: destination) {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+    }
+}
+
 struct AboutPane: View {
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -535,43 +549,71 @@ struct AboutPane: View {
     var body: some View {
         Form {
             Section {
-                HStack(spacing: DesignTokens.settingsAboutHeaderSpacing) {
+                VStack(spacing: DesignTokens.settingsAboutHeroSpacing) {
                     Image(nsImage: NSApp.applicationIconImage ?? NSImage())
                         .resizable()
                         .frame(width: DesignTokens.settingsAboutIconSize,
                                height: DesignTokens.settingsAboutIconSize)
                         .accessibilityLabel("my-alt-tab application icon")
-                    VStack(alignment: .leading, spacing: DesignTokens.settingsAboutTitleSpacing) {
+
+                    VStack(spacing: DesignTokens.settingsAboutTitleSpacing) {
                         Text("my-alt-tab")
-                            .font(.title2.weight(.semibold))
+                            .font(.title.weight(.semibold))
                         Text("Switch between windows, not just apps.")
+                            .font(.headline)
                             .foregroundStyle(.secondary)
-                        Text("Developed & maintained by zhangqiaoran")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, DesignTokens.settingsAboutTitleSpacing)
+                        Text("Version \(version) · Build \(build)")
+                            .font(.callout.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Text("A fast, native macOS window switcher focused on getting you to the exact window you want.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: DesignTokens.settingsAboutSummaryMaxWidth)
+
+                    HStack(spacing: DesignTokens.settingsAboutLinkSpacing) {
+                        AboutLinkButton(title: "Website",
+                                        systemImage: "globe",
+                                        destination: ProjectLinks.website)
+                        AboutLinkButton(title: "GitHub",
+                                        systemImage: "chevron.left.forwardslash.chevron.right",
+                                        destination: ProjectLinks.repository)
+                        AboutLinkButton(title: "Report Issue",
+                                        systemImage: "exclamationmark.bubble",
+                                        destination: ProjectLinks.issues)
                     }
                 }
-                .padding(.vertical, DesignTokens.settingsAboutHeaderPadding)
-                LabeledContent("Version", value: "\(version) (build \(build))")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DesignTokens.settingsAboutHeroPadding)
+            }
+
+            Section {
+                LabeledContent("Application", value: "my-alt-tab")
                 LabeledContent("Bundle identifier", value: bundleIdentifier)
+                LabeledContent("License", value: "GNU GPL-3.0")
+            } header: {
+                Text("Details")
             }
+
             Section {
-                Link("Project Website", destination: ProjectLinks.website)
-                Link("Source on GitHub",
-                     destination: ProjectLinks.repository)
-                Link("Report an issue",
-                     destination: ProjectLinks.issues)
-            }
-            Section {
-                LabeledContent("License", value: "GPL-3.0")
-                Text("my-alt-tab is developed, maintained, and released by zhangqiaoran. GPL-3.0 upstream attribution is preserved in the source repository.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Link("AltTab on GitHub",
-                     destination: ProjectLinks.altTabRepository)
+                VStack(alignment: .leading,
+                       spacing: DesignTokens.settingsAboutOpenSourceSpacing) {
+                    Label("Free and open source", systemImage: "checkmark.seal.fill")
+                        .font(.headline)
+                        .foregroundStyle(.tint)
+                    Text("Developed & maintained by zhangqiaoran. my-alt-tab builds on WindowHop and AltTab, with upstream attribution preserved under GPL-3.0.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link("AltTab upstream on GitHub",
+                         destination: ProjectLinks.altTabRepository)
+                }
+                .padding(.vertical, DesignTokens.settingsAboutOpenSourcePadding)
             } footer: {
-                Text("© 2026 zhangqiaoran and my-alt-tab contributors. Free software under the GNU GPL-3.0.")
+                Text("© 2026 zhangqiaoran and my-alt-tab contributors.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

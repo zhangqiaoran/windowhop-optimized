@@ -35,9 +35,17 @@ enum DesignTokens {
     /// laptop display's usable height.
     static let settingsPaneWidth: CGFloat = 560
     static let settingsPaneHeight: CGFloat = 540
-    static let settingsAboutIconSize: CGFloat = 64
+    static let settingsAboutIconSize: CGFloat = 76
+    // The About pane uses a centered product hero while retaining native Form sections.
+    static let settingsAboutHeroSpacing: CGFloat = 12
+    static let settingsAboutHeroPadding: CGFloat = 10
+    static let settingsAboutTitleSpacing: CGFloat = 4
+    static let settingsAboutSummaryMaxWidth: CGFloat = 390
+    static let settingsAboutLinkSpacing: CGFloat = 8
+    static let settingsAboutOpenSourceSpacing: CGFloat = 6
+    static let settingsAboutOpenSourcePadding: CGFloat = 4
+    // Kept for compatibility with older render/test helpers.
     static let settingsAboutHeaderSpacing: CGFloat = 16
-    static let settingsAboutTitleSpacing: CGFloat = 3
     static let settingsAboutHeaderPadding: CGFloat = 4
 
     // MARK: Tiles (both appearances)

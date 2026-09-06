@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "WindowHop",
+    name: "my-alt-tab",
     platforms: [.macOS(.v14)],
     dependencies: [
         // the one approved runtime dependency: automatic updates
