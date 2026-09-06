@@ -2,23 +2,23 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v2.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v2.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-2.2.0.zip`.
+2. Download `my-alt-tab-2.3.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
 
-## v2.2
+## v2.3
 
-- More right-side breathing room for the preview grid.
-- Top-right Settings control is now a compact **ellipsis (…)** action.
-- Window close uses a richer fixed-cost particle dissolve with two visual waves.
-- Keeps the shared glass focus lens, fast two-window switching, and lightweight event-driven behavior.
+- More breathing room on the right and bottom edges.
+- The top-right **ellipsis (…)** lives in its own chrome strip and no longer covers thumbnails.
+- Closing a window removes it from the switcher immediately while a denser 28-particle dissolve plays.
+- Keeps Universal 2 support for Intel + Apple Silicon.
 
 ## UI
 
@@ -44,7 +44,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.2.0.zip
+artifacts/my-alt-tab-2.3.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.
