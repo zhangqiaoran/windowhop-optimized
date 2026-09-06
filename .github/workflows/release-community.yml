@@ -40,7 +40,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           chmod +x scripts/package-app.sh
-          ./scripts/package-app.sh "$VERSION"
+          MY_ALT_TAB_UNIVERSAL=1 ./scripts/package-app.sh "$VERSION"
           codesign --verify --deep --strict build/my-alt-tab.app
           shasum -a 256 "artifacts/my-alt-tab-${VERSION}.zip" > "artifacts/my-alt-tab-${VERSION}.zip.sha256"
 
