@@ -111,7 +111,10 @@ public final class SwitcherController {
         case .step(let backward):
             perform(state.step(backward: backward))
         case .modifierReleased:
-            perform(state.modifierReleased())
+            // EventTap already moved the interception state back to .watching
+            // synchronously on the tap thread. Do not let this delayed main-thread
+            // release overwrite a newer rapid trigger that may already be held.
+            perform(state.modifierReleased(), tapModeAlreadyReleased: true)
         case .escape:
             perform(state.escape())
         case .returnKey:
@@ -160,7 +163,8 @@ public final class SwitcherController {
         }
     }
 
-    private func perform(_ command: SwitcherState.Command) {
+    private func perform(_ command: SwitcherState.Command,
+                         tapModeAlreadyReleased: Bool = false) {
         DebugLog.log("perform \(command), phase \(state.phase)")
         switch command {
         case .none:
@@ -173,7 +177,9 @@ public final class SwitcherController {
                 selectedIndex: selectedIndex,
                 presentationMode: state.phase == .sticky ? .persistent : .cycling)
             state.updateColumns(panels.columnsPerRow)
-            EventTap.shared.mode = sessionTapMode()
+            // EventTap owns held/sticky transitions synchronously on its tap
+            // thread. Rewriting the mode here can resurrect an already-released
+            // session when the user toggles faster than the main queue drains.
             startSessionSupports()
             panels.setPreviewPermissionStatus(ScreenRecordingPermission.status)
             scheduleExpandedPreview(request)
@@ -199,13 +205,19 @@ public final class SwitcherController {
             let window = item?.window.flatMap { candidate in
                 WindowStore.shared.windows.contains(where: { $0 === candidate }) ? candidate : nil
             }
-            endSession()
+            if let window {
+                // AX focus notifications arrive asynchronously. Commit the user's
+                // choice to MRU immediately so a rapid 1↔2 toggle starts from the
+                // window we just requested, not from stale pre-activation order.
+                WindowStore.shared.noteCommittedActivation(window)
+            }
+            endSession(resetTapMode: !tapModeAlreadyReleased)
             if let window {
                 WindowActions.activate(window)
             }
             expandedPreview.reset()
         case .cancel:
-            endSession()
+            endSession(resetTapMode: !tapModeAlreadyReleased)
             expandedPreview.reset()
         case .requestClose(let index):
             guard index >= 0, index < items.count,
@@ -519,7 +531,7 @@ public final class SwitcherController {
         state.phase == .held ? .sessionHeld : .sessionSticky
     }
 
-    private func endSession() {
+    private func endSession(resetTapMode: Bool = true) {
         storeRefreshScheduled = false
         pendingCloseIDs.removeAll(keepingCapacity: true)
         cancelPendingVisualCloses()
@@ -535,7 +547,9 @@ public final class SwitcherController {
         }
         heldModifierGuard?.invalidate()
         heldModifierGuard = nil
-        EventTap.shared.mode = configuredEnabled ? .watching : .off
+        if resetTapMode {
+            EventTap.shared.mode = configuredEnabled ? .watching : .off
+        }
     }
 
     // MARK: - Non-activating expanded preview
