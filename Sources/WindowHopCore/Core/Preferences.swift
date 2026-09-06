@@ -142,7 +142,7 @@ public final class Preferences: ObservableObject {
         public static let showTabCounts = false
         public static let showMenuBarItem = false
         public static let showDockIcon = false
-        public static let automaticUpdateChecks = false
+        public static let automaticUpdateChecks = true
         public static let firstLaunchCompleted = false
     }
 

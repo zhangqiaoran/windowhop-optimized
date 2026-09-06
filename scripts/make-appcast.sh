@@ -31,9 +31,9 @@ if [ ! -f appcast.xml ]; then
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>WindowHop</title>
+    <title>my-alt-tab</title>
     <link>https://github.com/zhangqiaoran/my-alt-tab</link>
-    <description>Most recent updates to WindowHop</description>
+    <description>Signed updates for my-alt-tab</description>
     <language>en</language>
   </channel>
 </rss>

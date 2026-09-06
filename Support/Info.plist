@@ -34,9 +34,17 @@
 	<string>NSApplication</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>my-alt-tab uses Screen Recording only to show optional window previews while the switcher is open.</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/zhangqiaoran/my-alt-tab/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>7LHuy3EoqV02ATP97vBZSde+ND99awdfDo/C8ar/gj8=</string>
 	<key>SUEnableAutomaticChecks</key>
-	<false/>
-	<key>MyAltTabForkUpdatesDisabled</key>
 	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
 </dict>
 </plist>

@@ -51,29 +51,56 @@ else
 fi
 
 # --- updater configuration ---------------------------------------------------
-# Community builds deliberately have no upstream Sparkle feed/key so they can
-# never replace themselves with another project's release channel.
-if /usr/libexec/PlistBuddy -c 'Print :MyAltTabForkUpdatesDisabled' Support/Info.plist 2>/dev/null | grep -qx true; then
-    pass "community auto-updates are disabled"
+FEED_URL=$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Support/Info.plist 2>/dev/null || true)
+if [ "$FEED_URL" = "https://raw.githubusercontent.com/zhangqiaoran/my-alt-tab/main/appcast.xml" ]; then
+    pass "Sparkle feed belongs to my-alt-tab"
 else
-    fail "MyAltTabForkUpdatesDisabled must be true"
+    fail "unexpected SUFeedURL: $FEED_URL"
 fi
-if /usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' Support/Info.plist 2>/dev/null | grep -qx false; then
-    pass "automatic update checks are disabled"
+PUBLIC_KEY=$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' Support/Info.plist 2>/dev/null || true)
+if printf '%s' "$PUBLIC_KEY" | grep -Eq '^[A-Za-z0-9+/]{43}=$'; then
+    pass "Sparkle EdDSA public key is configured"
 else
-    fail "SUEnableAutomaticChecks must be false"
+    fail "SUPublicEDKey is missing or malformed"
 fi
-for key in SUFeedURL SUPublicEDKey; do
-    if /usr/libexec/PlistBuddy -c "Print :$key" Support/Info.plist >/dev/null 2>&1; then
-        fail "community Info.plist must not contain $key"
-    else
-        pass "community Info.plist omits $key"
-    fi
-done
+if /usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' Support/Info.plist 2>/dev/null | grep -qx true; then
+    pass "automatic update checks default to enabled"
+else
+    fail "SUEnableAutomaticChecks must be true"
+fi
+if /usr/libexec/PlistBuddy -c 'Print :SUAutomaticallyUpdate' Support/Info.plist 2>/dev/null | grep -qx true; then
+    pass "automatic update installation default is enabled"
+else
+    fail "SUAutomaticallyUpdate must be true"
+fi
+if /usr/libexec/PlistBuddy -c 'Print :SUEnableSystemProfiling' Support/Info.plist 2>/dev/null | grep -qx false; then
+    pass "Sparkle system profiling is disabled"
+else
+    fail "SUEnableSystemProfiling must be false"
+fi
+if /usr/libexec/PlistBuddy -c 'Print :MyAltTabForkUpdatesDisabled' Support/Info.plist >/dev/null 2>&1; then
+    fail "legacy MyAltTabForkUpdatesDisabled gate must be removed"
+else
+    pass "legacy update-disable gate is absent"
+fi
 
 # --- appcast/release metadata consistency ------------------------------------
-# appcast.xml is retained only as upstream historical material. The community
-# build intentionally has no active feed or Sparkle public key.
+if grep -q '<title>my-alt-tab</title>' appcast.xml \
+   && grep -q 'github.com/zhangqiaoran/my-alt-tab' appcast.xml \
+   && ! grep -q 'martonpaulo/windowhop' appcast.xml; then
+    pass "appcast belongs only to my-alt-tab"
+else
+    fail "appcast contains incorrect project identity"
+fi
+if grep -q '<enclosure ' appcast.xml; then
+    if grep '<enclosure ' appcast.xml | grep -vq 'sparkle:edSignature='; then
+        fail "every appcast enclosure must carry a Sparkle EdDSA signature"
+    else
+        pass "appcast enclosures are EdDSA signed"
+    fi
+else
+    pass "appcast is ready for the next signed release"
+fi
 
 # --- documentation/release synchronization ----------------------------------
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)

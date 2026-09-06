@@ -46,6 +46,10 @@ jobs:
           test -x build/my-alt-tab.app/Contents/MacOS/my-alt-tab
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/my-alt-tab.app/Contents/Info.plist)" = "my-alt-tab"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/my-alt-tab.app/Contents/Info.plist)" = "com.zhangqiaoran.myalttab"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' build/my-alt-tab.app/Contents/Info.plist)" = "https://raw.githubusercontent.com/zhangqiaoran/my-alt-tab/main/appcast.xml"
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' build/my-alt-tab.app/Contents/Info.plist)"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' build/my-alt-tab.app/Contents/Info.plist)" = "true"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUAutomaticallyUpdate' build/my-alt-tab.app/Contents/Info.plist)" = "true"
           ARCHS="$(lipo -archs build/my-alt-tab.app/Contents/MacOS/my-alt-tab)"
           echo "app architectures: $ARCHS"
           [[ " $ARCHS " == *" arm64 "* ]]

@@ -517,18 +517,26 @@ struct UpdatesPane: View {
                     }
                     .disabled(!UpdateManager.shared.isAvailable)
                 LabeledContent("Version \(UpdateManager.shared.currentVersion)") {
-                    Button("Check for Updates…") {
-                        UpdateManager.shared.checkForUpdates()
+                    if UpdateManager.shared.isAvailable {
+                        Button("Check for Updates…") {
+                            UpdateManager.shared.checkForUpdates()
+                        }
+                    } else {
+                        Link("View Releases", destination: ProjectLinks.releases)
                     }
-                    .disabled(!UpdateManager.shared.isAvailable)
                 }
-                if !UpdateManager.shared.isAvailable {
-                    Text("Automatic updates are disabled in this community build. Install releases from the zhangqiaoran GitHub repository or build from source.")
+                if UpdateManager.shared.isAvailable {
+                    Label("Signed automatic updates are ready.",
+                          systemImage: "checkmark.seal.fill")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Update checks are available in packaged my-alt-tab.app builds. Development and render-harness processes can use GitHub Releases instead.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("This build performs no automatic update checks. No telemetry, no accounts. Releases are published through the project GitHub repository.")
+                Text("Updates come only from the official my-alt-tab GitHub release feed and are verified with Sparkle EdDSA before installation. No telemetry, no accounts, and no system-profile reporting.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

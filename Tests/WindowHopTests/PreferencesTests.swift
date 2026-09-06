@@ -40,7 +40,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.showTabCounts)
         XCTAssertFalse(preferences.showMenuBarItem)
         XCTAssertFalse(preferences.showDockIcon)
-        XCTAssertFalse(preferences.automaticUpdateChecks)
+        XCTAssertTrue(preferences.automaticUpdateChecks)
         XCTAssertFalse(preferences.firstLaunchCompleted)
     }
 
@@ -245,7 +245,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.showTabCounts)
         XCTAssertFalse(preferences.showMenuBarItem)
         XCTAssertFalse(preferences.showDockIcon)
-        XCTAssertFalse(preferences.automaticUpdateChecks)
+        XCTAssertTrue(preferences.automaticUpdateChecks)
         XCTAssertTrue(preferences.firstLaunchCompleted,
                       "Restore Defaults must not repeat first-run state")
     }

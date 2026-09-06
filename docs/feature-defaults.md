@@ -9,6 +9,8 @@ fails when a new configurable key is omitted from Restore Defaults.
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|
 | Glass transparency | 100% | Yes | Appearance pane; typed `UserDefaults` (`glassTransparencyPercent`) clamped to 0–100. 100% preserves the current native glass, lower values add an adaptive system tint without fading content, changes publish immediately to open switcher panels, and Restore Defaults resets to 100%. |
+| Automatic update checks | On | Yes | Updates pane; typed `UserDefaults` through Sparkle's `SUEnableAutomaticChecks` key. Packaged builds start Sparkle against the zhangqiaoran-owned HTTPS appcast; Restore Defaults resets checks to On. |
+| Automatic download/install | On | Sparkle-managed | `SUAutomaticallyUpdate` defaults to On. Sparkle verifies every downloadable archive with the embedded EdDSA public key before replacement; the standard Sparkle UI still owns prompts, postponement, and authorization when required. |
 
 ## my-alt-tab 1.3.1 decisions
 

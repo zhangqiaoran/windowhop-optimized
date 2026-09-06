@@ -100,10 +100,16 @@ The established local fixture validates three paths:
 2. the newer build reports no update against the same feed;
 3. a corrupted `sparkle:edSignature` is rejected and leaves the installed app unchanged.
 
-For release-candidate continuity, build two Developer ID-signed bundles, validate both
-with `verify-update-continuity.sh`, sign the candidate ZIP with Sparkle's `sign_update`,
-serve a local appcast, and run the old bundle's `--updater-e2e` binary. Never put an
-ad-hoc or development-signed app in the update feed.
+The public update channel uses the zhangqiaoran-owned EdDSA key embedded in
+`Support/Info.plist`. Release CI requires the matching private key in the
+`SPARKLE_PRIVATE_KEY` GitHub Actions secret, signs the release ZIP with Sparkle's
+`sign_update`, publishes the GitHub Release, then appends that signed item to
+`appcast.xml`. The private key must never be committed or printed.
+
+For release-candidate continuity, the existing `--updater-e2e` harness can still be used
+with a local signed feed before a public release. Sparkle's own test path supports EdDSA
+validation with ad-hoc signed apps; Developer ID signing remains the preferred future
+distribution identity.
 
 ## Manual release checklist
 

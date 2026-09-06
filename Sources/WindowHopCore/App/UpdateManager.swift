@@ -32,8 +32,8 @@ public final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate
     public func startIfBundled() {
         guard controller == nil,
               Bundle.main.bundleIdentifier == "com.zhangqiaoran.myalttab",
-              Bundle.main.object(forInfoDictionaryKey: "MyAltTabForkUpdatesDisabled") as? Bool != true,
-              Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return }
+              Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil,
+              Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") != nil else { return }
         controller = SPUStandardUpdaterController(startingUpdater: true,
                                                   updaterDelegate: self,
                                                   userDriverDelegate: nil)

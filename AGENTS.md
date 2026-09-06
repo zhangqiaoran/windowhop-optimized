@@ -33,12 +33,12 @@
 - Merge policy: merge commits only, every commit of the branch preserved. Never squash.
 - Commit subject: a commit made for an issue ends with `(#<issue number>)`.
 - Delete branches after merge: enabled on GitHub.
-- Release policy: Tag `vX.Y.Z` triggers `.github/workflows/release-community.yml`, which
-  validates, tests, builds an ad-hoc signed `.app`, packages `WindowHop-X.Y.Z.zip`, and
-  creates the GitHub Release. The upstream Sparkle feed/signing chain is intentionally
-  disconnected. If a future Developer ID/notarized channel is added, all signing keys,
-  Team ID, Apple credentials, appcast URLs, and Sparkle keys must belong to zhangqiaoran
-  and live only in GitHub Secrets/Keychain — never in versioned files.
+- Release policy: `.github/workflows/release-community.yml` validates, tests, builds the
+  Universal app, packages `my-alt-tab-X.Y.Z.zip`, EdDSA-signs the archive with the
+  zhangqiaoran-owned `SPARKLE_PRIVATE_KEY` GitHub Actions secret, publishes the GitHub
+  Release, and then appends the signed item to the public `appcast.xml`. The private key
+  and any future Developer ID / notarization credentials live only in GitHub Secrets or a
+  maintainer Keychain — never in versioned files.
 
 Treat these values as stable project decisions. Change an established identifier, license,
 visibility, branch policy, versioning model, localization strategy, landing-page contract, or
@@ -83,8 +83,9 @@ Keep task logs in `artifacts/` (gitignored). Inspect a failed log before rerunni
   hotkey. Fail-safe = if WindowHop dies, native switching works untouched.
 - **One entry per top-level window; tabs are never entries** (see TabGroupResolver).
   The own-process exclusion has exactly one exception: the registered Settings window.
-- **Sparkle is the only runtime dependency**, and update checks are the only permitted
-  network activity. No telemetry, no analytics, no accounts, no Pro/license code.
+- **Sparkle is the only runtime dependency**, and signed update checks/downloads are the
+  only permitted network activity. No telemetry, no analytics, no accounts, no Pro/license
+  code. The public EdDSA key may be versioned; the matching private key never may.
 - The bundle identifier is `com.zhangqiaoran.myalttab` — everywhere, always.
 - Closing from the switcher acts on the selected window immediately through its native
   close button. It never offers to quit or force-quit the owning application; native
