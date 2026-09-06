@@ -2,26 +2,25 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.4.1** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.4.2** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.4.1.zip`.
+2. Download `my-alt-tab-3.4.2.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
 
-## v3.4.1
+## v3.4.2
 
-- **Liquid Glass hierarchy corrected:** macOS 26+ keeps switcher chrome inside native `NSGlassEffectView.contentView`, grouped through `NSGlassEffectContainerView` for one coherent adaptive glass surface.
-- **Regular Liquid Glass at full strength:** native Glass stays alpha 1.0. 100% removes white tint; lower slider values add only perceptual milky tint, preserving refraction, adaptive background response, and system edge highlights.
-- **Close / Settings / permission clicks fixed:** pointer actions are resolved at the `SwitcherPanel` root from final host-space rectangles, so nested Glass and ScrollView hit-testing can no longer make visible controls inert.
-- **Outside-click regression fixed:** the session-wide global mouse monitor now cancels only when the click is geometrically outside every visible my-alt-tab panel. Clicks inside a nonactivating panel are left to the panel's own Close / Settings / tile routing.
-- **Smoother dissolve tail:** true thumbnail erosion uses 96 compact grayscale+alpha mask states with linear pacing, prewarmed assets, and a one-frame settle gap before the existing 80% Stable-ID FLIP hand-off.
-- Native macOS 26 Glass uses the system edge treatment instead of a custom white CALayer border; the pre-macOS-26 fallback keeps its semantic border.
-- Universal 2, immediate real-window close, compositor-driven dust/haze, Reduce Motion behavior, and Sparkle EdDSA updates remain intact.
+- **Click-through fixed at the window boundary:** the borderless nonactivating `NSPanel` is explicitly mouse-owning and key-capable on deliberate clicks, so a click no longer lands on the real window underneath.
+- The root panel now resolves **window cards, Close, Settings, and permission controls** from final host-space geometry before nested view hit-testing can interfere.
+- **Liquid Glass is transparent again:** macOS 26+ uses native `NSGlassEffectView.Style.clear`, no white tint, and a background-only Glass layer below ordinary AppKit chrome.
+- At 100% the Glass background surface is intentionally thinned to about **48% alpha** with zero milk; lowering the slider restores material strength and adds the separate perceptual milk layer.
+- Foreground thumbnails, labels, buttons, selection ring, and hit targets remain fully opaque and are never faded with the Glass.
+- The 96-state dissolve mask, immediate real-window close, Stable-ID FLIP reflow, Universal 2 packaging, Reduce Motion, and Sparkle EdDSA update verification remain intact.
 
 ## v3.4.0
 
