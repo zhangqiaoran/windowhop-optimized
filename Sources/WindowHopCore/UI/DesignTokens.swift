@@ -23,7 +23,6 @@ enum DesignTokens {
     /// outer top-right corner.
     static let chromeButtonHitSize: CGFloat = 40
     static let chromeButtonSymbolSize: CGFloat = 20
-    static let chromeButtonOutsideOverlap: CGFloat = 0
     static let settingsButtonInset: CGFloat = 10
 
     // MARK: Settings window
@@ -44,9 +43,6 @@ enum DesignTokens {
     static let settingsAboutLinkSpacing: CGFloat = 8
     static let settingsAboutOpenSourceSpacing: CGFloat = 6
     static let settingsAboutOpenSourcePadding: CGFloat = 4
-    // Kept for compatibility with older render/test helpers.
-    static let settingsAboutHeaderSpacing: CGFloat = 16
-    static let settingsAboutHeaderPadding: CGFloat = 4
 
     // MARK: Tiles (both appearances)
     /// Preview canvases use this radius for their fixed content and focus ring.
@@ -67,6 +63,13 @@ enum DesignTokens {
     static let selectionLensBorderWidth: CGFloat = 1.2
     static let selectedTileScale: CGFloat = 1.018
     static let selectedTileScaleDuration: TimeInterval = 0.095
+    // MARK: v3 motion
+    /// Stable-id reflow runs only when an open list loses windows.
+    static let panelReflowDuration: CFTimeInterval = 0.36
+    static let panelReflowSpringMass: CGFloat = 1
+    static let panelReflowSpringStiffness: CGFloat = 285
+    static let panelReflowSpringDamping: CGFloat = 30
+    static let panelReflowSpringInitialVelocity: CGFloat = 0.15
     /// Liquid Glass v2.4 keeps the native material genuinely clear at 100%.
     /// Lower values thicken only the background material; foreground labels,
     /// icons, and previews never have their alpha changed.
