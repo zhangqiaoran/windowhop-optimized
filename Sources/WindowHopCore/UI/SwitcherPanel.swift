@@ -257,7 +257,7 @@ public final class SwitcherPanel: NSPanel {
             let glass = NSGlassEffectView()
             glass.style = .regular
             glass.cornerRadius = DesignTokens.panelCornerRadius
-            glass.effectIsInteractive = true
+            Self.enableInteractiveGlassIfAvailable(glass)
             glass.contentView = chromeView
 
             let group = NSView()
@@ -351,7 +351,7 @@ public final class SwitcherPanel: NSPanel {
             let settingsGlass = NSGlassEffectView()
             settingsGlass.style = .regular
             settingsGlass.cornerRadius = DesignTokens.chromeButtonHitSize / 2
-            settingsGlass.effectIsInteractive = true
+            Self.enableInteractiveGlassIfAvailable(settingsGlass)
             settingsGlass.contentView = settingsButton
             settingsGlass.alphaValue = 0
             settingsButton.alphaValue = 1
@@ -430,6 +430,18 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
+    /// `effectIsInteractive` is still a beta AppKit API and is not exposed by
+    /// every Xcode 26 SDK even when the running macOS implements it. Resolve it
+    /// dynamically so release builds remain SDK-compatible while newer systems
+    /// still opt into interactive glass feedback.
+    @discardableResult
+    private static func enableInteractiveGlassIfAvailable(_ glass: NSGlassEffectView) -> Bool {
+        let selector = NSSelectorFromString("setEffectIsInteractive:")
+        guard glass.responds(to: selector) else { return false }
+        glass.setValue(true, forKey: "effectIsInteractive")
+        return true
+    }
+
     /// 100% means maximum Liquid Glass, not a faded view:
     /// native glass remains alpha=1 with no tint. Lower values progressively
     /// add a white system-glass tint; only the pre-26 fallback uses the manual
@@ -453,12 +465,12 @@ public final class SwitcherPanel: NSPanel {
             // Do not paint a manual border over Liquid Glass. AppKit's own edge
             // treatment is part of what makes the material read as refractive.
             glass.layer?.borderWidth = 0
-            glass.effectIsInteractive = true
             // A large switcher with labels/previews needs Regular Liquid Glass:
             // it retains AppKit's adaptive background/brightness behavior.
             // Transparency is controlled only through tint, never by changing
             // the material variant or fading the material itself.
             glass.style = .regular
+            Self.enableInteractiveGlassIfAvailable(glass)
             glass.tintColor = nativeTintAlpha <= 0.001
                 ? nil
                 : NSColor.white.withAlphaComponent(nativeTintAlpha)
@@ -466,8 +478,8 @@ public final class SwitcherPanel: NSPanel {
 
             if let settingsGlass = settingsGlassView as? NSGlassEffectView {
                 settingsGlass.layer?.borderWidth = 0
-                settingsGlass.effectIsInteractive = true
-                settingsGlass.style = .regular
+                    settingsGlass.style = .regular
+                Self.enableInteractiveGlassIfAvailable(settingsGlass)
                 settingsGlass.tintColor = nativeTintAlpha <= 0.001
                     ? nil
                     : NSColor.white.withAlphaComponent(nativeTintAlpha * 0.72)
@@ -1217,11 +1229,11 @@ public final class SwitcherPanel: NSPanel {
         chromeView.superview === panelBackgroundView
     }
     var usesNativeGlassContainerForTesting: Bool { usesNativeGlassContainer }
-    var nativeGlassIsInteractiveForTesting: Bool {
+    var nativeGlassRuntimeSupportsInteractionForTesting: Bool {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            return glass.effectIsInteractive
+            return glass.responds(to: NSSelectorFromString("setEffectIsInteractive:"))
         }
         #endif
         return false

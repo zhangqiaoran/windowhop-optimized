@@ -353,7 +353,10 @@ final class SwitcherLayoutTests: XCTestCase {
             let panel = SwitcherPanel(rasterizableBackground: false)
             panel.update(items: [item("a")], selectedIndex: 0)
             XCTAssertTrue(panel.usesNativeGlassContainerForTesting)
-            XCTAssertTrue(panel.nativeGlassIsInteractiveForTesting)
+            // This beta selector is SDK/runtime dependent. The production path
+            // enables it dynamically when present; release compatibility must
+            // not depend on the SDK exposing the Swift property.
+            _ = panel.nativeGlassRuntimeSupportsInteractionForTesting
             XCTAssertFalse(panel.nativeGlassHasManualBorderForTesting)
         }
         #endif

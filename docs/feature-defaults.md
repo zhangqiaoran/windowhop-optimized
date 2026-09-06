@@ -5,7 +5,7 @@
 | Fix | Decision |
 |---|---|
 | Close control routing | `OverlayCloseButton` accepts first mouse in the nonactivating panel. `SwitcherPanel.sendEvent` additionally resolves visible close-hit regions before the private Glass hierarchy can consume/reroute the click. |
-| Native Glass interaction | macOS 26+ main/settings `NSGlassEffectView.effectIsInteractive = true`, as recommended for glass containing interactive controls. |
+| Native Glass interaction | `effectIsInteractive` is still beta and absent from some Xcode 26 Swift SDK overlays. The app probes `setEffectIsInteractive:` at runtime and enables it only when the running AppKit exposes the selector, keeping Release builds SDK-compatible. |
 | Native Glass edge | Remove the custom CALayer white border on real `NSGlassEffectView`; keep that border only on the pre-26 fallback, allowing AppKit's dynamic glass edge/highlight to remain visible. |
 | Glass variant | Use `.regular` at every slider value. The switcher is a large interactive surface with labels/previews, so it benefits from Regular Liquid Glass adaptive background/brightness behavior. The slider changes only white tint: 100% has no tint; lower values become progressively milky. |
 
