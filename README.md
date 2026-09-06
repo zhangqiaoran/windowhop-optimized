@@ -2,13 +2,13 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v2.1.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v2.1.1** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-2.1.0.zip`.
+2. Download `my-alt-tab-2.1.1.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
@@ -44,7 +44,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.1.0.zip
+artifacts/my-alt-tab-2.1.1.zip
 ```
 
 The v2.1 packaging pipeline targets a Universal 2 app; the release is published only after CI verifies both **arm64** and **x86_64** slices.
