@@ -41,7 +41,7 @@ This is the first zhangqiaoran-maintained release line. The goal is a lightweigh
 - Version reset to **1.0.0** for the zhangqiaoran-maintained release line.
 - Bundle ID is now `com.zhangqiaoran.myalttab`.
 - App About identifies **zhangqiaoran** as current developer/maintainer.
-- Project links point to `zhangqiaoran/windowhop-optimized`.
+- Project links point to `zhangqiaoran/my-alt-tab`.
 - Upstream Sparkle update feed and public key are disconnected so this build cannot silently update into another release line.
 - GPL-3.0 and upstream attribution remain preserved.
 
