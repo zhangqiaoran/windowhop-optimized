@@ -2,6 +2,18 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.2.0 — 2026-09-06 — zhangqiaoran
+
+- Made the reserved top chrome genuinely transparent on macOS 26+: the outer panel uses clear native glass with no white tint, while the adjustable frosted-density layer is localized to the window-content zone and fades out before the ellipsis row.
+- Simplified selection to one transparent moving focus ring: no selected-tile fill and no second glass material. The selected window now gets a crisp **2 pt fixed system-blue outline** with a restrained blue glow, keeping preview pixels unobscured.
+- Changed close choreography to a two-phase hand-off: the real window closes immediately, but the switcher card remains frozen as a visual ghost until the dust animation reaches **80%** of its 1.02 s lifetime (about 0.816 s).
+- Only after the 80% hand-off does the card disappear from the session list and the existing synchronized **0.42 s** panel/tile reflow begin, keeping the dense GPU dust effect fully visible instead of shrinking it away immediately.
+- Store refreshes explicitly preserve pending visual ghosts during the dust phase, and activation skips already-closed ghosts so rapid modifier release cannot target a dead window.
+- Reduce Motion skips the visual delay and keeps the accessibility path immediate.
+- Remains an ad-hoc signed community build with Sparkle EdDSA update verification; macOS Accessibility / Screen Recording may need re-authorization after an update.
+
+Full notes: [`RELEASE_NOTES_v3.2.0.md`](RELEASE_NOTES_v3.2.0.md).
+
 ## 3.1.0 — 2026-09-06 — zhangqiaoran
 
 - Recalibrated the switcher glass toward Control Center-style **Frosted Glass**: macOS 26+ uses native `NSGlassEffectView.Style.regular`, with a persistent milky blur body even at 100% transparency.

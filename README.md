@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.1.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.1.0.zip`.
+2. Download `my-alt-tab-3.2.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.2.0
+
+- **Transparent top chrome:** empty space above the window row no longer receives a milky white overlay; macOS 26+ keeps that chrome clear while frosting stays localized around content.
+- **Blue focus ring:** selected windows keep their original preview pixels and are indicated only by a 2 pt fixed system-blue outline plus a restrained blue glow.
+- **80% dust hand-off:** closing a window starts the dense GPU dust erosion immediately, freezes switcher geometry through 80% of the 1.02 s dissolve, then begins the synchronized 0.42 s panel/tile shrink.
+- The real AX window still closes immediately; the retained card is only a short-lived visual ghost. Store refresh and activation logic understand that ghost state.
+- Universal 2 and signed Sparkle in-app updates remain supported.
 
 ## v3.1.0
 
@@ -77,7 +85,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.1.0.zip
+artifacts/my-alt-tab-3.2.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

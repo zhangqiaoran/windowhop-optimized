@@ -2,15 +2,23 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.1.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.1.0.zip`。
+2. 下载 `my-alt-tab-3.2.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.2.0
+
+- **顶部真正透明**：窗口列表上方的空白操作区不再铺乳白层；macOS 26+ 外层保持 Clear Glass，磨砂密度只作用在下方窗口内容区，并在三点按钮区域前柔和淡出。
+- **蓝色选中框**：选中的窗口不再叠灰白填充，也不再覆盖第二层玻璃；只保留 **2px 固定系统蓝描边 + 轻微蓝色 Glow**，缩略图内容保持原样清晰。
+- **粒子 80% 后再缩小**：点击关闭后真实窗口立即关闭，但切换器中的视觉卡片和面板尺寸先冻结；约 **0.816 秒（粒子生命周期 80%）** 后，才开始 0.42 秒的柔和列表收拢。
+- WindowStore 刷新期间会保留正在消散的视觉卡片，快速松开快捷键也会自动跳过已经关闭的 Ghost，不会误激活死窗口。
+- 继续保持 Universal 2 与 Sparkle EdDSA 应用内更新。
 
 ## v3.1.0
 
@@ -67,7 +75,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.1.0.zip
+artifacts/my-alt-tab-3.2.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。

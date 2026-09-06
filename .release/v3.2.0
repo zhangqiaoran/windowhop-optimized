@@ -1,0 +1,8 @@
+my-alt-tab 3.2.0
+author=zhangqiaoran
+validated_build_sha=7e30b6bdaf088410d3b6cd7f3898d73d0ef61610
+validated_action_run=34016299599
+build=30200
+patch=transparent top chrome + fixed blue focus ring + 80-percent dust-to-reflow hand-off
+signing=ad-hoc app + Sparkle EdDSA archive
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)

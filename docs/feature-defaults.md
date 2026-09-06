@@ -1,12 +1,12 @@
 # User-facing defaults and configurability
 
-## Unreleased 80% dust-to-reflow choreography
+## my-alt-tab 3.2.0 80% dust-to-reflow choreography
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
 | Close animation hand-off | 80% dust progress | No | The real AX window closes immediately, but its switcher card remains as a non-interactive visual ghost while erosion/dust plays. Panel size and tile geometry stay frozen until 80% of the 1.02 s dust lifetime (about 0.816 s); only then is the ghost removed and the synchronized 0.42 s panel/tile reflow begins. Reduce Motion skips the delay. |
 
-## Unreleased transparent chrome + focus-ring refinement
+## my-alt-tab 3.2.0 transparent chrome + focus-ring refinement
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
