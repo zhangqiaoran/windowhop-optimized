@@ -2,6 +2,16 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.1.0 — 2026-09-06 — zhangqiaoran
+
+- Added more bottom breathing room for wrapped preview rows.
+- Reworked the shared selection lens into one translucent native visual-effect surface.
+- Added a fixed-size, one-shot particle dismissal effect for window close.
+- Locked in the two-window MRU toggle invariant with regression tests.
+- Packaging targets one Universal 2 `my-alt-tab.app` for Intel + Apple Silicon.
+
+Full notes: [`RELEASE_NOTES_v2.1.0.md`](RELEASE_NOTES_v2.1.0.md).
+
 ## 2.0.0 — 2026-09-06 — zhangqiaoran
 
 ### Glass Focus Engine
