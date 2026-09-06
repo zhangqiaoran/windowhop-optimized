@@ -56,13 +56,17 @@ enum SettingsPane: String, CaseIterable {
     case about
 
     var title: String {
+        title(for: Preferences.shared.settingsLanguage)
+    }
+
+    func title(for language: SettingsLanguage) -> String {
         switch self {
-        case .general: SettingsL10n.t("General")
-        case .shortcuts: SettingsL10n.t("Shortcuts")
-        case .windows: SettingsL10n.t("Windows")
-        case .appearance: SettingsL10n.t("Appearance")
-        case .updates: SettingsL10n.t("Updates")
-        case .about: SettingsL10n.t("About")
+        case .general: SettingsL10n.t("General", language: language)
+        case .shortcuts: SettingsL10n.t("Shortcuts", language: language)
+        case .windows: SettingsL10n.t("Windows", language: language)
+        case .appearance: SettingsL10n.t("Appearance", language: language)
+        case .updates: SettingsL10n.t("Updates", language: language)
+        case .about: SettingsL10n.t("About", language: language)
         }
     }
 
