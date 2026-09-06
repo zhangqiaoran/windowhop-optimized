@@ -11,6 +11,13 @@
 - The committed target window is promoted to MRU immediately before asynchronous AX focus confirmation, keeping repeated rapid toggles deterministic.
 - Regression tests reproduce a second chord arriving before the previous release has been handled on main.
 
+## New app icon and visual GitHub introduction
+
+- v3.4.4 now ships the new neon stacked-window **my-alt-tab app icon** as the canonical application icon.
+- The same committed source image drives the packaged `.icns`, README icon, and documentation favicon so product branding cannot drift between builds and GitHub.
+- GitHub README is now image-first instead of release-note-first: the icon, animated switcher demo, three-step installation flow, and compact feature overview appear before detailed version history.
+- Added an animated README demo that emphasizes **lightweight operation, rapid 1↔2 switching, particle-dissolve closing, and smooth list reflow**.
+
 ## Retained from v3.4.3
 
 - English / 中文 live Settings localization.
@@ -24,4 +31,4 @@
 - Minimum macOS: 14.0.
 - Bundle ID: `com.zhangqiaoran.myalttab`.
 - Marketing version: **3.4.4**.
-- Internal build: **30606**.
+- Internal build: **30607**.
