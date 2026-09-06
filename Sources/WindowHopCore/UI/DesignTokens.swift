@@ -84,7 +84,7 @@ enum DesignTokens {
     /// extend beyond the tile frame. NSClipView clips at the document-view
     /// boundary, so the document canvas must reserve this much space on every
     /// edge that is not already protected by a larger close-control overflow.
-    static let selectionVisualOverflow: CGFloat = 18
+    static let selectionVisualOverflow: CGFloat = 20
 
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
