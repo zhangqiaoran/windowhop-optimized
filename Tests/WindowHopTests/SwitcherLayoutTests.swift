@@ -188,6 +188,7 @@ final class SwitcherLayoutTests: XCTestCase {
         panel.update(items: [item("a"), item("b"), item("c")], selectedIndex: 0)
         let first = try XCTUnwrap(panel.tileFrameForTesting(at: 0))
         XCTAssertTrue(panel.selectionLensIsVisibleForTesting)
+        XCTAssertTrue(panel.selectionLensUsesGlassMaterialForTesting)
         XCTAssertEqual(panel.selectionGeometryCountForTesting, 3)
         XCTAssertEqual(panel.selectionLensFrameForTesting,
                        first.insetBy(dx: -DesignTokens.selectionLensInset,
@@ -197,6 +198,17 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(panel.selectionLensFrameForTesting,
                        third.insetBy(dx: -DesignTokens.selectionLensInset,
                                      dy: -DesignTokens.selectionLensInset))
+    }
+
+    func testDismissalEffectUsesFixedBoundedParticleCount() {
+        XCTAssertEqual(WindowDismissalEffectView.particleCountForTesting, 12)
+        XCTAssertLessThanOrEqual(WindowDismissalEffectView.particleCountForTesting, 16)
+    }
+
+    func testPreviewTitleKeepsBottomBreathingRoom() {
+        let tile = configuredTile(imageSize: NSSize(width: 300, height: 200))
+        XCTAssertGreaterThanOrEqual(tile.titleFrameForTesting.minY,
+                                    DesignTokens.labelBottomInset)
     }
 
     func testSelectionEmphasisTouchesOnlyOldAndNewTileState() throws {
