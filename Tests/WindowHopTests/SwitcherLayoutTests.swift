@@ -380,6 +380,16 @@ final class SwitcherLayoutTests: XCTestCase {
         panel.orderOut(nil)
     }
 
+    func testPanelExplicitlyOwnsMouseClicks() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        XCTAssertTrue(panel.canBecomeKey)
+        XCTAssertFalse(panel.canBecomeMain)
+        XCTAssertFalse(panel.becomesKeyOnlyIfNeeded)
+        XCTAssertFalse(panel.ignoresMouseEvents)
+        XCTAssertTrue(panel.acceptsMouseMovedEvents)
+        XCTAssertTrue(panel.worksWhenModal)
+    }
+
     func testNativeGlassKeepsSystemEdgeAndInteractiveBehavior() {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
