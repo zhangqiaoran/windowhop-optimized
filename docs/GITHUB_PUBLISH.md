@@ -1,6 +1,6 @@
 # GitHub 发布与后续迭代
 
-目标仓库：`https://github.com/zhangqiaoran/windowhop-optimized`
+目标仓库：`https://github.com/zhangqiaoran/my-alt-tab`
 
 ## 第一次上传
 
