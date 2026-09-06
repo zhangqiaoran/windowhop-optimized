@@ -3,7 +3,7 @@ name: Build my-alt-tab App
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, v2.1-polish]
     paths:
       - 'Sources/**'
       - 'Tests/**'
@@ -42,6 +42,10 @@ jobs:
           test -x build/my-alt-tab.app/Contents/MacOS/my-alt-tab
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/my-alt-tab.app/Contents/Info.plist)" = "my-alt-tab"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/my-alt-tab.app/Contents/Info.plist)" = "com.zhangqiaoran.myalttab"
+          ARCHS="$(lipo -archs build/my-alt-tab.app/Contents/MacOS/my-alt-tab)"
+          echo "app architectures: $ARCHS"
+          [[ " $ARCHS " == *" arm64 "* ]]
+          [[ " $ARCHS " == *" x86_64 "* ]]
           codesign --verify --deep --strict build/my-alt-tab.app
           ls -lh artifacts/
 
