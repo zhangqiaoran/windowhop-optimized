@@ -1,24 +1,21 @@
 <p align="center">
-  <img src="docs/assets/app-icon.png" width="180" alt="my-alt-tab app icon">
-</p>
-
-<h1 align="center">my-alt-tab</h1>
-
-<p align="center">
-  <strong>Lightweight native macOS window switcher.</strong><br>
-  Fast window switching, real window previews, Clear Glass, and particle-dissolve closing.
+  <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.4 — lightweight macOS window switcher">
+  </a>
 </p>
 
 <p align="center">
-  <strong>v3.4.4</strong> · macOS 14+ · Universal 2 · English / 中文 · GPL-3.0
+  <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
+    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.4-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.4">
+  </a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/my-alt-tab-demo.gif" alt="my-alt-tab fast switching and particle dissolve demo">
+  <img src="docs/assets/my-alt-tab-demo.gif" width="100%" alt="my-alt-tab fast switching, close, particle dissolve and reflow demo">
 </p>
 
 <p align="center">
-  <em>Lightweight. Fast. Native. Close a window and watch it dissolve.</em>
+  <strong>Lightweight · Fast 1↔2 switching · Window previews · Particle dissolve close · Clear Glass · English / 中文</strong>
 </p>
 
 ## Install in 3 simple steps
