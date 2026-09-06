@@ -264,7 +264,7 @@ public final class SwitcherPanel: NSPanel {
         // treatment come from AppKit, never a hardcoded color); older systems
         // fall back to the closest visual-effect material. Both respect
         // Reduce Transparency and Increase Contrast automatically.
-        chromeView.autoresizingMask = [.width, .height]
+        chromeView.autoresizingMask = []
         chromeView.wantsLayer = true
         chromeView.layer?.backgroundColor = NSColor.clear.cgColor
 
