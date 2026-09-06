@@ -196,20 +196,24 @@ final class SwitcherLayoutTests: XCTestCase {
                        "More Options (⌘,)")
     }
 
-    func testLiquidGlassPercentageMapsNativeGlassToMilkyWithoutFadingMaterial() {
+    func testLiquidGlassPercentageThinsOnlyBackgroundGlass() {
         let panel = SwitcherPanel(rasterizableBackground: true)
 
         Preferences.shared.glassTransparencyPercent = 100
         XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
-        XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 1, accuracy: 0.001)
+        XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 0.48, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
         let milk90 = panel.liquidGlassDensityAlphaForTesting
+        let alpha90 = panel.liquidGlassSurfaceAlphaForTesting
 
         Preferences.shared.glassTransparencyPercent = 50
         let milk50 = panel.liquidGlassDensityAlphaForTesting
+        let alpha50 = panel.liquidGlassSurfaceAlphaForTesting
         XCTAssertGreaterThan(milk50, milk90 * 4,
                              "mid-range should become visibly milkier than 90%")
+        XCTAssertGreaterThan(alpha50, alpha90,
+                             "lower transparency should restore more background material")
 
         Preferences.shared.glassTransparencyPercent = 0
         XCTAssertEqual(
@@ -218,10 +222,11 @@ final class SwitcherLayoutTests: XCTestCase {
             accuracy: 0.001)
         XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 1, accuracy: 0.001)
 
-        XCTAssertTrue(panel.foregroundChromeUsesGlassContentViewForTesting)
+        XCTAssertFalse(panel.foregroundChromeUsesGlassContentViewForTesting)
+        XCTAssertTrue(panel.foregroundChromeIsSiblingAboveGlassForTesting)
     }
 
-    func testLiquidGlassCoreCurveKeepsMaterialFullyPresent() {
+    func testLiquidGlassCoreCurveMakesHighEndOpticallyThin() {
         XCTAssertEqual(
             Preferences.liquidGlassMilkFactor(forTransparencyPercent: 100),
             0,
@@ -235,12 +240,15 @@ final class SwitcherLayoutTests: XCTestCase {
             Preferences.liquidGlassMilkFactor(forTransparencyPercent: 70))
         XCTAssertEqual(
             Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
-            1,
+            0.48,
             accuracy: 0.0001)
         XCTAssertEqual(
             Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 0),
             1,
             accuracy: 0.0001)
+        XCTAssertLessThan(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 90),
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50))
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
@@ -345,6 +353,18 @@ final class SwitcherLayoutTests: XCTestCase {
             panel.closeTargetIndexForTesting(
                 atHostPoint: NSPoint(x: closeFrame.midX, y: closeFrame.midY)),
             0)
+    }
+
+    func testWindowCardRoutesAtPanelLevelWithoutDependingOnGlassHitTest() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.update(items: [item("a"), item("b")], selectedIndex: 0)
+        let tileFrame = try XCTUnwrap(panel.tileFrameForTesting(at: 1))
+        let tile = try XCTUnwrap(panel.tileForTesting(at: 1))
+        let hostPoint = tile.convert(
+            NSPoint(x: tile.bounds.midX, y: tile.bounds.midY),
+            to: panel.contentView)
+        XCTAssertEqual(panel.itemTargetIndexForTesting(atHostPoint: hostPoint), 1)
+        XCTAssertTrue(tileFrame.width > 0)
     }
 
     func testSettingsRoutesAtPanelLevelAcrossGlassHierarchy() {
