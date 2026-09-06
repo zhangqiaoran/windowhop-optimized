@@ -1,9 +1,14 @@
 #!/bin/bash
 # Builds a Release my-alt-tab.app and packages it as a zip.
 #
-# By default v2.1 builds a Universal 2 app (arm64 + x86_64) using SwiftPM's
-# Swift Build backend. Set MY_ALT_TAB_UNIVERSAL=0 for a current-architecture
-# developer build.
+# Local default:
+#   - Full Xcode available: build Universal 2 (arm64 + x86_64)
+#   - Command Line Tools only: automatically fall back to the current CPU arch
+#
+# Override:
+#   MY_ALT_TAB_UNIVERSAL=1  require Universal 2 (full Xcode / xcbuild required)
+#   MY_ALT_TAB_UNIVERSAL=0  build current architecture only
+#   MY_ALT_TAB_UNIVERSAL=auto  auto-detect (default)
 #
 # Signing:
 #   - With DEVELOPER_ID_IDENTITY set: Developer ID + hardened runtime.
@@ -19,7 +24,49 @@ DEFAULT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Support/Info
 VERSION="${1:-$DEFAULT_VERSION}"
 BUILD_NUMBER="${2:-$DEFAULT_BUILD}"
 IDENTITY="${DEVELOPER_ID_IDENTITY:--}"
-UNIVERSAL="${MY_ALT_TAB_UNIVERSAL:-1}"
+UNIVERSAL_MODE="${MY_ALT_TAB_UNIVERSAL:-auto}"
+
+DEVELOPER_DIR=$(xcode-select -p 2>/dev/null || true)
+XCODE_CONTENTS=""
+if [[ "$DEVELOPER_DIR" == */Contents/Developer ]]; then
+    XCODE_CONTENTS="${DEVELOPER_DIR%/Developer}"
+fi
+XCBUILD=""
+if [ -n "$XCODE_CONTENTS" ]; then
+    CANDIDATE="$XCODE_CONTENTS/SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild"
+    if [ -x "$CANDIDATE" ]; then
+        XCBUILD="$CANDIDATE"
+    fi
+fi
+
+case "$UNIVERSAL_MODE" in
+    1)
+        if [ -z "$XCBUILD" ]; then
+            echo "Universal 2 build requested, but full Xcode/XCBuild is unavailable." >&2
+            echo "Install/select full Xcode, or run:" >&2
+            echo "  MY_ALT_TAB_UNIVERSAL=0 ./scripts/package-app.sh" >&2
+            exit 1
+        fi
+        UNIVERSAL=1
+        ;;
+    0)
+        UNIVERSAL=0
+        ;;
+    auto)
+        if [ -n "$XCBUILD" ]; then
+            UNIVERSAL=1
+        else
+            UNIVERSAL=0
+            echo "Full Xcode/XCBuild not found; using local native-architecture build."
+            echo "This still produces build/my-alt-tab.app."
+            echo "Official GitHub releases continue to require Universal 2."
+        fi
+        ;;
+    *)
+        echo "MY_ALT_TAB_UNIVERSAL must be auto, 0, or 1" >&2
+        exit 2
+        ;;
+esac
 
 if [ "$UNIVERSAL" = "1" ]; then
     BUILD_ARGS=(-c release --build-system swiftbuild --arch arm64 --arch x86_64)
@@ -55,9 +102,10 @@ ditto "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
 
+APP_ARCHS=$(lipo -archs "$APP/Contents/MacOS/my-alt-tab")
+echo "my-alt-tab architectures: $APP_ARCHS"
+
 if [ "$UNIVERSAL" = "1" ]; then
-    APP_ARCHS=$(lipo -archs "$APP/Contents/MacOS/my-alt-tab")
-    echo "my-alt-tab architectures: $APP_ARCHS"
     [[ " $APP_ARCHS " == *" arm64 "* ]] || { echo "arm64 slice missing" >&2; exit 1; }
     [[ " $APP_ARCHS " == *" x86_64 "* ]] || { echo "x86_64 slice missing" >&2; exit 1; }
 
