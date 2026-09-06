@@ -8,7 +8,7 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let preferences = Preferences(defaults: defaults)
         preferences.shortcut = .controlTab
-        preferences.showTabCounts = true
+        preferences.settingsLanguage = .simplifiedChinese
         preferences.automaticUpdateChecks = false
         var appliedUpdateValue: Bool?
         let restorer = SettingsDefaultsRestorer(
@@ -18,7 +18,7 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
 
         XCTAssertFalse(restorer.restore())
         XCTAssertEqual(preferences.shortcut, .controlTab)
-        XCTAssertTrue(preferences.showTabCounts)
+        XCTAssertEqual(preferences.settingsLanguage, .simplifiedChinese)
         XCTAssertFalse(preferences.automaticUpdateChecks)
         XCTAssertNil(appliedUpdateValue)
     }
@@ -30,7 +30,7 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
         let preferences = Preferences(defaults: defaults)
         preferences.shortcut = .controlTab
         preferences.persistentShortcut = nil
-        preferences.showTabCounts = true
+        preferences.settingsLanguage = .simplifiedChinese
         preferences.automaticUpdateChecks = false
         var loginValue: Bool?
         var updateValue: Bool?
@@ -44,11 +44,11 @@ final class SettingsDefaultsRestorerTests: XCTestCase {
         XCTAssertEqual(updateValue, Preferences.Defaults.automaticUpdateChecks)
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
-        XCTAssertFalse(preferences.showTabCounts)
+        XCTAssertEqual(preferences.settingsLanguage, .english)
         XCTAssertTrue(preferences.automaticUpdateChecks)
         let restored = Preferences(defaults: defaults)
         XCTAssertEqual(restored.persistentShortcut, .optionTab)
-        XCTAssertFalse(restored.showTabCounts)
+        XCTAssertEqual(restored.settingsLanguage, .english)
         XCTAssertTrue(restored.automaticUpdateChecks)
     }
 }
