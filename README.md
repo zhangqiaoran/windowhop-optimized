@@ -18,6 +18,7 @@ Native macOS window switcher maintained by **zhangqiaoran**.
 - **Liquid Glass hierarchy corrected:** macOS 26+ keeps switcher chrome inside native `NSGlassEffectView.contentView`, grouped through `NSGlassEffectContainerView` for one coherent adaptive glass surface.
 - **Regular Liquid Glass at full strength:** native Glass stays alpha 1.0. 100% removes white tint; lower slider values add only perceptual milky tint, preserving refraction, adaptive background response, and system edge highlights.
 - **Close / Settings / permission clicks fixed:** pointer actions are resolved at the `SwitcherPanel` root from final host-space rectangles, so nested Glass and ScrollView hit-testing can no longer make visible controls inert.
+- **Outside-click regression fixed:** the session-wide global mouse monitor now cancels only when the click is geometrically outside every visible my-alt-tab panel. Clicks inside a nonactivating panel are left to the panel's own Close / Settings / tile routing.
 - **Smoother dissolve tail:** true thumbnail erosion uses 96 compact grayscale+alpha mask states with linear pacing, prewarmed assets, and a one-frame settle gap before the existing 80% Stable-ID FLIP hand-off.
 - Native macOS 26 Glass uses the system edge treatment instead of a custom white CALayer border; the pre-macOS-26 fallback keeps its semantic border.
 - Universal 2, immediate real-window close, compositor-driven dust/haze, Reduce Motion behavior, and Sparkle EdDSA updates remain intact.
