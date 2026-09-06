@@ -70,23 +70,30 @@ enum DesignTokens {
     static let panelReflowSpringStiffness: CGFloat = 285
     static let panelReflowSpringDamping: CGFloat = 30
     static let panelReflowSpringInitialVelocity: CGFloat = 0.15
-    /// Liquid Glass v2.4 keeps the native material genuinely clear at 100%.
-    /// Lower values thicken only the background material; foreground labels,
-    /// icons, and previews never have their alpha changed.
-    static let liquidGlassMaximumDensityOverlayAlpha: CGFloat = 0.90
-    static let liquidGlassTintAlphaScale: CGFloat = 0.12
-    /// The selected item remains a separate clear Liquid Glass surface with a
-    /// restrained accent tint; its density follows the panel without hiding
-    /// the selected window's content.
-    static let selectionLiquidGlassBaseTintAlpha: CGFloat = 0.09
-    static let selectionLiquidGlassDensityTintScale: CGFloat = 0.08
-    static let selectionLiquidGlassMaximumDensityOverlayAlpha: CGFloat = 0.42
-    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.45
+    /// Control-Center-style frosted glass keeps a real milky/blurred body even
+    /// at the clearest end. The user percentage controls thickness, not whether
+    /// frosting exists at all.
+    static let frostedGlassBaseDensityAlpha: CGFloat = 0.16
+    static let frostedGlassVariableDensityAlpha: CGFloat = 0.68
+    static let frostedGlassBaseTintAlpha: CGFloat = 0.045
+    static let frostedGlassVariableTintAlpha: CGFloat = 0.075
+    static let frostedGlassBorderWidth: CGFloat = 0.8
+    static var frostedGlassBorder: NSColor {
+        NSColor.white.withAlphaComponent(0.24)
+    }
+    /// The selected window uses the same regular glass, just a touch denser and
+    /// brighter so it reads as a raised Control Center tile rather than a blue
+    /// translucent plate.
+    static let selectionFrostedBaseDensityAlpha: CGFloat = 0.20
+    static let selectionFrostedVariableDensityAlpha: CGFloat = 0.34
+    static let selectionFrostedBaseTintAlpha: CGFloat = 0.035
+    static let selectionFrostedAccentTintAlpha: CGFloat = 0.055
+    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.42
     static var selectionLensStroke: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.58)
+        NSColor.white.withAlphaComponent(0.30)
     }
     static var selectionLensGlow: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.20)
+        NSColor.black.withAlphaComponent(0.16)
     }
     static let selectionLensGlowRadius: CGFloat = 12
     /// The glass lens, its glow, and the compositor-only selected-tile scale all

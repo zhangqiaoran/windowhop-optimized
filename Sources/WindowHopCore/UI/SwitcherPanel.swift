@@ -14,11 +14,10 @@ private final class SwitcherTilesContainerView: NSView {
     }
 }
 
-/// A single shared Liquid Glass lens follows the selection. macOS 26+ uses
-/// the clear NSGlassEffectView style so the selected window reads as a second
-/// optical glass surface instead of a tinted plate. A background-only density
-/// layer follows the user's 0–100 setting without fading any tile content.
-/// Older systems keep the closest NSVisualEffectView fallback.
+/// A single shared frosted-glass lens follows the selection. macOS 26+ uses
+/// the regular NSGlassEffectView style, matching Control Center's milky blur
+/// rather than clear transparent glass. A background-only density layer follows
+/// the user's 0–100 thickness setting without fading any tile content.
 private final class SelectionLensView: NSView {
     private let materialContentView = NSView()
     private let densityView = NSView()
@@ -83,7 +82,7 @@ private final class SelectionLensView: NSView {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizable {
             let glass = NSGlassEffectView()
-            glass.style = .clear
+            glass.style = .regular
             glass.cornerRadius = DesignTokens.selectionLensCornerRadius
             glass.contentView = content
             return glass
@@ -109,11 +108,10 @@ private final class SelectionLensView: NSView {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             let density = CGFloat(Preferences.liquidGlassDensity(
                 forTransparencyPercent: transparencyPercent))
-            let tintAlpha = DesignTokens.selectionLiquidGlassBaseTintAlpha
-                + density * DesignTokens.selectionLiquidGlassDensityTintScale
-            let accent = NSColor.controlAccentColor.withAlphaComponent(tintAlpha)
-            let densityAlpha = density
-                * DesignTokens.selectionLiquidGlassMaximumDensityOverlayAlpha
+            let densityAlpha = DesignTokens.selectionFrostedBaseDensityAlpha
+                + density * DesignTokens.selectionFrostedVariableDensityAlpha
+            let neutralTint = DesignTokens.selectionFrostedBaseTintAlpha
+                + density * DesignTokens.selectionFrostedAccentTintAlpha
 
             densityView.layer?.backgroundColor = NSColor.windowBackgroundColor
                 .withAlphaComponent(densityAlpha).cgColor
@@ -121,15 +119,15 @@ private final class SelectionLensView: NSView {
             #if compiler(>=6.2)
             if #available(macOS 26.0, *),
                let glass = materialView as? NSGlassEffectView {
-                glass.style = .clear
-                glass.tintColor = accent
+                glass.style = .regular
+                glass.tintColor = NSColor.white.withAlphaComponent(neutralTint)
             }
             #endif
 
             if let fallbackEffectView {
-                fallbackEffectView.layer?.backgroundColor = NSColor.controlAccentColor
+                fallbackEffectView.layer?.backgroundColor = NSColor.windowBackgroundColor
                     .withAlphaComponent(
-                        tintAlpha * DesignTokens.selectionLiquidGlassFallbackFillScale)
+                        densityAlpha * DesignTokens.selectionLiquidGlassFallbackFillScale)
                     .cgColor
             }
 
@@ -424,39 +422,43 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// The percentage is literal in v2.4: higher means more transparent.
-    /// The native glass stays underneath at every value, while this dedicated
-    /// density layer changes only the background. Foreground labels, previews,
-    /// badges, and controls remain at full opacity.
+    /// Higher values still mean more transparent, but 100% remains a real
+    /// frosted material rather than collapsing into clear plastic. The slider
+    /// controls the thickness of the milky background layer; foreground labels,
+    /// previews, badges, and controls remain at full opacity.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
         let density = CGFloat(Preferences.liquidGlassDensity(
             forTransparencyPercent: percent))
-        let densityAlpha = density * DesignTokens.liquidGlassMaximumDensityOverlayAlpha
-        let tintAlpha = density * DesignTokens.liquidGlassTintAlphaScale
+        let densityAlpha = DesignTokens.frostedGlassBaseDensityAlpha
+            + density * DesignTokens.frostedGlassVariableDensityAlpha
+        let tintAlpha = DesignTokens.frostedGlassBaseTintAlpha
+            + density * DesignTokens.frostedGlassVariableTintAlpha
 
         liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
             .withAlphaComponent(densityAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
+        panelBackgroundView.wantsLayer = true
+        panelBackgroundView.layer?.borderWidth = DesignTokens.frostedGlassBorderWidth
+        panelBackgroundView.layer?.borderColor = DesignTokens.frostedGlassBorder.cgColor
+
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            // .clear is the actual high-transparency Liquid Glass style.
-            // tintColor remains only a restrained adaptive tint; it no longer
-            // pretends to be the transparency control.
-            glass.style = .clear
-            glass.tintColor = tintAlpha == 0
-                ? nil
-                : NSColor.windowBackgroundColor.withAlphaComponent(tintAlpha)
+            // Control Center-like frosting: regular glass provides the stronger
+            // blur/body, while the density layer controls how thick it feels.
+            glass.style = .regular
+            glass.tintColor = NSColor.white.withAlphaComponent(tintAlpha)
             return
         }
         #endif
 
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
-        effectView.layer?.backgroundColor = NSColor.clear.cgColor
+        effectView.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(densityAlpha * 0.72).cgColor
     }
 
     /// The panel background: system glass on macOS 26+, the closest
@@ -466,7 +468,7 @@ public final class SwitcherPanel: NSPanel {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizable {
             let glass = NSGlassEffectView()
-            glass.style = .clear
+            glass.style = .regular
             glass.cornerRadius = DesignTokens.panelCornerRadius
             glass.contentView = content
             return glass

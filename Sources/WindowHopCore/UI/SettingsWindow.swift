@@ -405,7 +405,7 @@ struct AppearancePane: View {
             }
             Section {
                 HStack {
-                    Text("Liquid Glass transparency")
+                    Text("Frosted Glass transparency")
                     Spacer()
                     Text("\(Int(preferences.glassTransparencyPercent.rounded()))%")
                         .monospacedDigit()
@@ -414,12 +414,12 @@ struct AppearancePane: View {
                 Slider(value: $preferences.glassTransparencyPercent,
                        in: 0...100,
                        step: 1)
-                    .accessibilityLabel("Liquid Glass transparency")
+                    .accessibilityLabel("Frosted Glass transparency")
                     .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
             } header: {
-                Text("Liquid Glass")
+                Text("Frosted Glass")
             } footer: {
-                Text("Higher values are more transparent: 100% uses the clearest native Liquid Glass, 90% adds only 10% material density, and 0% is the most opaque. Only the glass background changes — window previews, icons, and text stay at full opacity. The selected window follows the same Liquid Glass level.")
+                Text("Higher values are more transparent, but 100% still keeps the Control Center-style frosted blur and soft milky glass body. Lower values make that glass progressively thicker and grayer. Window previews, icons, and text stay at full opacity, and the selected window uses the same frosted material.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

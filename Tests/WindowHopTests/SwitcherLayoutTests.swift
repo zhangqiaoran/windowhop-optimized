@@ -200,29 +200,39 @@ final class SwitcherLayoutTests: XCTestCase {
         let panel = SwitcherPanel(rasterizableBackground: true)
 
         Preferences.shared.glassTransparencyPercent = 100
-        XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
-        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
+        XCTAssertEqual(
+            panel.liquidGlassDensityAlphaForTesting,
+            DesignTokens.frostedGlassBaseDensityAlpha,
+            accuracy: 0.001)
+        XCTAssertEqual(
+            panel.selectionLensDensityAlphaForTesting,
+            DesignTokens.selectionFrostedBaseDensityAlpha,
+            accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.liquidGlassMaximumDensityOverlayAlpha * 0.10,
+            DesignTokens.frostedGlassBaseDensityAlpha
+                + DesignTokens.frostedGlassVariableDensityAlpha * 0.10,
             accuracy: 0.001)
         XCTAssertEqual(
             panel.selectionLensDensityAlphaForTesting,
-            DesignTokens.selectionLiquidGlassMaximumDensityOverlayAlpha * 0.10,
+            DesignTokens.selectionFrostedBaseDensityAlpha
+                + DesignTokens.selectionFrostedVariableDensityAlpha * 0.10,
             accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 50
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.liquidGlassMaximumDensityOverlayAlpha * 0.50,
+            DesignTokens.frostedGlassBaseDensityAlpha
+                + DesignTokens.frostedGlassVariableDensityAlpha * 0.50,
             accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 0
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.liquidGlassMaximumDensityOverlayAlpha,
+            DesignTokens.frostedGlassBaseDensityAlpha
+                + DesignTokens.frostedGlassVariableDensityAlpha,
             accuracy: 0.001)
     }
 
