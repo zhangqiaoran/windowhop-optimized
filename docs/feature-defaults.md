@@ -1,5 +1,15 @@
 # User-facing defaults and configurability
 
+## my-alt-tab 3.4.3 bilingual Settings decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Settings language | English | Yes | General → Language; choices are English and 中文. The value is typed/persisted in `Preferences`, applies immediately to the open Settings window, and Restore Defaults returns to English. |
+| Live toolbar localization | Enabled | No | Pane labels, hosted pane titles, and the visible Settings window title are relabeled when the language preference changes; no relaunch is required. |
+| Settings copy localization | English + Simplified Chinese | No | General, Shortcuts, Windows, Appearance, Updates, About, permission messages, update states, shortcut recorder text, and validation messages use one bilingual table with English fallback for future unknown strings. |
+| Tab-count metadata | Off / retired | No | The old Show tab counts row and persisted preference are removed. Old UserDefaults values are ignored and runtime metadata remains off. |
+| Liquid Glass help copy | Current Clear Glass model | No | Appearance now describes the real v3.4.2 topology: background-only Clear Glass with independently opaque previews, text, controls, and focus ring. |
+
 ## my-alt-tab 3.4.2 click ownership + clear-glass decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
