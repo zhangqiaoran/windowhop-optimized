@@ -160,7 +160,7 @@ public final class SwitcherPanel: NSPanel {
     private var glassRootView: NSView!
     private var glassGroupView: NSView?
     private var settingsGlassView: NSView?
-    private var usesNativeGlassContainer = false
+    private var usesNativeGlassBackground = false
     /// Fallback-only milk plane. Native macOS 26 glass uses tintColor instead,
     /// keeping all milk/refraction inside the system material.
     private let liquidGlassDensityView = NSView()
@@ -281,7 +281,7 @@ public final class SwitcherPanel: NSPanel {
 
             panelBackgroundView = glass
             glassRootView = glass
-            usesNativeGlassContainer = true
+            usesNativeGlassBackground = true
             hostView.addSubview(glass)
             hostView.addSubview(chromeView, positioned: .above, relativeTo: glass)
         } else {
@@ -345,7 +345,7 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.wantsLayer = true
         settingsButton.layer?.cornerRadius = DesignTokens.chromeButtonHitSize / 2
         settingsButton.layer?.cornerCurve = .continuous
-        settingsButton.layer?.backgroundColor = usesNativeGlassContainer
+        settingsButton.layer?.backgroundColor = usesNativeGlassBackground
             ? NSColor.clear.cgColor
             : NSColor.controlBackgroundColor.withAlphaComponent(0.42).cgColor
         settingsButton.target = self
@@ -1061,9 +1061,9 @@ public final class SwitcherPanel: NSPanel {
                 group.animator().frame = frame
             }
             panelBackgroundView.animator().frame = target.backgroundFrame
-            if !usesNativeGlassContainer {
-                chromeView.animator().frame = target.chromeFrame
-            }
+            // Foreground chrome is always a sibling above Glass in v3.4.2,
+            // so it must always participate in the unified reflow transaction.
+            chromeView.animator().frame = target.chromeFrame
             liquidGlassDensityView.animator().frame = target.densityFrame
             scrollView.animator().frame = target.scrollFrame
             tilesContainer.animator().frame = target.documentFrame
@@ -1256,7 +1256,7 @@ public final class SwitcherPanel: NSPanel {
     var foregroundChromeIsSiblingAboveGlassForTesting: Bool {
         chromeView.superview === hostView && panelBackgroundView.superview === hostView
     }
-    var usesNativeGlassContainerForTesting: Bool { usesNativeGlassContainer }
+    var usesNativeGlassBackgroundForTesting: Bool { usesNativeGlassBackground }
     var nativeGlassRuntimeSupportsInteractionForTesting: Bool {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
