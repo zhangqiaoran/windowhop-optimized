@@ -24,13 +24,11 @@ jobs:
         env:
           DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
           DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
-          DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         shell: bash
         run: |
           test -n "${DEVELOPER_ID_CERT_P12:-}" || { echo "::error::Missing DEVELOPER_ID_CERT_P12"; exit 1; }
           test -n "${DEVELOPER_ID_CERT_PASSWORD:-}" || { echo "::error::Missing DEVELOPER_ID_CERT_PASSWORD"; exit 1; }
-          test -n "${DEVELOPER_ID_IDENTITY:-}" || { echo "::error::Missing DEVELOPER_ID_IDENTITY"; exit 1; }
           test -n "${APPLE_TEAM_ID:-}" || { echo "::error::Missing APPLE_TEAM_ID"; exit 1; }
 
           CERT_PATH="$RUNNER_TEMP/my-alt-tab-developer-id.p12"
@@ -45,7 +43,13 @@ jobs:
           security set-key-partition-list             -S apple-tool:,apple:,codesign:             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH"             | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p'             | head -n 1)"
+          test -n "$IDENTITY" || {
+            echo "::error::Imported P12 does not contain a Developer ID Application identity"
+            exit 1
+          }
 
+          echo "DEVELOPER_ID_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "SIGNING_KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
 
@@ -69,7 +73,6 @@ jobs:
 
       - name: Package Developer ID signed app
         env:
-          DEVELOPER_ID_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
           EXPECTED_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
