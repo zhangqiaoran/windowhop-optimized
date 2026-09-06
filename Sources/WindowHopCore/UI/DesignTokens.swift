@@ -73,14 +73,14 @@ enum DesignTokens {
     static var panelReflowTimingFunction: CAMediaTimingFunction {
         CAMediaTimingFunction(controlPoints: 0.18, 0.78, 0.20, 1.0)
     }
-    /// Control-Center-style frosted glass keeps a real milky/blurred body even
-    /// at the clearest end. The user percentage controls thickness, not whether
-    /// frosting exists at all.
-    static let frostedGlassBaseDensityAlpha: CGFloat = 0.16
-    static let frostedGlassVariableDensityAlpha: CGFloat = 0.68
-    static let frostedGlassBorderWidth: CGFloat = 0.8
-    static var frostedGlassBorder: NSColor {
-        NSColor.white.withAlphaComponent(0.24)
+    /// 3.3 returns to literal transparent glass. At 100% the native glass is
+    /// untouched; even 0% adds only a light neutral density so the panel never
+    /// becomes an opaque white slab.
+    static let glassMaximumDensityAlpha: CGFloat = 0.20
+    static let glassFallbackDensityScale: CGFloat = 0.65
+    static let glassBorderWidth: CGFloat = 0.7
+    static var glassBorder: NSColor {
+        NSColor.white.withAlphaComponent(0.18)
     }
     /// Selection never paints over window content. A semantic system-blue ring
     /// and a small blue glow provide focus without reducing preview clarity.

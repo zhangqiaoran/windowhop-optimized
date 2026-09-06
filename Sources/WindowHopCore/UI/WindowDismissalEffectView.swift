@@ -1,22 +1,27 @@
 import AppKit
 import QuartzCore
 
-/// GPU-driven one-shot window dusting.
+/// One-shot, compositor-driven "true dissolve" for a closing switcher card.
 ///
-/// The reference effect is not a burst of a few independent fragments. It is a
-/// progressive erosion front followed by a dense field of very small dust.
-/// CAEmitterLayer lets the compositor own hundreds of short-lived motes without
-/// creating hundreds of AppKit views/layers or running a display-link loop.
+/// v3.3 separates two jobs:
+/// 1. a cached sequence of irregular alpha masks actually removes pixels from
+///    the captured card, so the thumbnail itself breaks apart instead of merely
+///    sitting underneath a particle effect;
+/// 2. a narrow moving CAEmitterLayer follows that erosion front and sheds dust.
+///
+/// The mask atlas is deterministic, low-resolution, and lazily cached. A close
+/// therefore performs no image filtering and no per-frame CPU simulation.
 final class WindowDismissalEffectView: NSView {
     private static let duration: CFTimeInterval = 1.02
-    private static let emissionWindow: CFTimeInterval = 0.42
+    private static let erosionDuration: CFTimeInterval = 0.88
+    private static let emissionWindow: CFTimeInterval = 0.74
     private static let reflowStartFraction: CFTimeInterval = 0.80
-    private static let nominalParticleBirthRate: Float = 885
+    private static let nominalParticleBirthRate: Float = 640
     private static let emitterCellCount = 4
+    private static let erosionMaskFrameCount = 36
+    private static let erosionMaskWidth = 112
+    private static let erosionMaskHeight = 70
 
-    /// The window list intentionally stays geometrically frozen until the
-    /// dissolve has completed 80% of its visual lifetime. This lets erosion and
-    /// dust read clearly before the panel begins its graceful reflow.
     static var listReflowDelay: CFTimeInterval {
         duration * reflowStartFraction
     }
@@ -27,6 +32,8 @@ final class WindowDismissalEffectView: NSView {
     static var listReflowDelayForTesting: CFTimeInterval { listReflowDelay }
     static var nominalParticleBirthRateForTesting: Float { nominalParticleBirthRate }
     static var emitterCellCountForTesting: Int { emitterCellCount }
+    static var erosionMaskFrameCountForTesting: Int { erosionMaskFrameCount }
+    static var usesFragmentMaskForTesting: Bool { true }
 
     private let snapshotView = NSImageView()
     private let driftDirection: CGVector
@@ -62,101 +69,68 @@ final class WindowDismissalEffectView: NSView {
             return
         }
 
-        animateErosion()
+        animateFragmentErosion()
         animateErosionEdge()
         animateSurfaceRelease()
-        emitDustField()
+        emitDustFromErosionFront()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.duration + 0.16) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.duration + 0.18) { [weak self] in
             self?.removeFromSuperview()
         }
     }
 
-    /// The image disappears behind a directional soft edge, not as one fading
-    /// rectangle. The edge starts on the tile's outside and moves inward.
-    private func animateErosion() {
+    /// Uses real alpha-mask frames rather than a moving soft gradient. Fine and
+    /// coarse deterministic noise make holes appear ahead of the main front,
+    /// grow into islands, and finally consume the whole snapshot.
+    private func animateFragmentErosion() {
         guard let snapshotLayer = snapshotView.layer else { return }
-        let width = max(bounds.width, 1)
-        let height = max(bounds.height, 1)
         let movesRight = driftDirection.dx >= 0
+        let frames = Self.fragmentMasks(movesRight: movesRight)
+        guard let first = frames.first, let last = frames.last else { return }
 
-        let mask = CAGradientLayer()
-        mask.frame = CGRect(x: -width * 0.55,
-                            y: -height * 0.10,
-                            width: width * 1.65,
-                            height: height * 1.20)
-        mask.colors = [
-            NSColor.clear.cgColor,
-            NSColor.clear.cgColor,
-            NSColor.white.cgColor,
-            NSColor.white.cgColor,
-        ]
-        mask.locations = [0, 0.18, 0.38, 1]
-        mask.startPoint = movesRight ? CGPoint(x: 0, y: 0.52) : CGPoint(x: 1, y: 0.48)
-        mask.endPoint = movesRight ? CGPoint(x: 1, y: 0.48) : CGPoint(x: 0, y: 0.52)
-        snapshotLayer.mask = mask
+        let maskLayer = CALayer()
+        maskLayer.frame = snapshotLayer.bounds
+        maskLayer.contentsGravity = .resize
+        maskLayer.magnificationFilter = .linear
+        maskLayer.minificationFilter = .linear
+        maskLayer.contents = last
+        snapshotLayer.mask = maskLayer
 
-        let start = mask.position
-        let deltaX = width * (movesRight ? 1.34 : -1.34)
-        let end = CGPoint(x: start.x + deltaX,
-                          y: start.y + height * 0.035 * driftDirection.dy)
+        let contents = CAKeyframeAnimation(keyPath: "contents")
+        contents.values = frames.map { $0 as Any }
+        contents.keyTimes = (0..<frames.count).map {
+            NSNumber(value: Double($0) / Double(max(1, frames.count - 1)))
+        }
+        contents.calculationMode = .discrete
+        contents.duration = Self.erosionDuration
+        contents.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 0.72, 0.20, 1)
+        contents.isRemovedOnCompletion = false
+        contents.fillMode = .forwards
+        maskLayer.contents = first
+        maskLayer.add(contents, forKey: "fragmentErosion")
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        mask.position = end
-        CATransaction.commit()
-
-        let sweep = CAKeyframeAnimation(keyPath: "position")
-        sweep.values = [
-            NSValue(point: start),
-            NSValue(point: CGPoint(x: start.x + deltaX * 0.18,
-                                   y: start.y)),
-            NSValue(point: CGPoint(x: start.x + deltaX * 0.56,
-                                   y: start.y + (end.y - start.y) * 0.46)),
-            NSValue(point: CGPoint(x: start.x + deltaX * 0.86,
-                                   y: start.y + (end.y - start.y) * 0.82)),
-            NSValue(point: end),
-        ]
-        sweep.keyTimes = [0, 0.12, 0.42, 0.73, 1]
-        sweep.duration = Self.duration * 0.78
-        sweep.timingFunctions = [
-            CAMediaTimingFunction(controlPoints: 0.24, 0.76, 0.28, 1),
-            CAMediaTimingFunction(name: .easeInEaseOut),
-            CAMediaTimingFunction(name: .easeInEaseOut),
-            CAMediaTimingFunction(name: .easeOut),
-        ]
-        sweep.isRemovedOnCompletion = false
-        sweep.fillMode = .forwards
-        mask.add(sweep, forKey: "erosionSweep")
-
-        let opacity = CAKeyframeAnimation(keyPath: "opacity")
-        opacity.values = [1.0, 0.99, 0.88, 0.54, 0.06]
-        opacity.keyTimes = [0, 0.14, 0.42, 0.72, 1]
-
+        // Keep the card spatially stable while its pixels disappear. A tiny
+        // optical drift is enough to avoid a pasted-on look without competing
+        // with the later panel reflow.
         let drift = CAKeyframeAnimation(keyPath: "transform")
         drift.values = [
             CATransform3DIdentity,
             CATransform3DMakeAffineTransform(
-                CGAffineTransform(translationX: driftDirection.dx * 2,
-                                  y: driftDirection.dy * 1.5)),
+                CGAffineTransform(translationX: driftDirection.dx * 1.5,
+                                  y: driftDirection.dy * 1.0)),
             CATransform3DMakeAffineTransform(
-                CGAffineTransform(translationX: driftDirection.dx * 8,
-                                  y: driftDirection.dy * 11)
-                    .scaledBy(x: 0.978, y: 0.978)),
+                CGAffineTransform(translationX: driftDirection.dx * 4,
+                                  y: driftDirection.dy * 5)
+                    .scaledBy(x: 0.992, y: 0.992)),
         ]
-        drift.keyTimes = [0, 0.36, 1]
-
-        let group = CAAnimationGroup()
-        group.animations = [opacity, drift]
-        group.duration = Self.duration * 0.82
-        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.74, 0.18, 1)
-        group.isRemovedOnCompletion = false
-        group.fillMode = .forwards
-        snapshotLayer.add(group, forKey: "surfaceDusting")
+        drift.keyTimes = [0, 0.52, 1]
+        drift.duration = Self.erosionDuration
+        drift.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        drift.isRemovedOnCompletion = false
+        drift.fillMode = .forwards
+        snapshotLayer.add(drift, forKey: "erosionDrift")
     }
 
-    /// A narrow light band travels with the erosion front. This is what gives
-    /// the dissolve its "energized edge" instead of looking like plain opacity.
     private func animateErosionEdge() {
         guard let root = layer else { return }
         let width = max(bounds.width, 1)
@@ -164,36 +138,36 @@ final class WindowDismissalEffectView: NSView {
         let movesRight = driftDirection.dx >= 0
 
         let glow = CAGradientLayer()
-        glow.frame = CGRect(x: movesRight ? -34 : width,
+        glow.frame = CGRect(x: movesRight ? -32 : width - 6,
                             y: -height * 0.06,
                             width: 38,
                             height: height * 1.12)
         glow.colors = [
             NSColor.clear.cgColor,
-            NSColor.white.withAlphaComponent(0.16).cgColor,
-            NSColor.white.withAlphaComponent(0.62).cgColor,
-            NSColor.controlAccentColor.withAlphaComponent(0.30).cgColor,
+            NSColor.white.withAlphaComponent(0.10).cgColor,
+            NSColor.white.withAlphaComponent(0.70).cgColor,
+            NSColor.systemBlue.withAlphaComponent(0.26).cgColor,
             NSColor.clear.cgColor,
         ]
-        glow.locations = [0, 0.25, 0.48, 0.68, 1]
+        glow.locations = [0, 0.24, 0.48, 0.68, 1]
         glow.startPoint = CGPoint(x: 0, y: 0.5)
         glow.endPoint = CGPoint(x: 1, y: 0.5)
         glow.opacity = 0
         root.addSublayer(glow)
 
-        let travel = width + 72
+        let travel = width + 70
         let position = CABasicAnimation(keyPath: "transform.translation.x")
         position.fromValue = 0
         position.toValue = movesRight ? travel : -travel
 
         let opacity = CAKeyframeAnimation(keyPath: "opacity")
-        opacity.values = [0.0, 0.74, 0.55, 0.0]
-        opacity.keyTimes = [0, 0.10, 0.72, 1]
+        opacity.values = [0.0, 0.72, 0.58, 0.18, 0.0]
+        opacity.keyTimes = [0, 0.08, 0.56, 0.86, 1]
 
         let group = CAAnimationGroup()
         group.animations = [position, opacity]
-        group.duration = Self.duration * 0.74
-        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 0.70, 0.18, 1)
+        group.duration = Self.erosionDuration
+        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.70, 0.20, 1)
         group.isRemovedOnCompletion = false
         group.fillMode = .forwards
         glow.add(group, forKey: "erosionEdge")
@@ -209,119 +183,105 @@ final class WindowDismissalEffectView: NSView {
             cornerHeight: DesignTokens.cardCornerRadius + 5,
             transform: nil)
         flash.fillColor = NSColor.clear.cgColor
-        flash.strokeColor = NSColor.white.withAlphaComponent(0.36).cgColor
-        flash.lineWidth = 0.9
+        flash.strokeColor = NSColor.white.withAlphaComponent(0.30).cgColor
+        flash.lineWidth = 0.8
         flash.opacity = 0
         root.addSublayer(flash)
 
         let opacity = CAKeyframeAnimation(keyPath: "opacity")
-        opacity.values = [0.0, 0.42, 0.16, 0.0]
+        opacity.values = [0.0, 0.34, 0.12, 0.0]
         opacity.keyTimes = [0, 0.08, 0.36, 1]
 
-        let scale = CABasicAnimation(keyPath: "transform.scale")
-        scale.fromValue = 0.995
-        scale.toValue = 1.025
-
         let group = CAAnimationGroup()
-        group.animations = [opacity, scale]
-        group.duration = Self.duration * 0.42
+        group.animations = [opacity]
+        group.duration = Self.duration * 0.38
         group.timingFunction = CAMediaTimingFunction(name: .easeOut)
         group.isRemovedOnCompletion = false
         group.fillMode = .forwards
         flash.add(group, forKey: "surfaceRelease")
     }
 
-    /// Dense micro-particles are emitted by the compositor, not individually
-    /// allocated CALayers. At the configured birth rate the 0.42 s emission
-    /// window produces roughly 370 motes across four size classes.
-    private func emitDustField() {
+    /// The emitter is a narrow moving strip, not a full-card rectangle. Dust is
+    /// therefore born where pixels are currently being removed, which visually
+    /// connects the fragments to the dissolving thumbnail.
+    private func emitDustFromErosionFront() {
         guard let root = layer,
               let particle = Self.softParticleImage else { return }
 
         let emitter = CAEmitterLayer()
-        emitter.frame = bounds.insetBy(dx: -18, dy: -18)
-        emitter.emitterPosition = CGPoint(x: emitter.bounds.midX,
-                                          y: emitter.bounds.midY)
-        emitter.emitterSize = CGSize(width: bounds.width * 0.92,
-                                     height: bounds.height * 0.88)
+        emitter.frame = bounds.insetBy(dx: -24, dy: -20)
+        let movesRight = driftDirection.dx >= 0
+        let start = CGPoint(
+            x: movesRight ? 18 : emitter.bounds.width - 18,
+            y: emitter.bounds.midY)
+        let end = CGPoint(
+            x: movesRight ? emitter.bounds.width - 18 : 18,
+            y: emitter.bounds.midY + driftDirection.dy * 8)
+        emitter.emitterPosition = end
+        emitter.emitterSize = CGSize(width: 16, height: bounds.height * 0.92)
         emitter.emitterShape = .rectangle
         emitter.emitterMode = .surface
         emitter.renderMode = .unordered
         emitter.masksToBounds = false
 
         let angle = atan2(driftDirection.dy, driftDirection.dx)
-
         let micro = makeCell(
-            image: particle,
-            birthRate: 500,
-            lifetime: 0.82,
-            velocity: 66,
-            velocityRange: 34,
-            scale: 0.075,
-            scaleRange: 0.055,
-            alphaSpeed: -1.05,
-            spin: 3.4,
-            color: NSColor.white.withAlphaComponent(0.76),
-            angle: angle,
-            spread: .pi * 0.34)
-
+            image: particle, birthRate: 360, lifetime: 0.86,
+            velocity: 72, velocityRange: 38, scale: 0.070, scaleRange: 0.052,
+            alphaSpeed: -1.00, spin: 3.8,
+            color: NSColor.white.withAlphaComponent(0.74),
+            angle: angle, spread: .pi * 0.34)
         let dust = makeCell(
-            image: particle,
-            birthRate: 245,
-            lifetime: 0.96,
-            velocity: 78,
-            velocityRange: 42,
-            scale: 0.135,
-            scaleRange: 0.09,
-            alphaSpeed: -0.88,
-            spin: 4.8,
-            color: NSColor.secondaryLabelColor.withAlphaComponent(0.68),
-            angle: angle,
-            spread: .pi * 0.42)
-
+            image: particle, birthRate: 190, lifetime: 1.02,
+            velocity: 84, velocityRange: 46, scale: 0.13, scaleRange: 0.09,
+            alphaSpeed: -0.82, spin: 5.0,
+            color: NSColor.secondaryLabelColor.withAlphaComponent(0.66),
+            angle: angle, spread: .pi * 0.42)
         let glint = makeCell(
-            image: particle,
-            birthRate: 85,
-            lifetime: 0.72,
-            velocity: 58,
-            velocityRange: 28,
-            scale: 0.17,
-            scaleRange: 0.08,
-            alphaSpeed: -1.18,
-            spin: 2.2,
-            color: NSColor.controlAccentColor.withAlphaComponent(0.46),
-            angle: angle,
-            spread: .pi * 0.28)
-
-        // Sparse larger, low-alpha motes form the soft dust cloud visible
-        // behind the sharper micro-particles in the reference dissolve.
+            image: particle, birthRate: 55, lifetime: 0.72,
+            velocity: 62, velocityRange: 30, scale: 0.16, scaleRange: 0.07,
+            alphaSpeed: -1.16, spin: 2.4,
+            color: NSColor.systemBlue.withAlphaComponent(0.38),
+            angle: angle, spread: .pi * 0.26)
         let haze = makeCell(
-            image: particle,
-            birthRate: 55,
-            lifetime: 1.12,
-            velocity: 44,
-            velocityRange: 22,
-            scale: 0.46,
-            scaleRange: 0.18,
-            alphaSpeed: -0.34,
-            spin: 1.4,
-            color: NSColor.secondaryLabelColor.withAlphaComponent(0.18),
-            angle: angle,
-            spread: .pi * 0.48)
+            image: particle, birthRate: 35, lifetime: 1.18,
+            velocity: 46, velocityRange: 24, scale: 0.44, scaleRange: 0.18,
+            alphaSpeed: -0.30, spin: 1.4,
+            color: NSColor.secondaryLabelColor.withAlphaComponent(0.16),
+            angle: angle, spread: .pi * 0.48)
 
         emitter.emitterCells = [micro, dust, glint, haze]
         emitter.birthRate = 0
         root.addSublayer(emitter)
 
-        // The model value is zero so emission cannot accidentally persist after
-        // the animation is removed. Only the presentation layer emits.
+        let front = CAKeyframeAnimation(keyPath: "emitterPosition")
+        front.values = [
+            NSValue(point: start),
+            NSValue(point: CGPoint(x: start.x + (end.x - start.x) * 0.28,
+                                   y: start.y + (end.y - start.y) * 0.12)),
+            NSValue(point: CGPoint(x: start.x + (end.x - start.x) * 0.68,
+                                   y: start.y + (end.y - start.y) * 0.58)),
+            NSValue(point: end),
+        ]
+        front.keyTimes = [0, 0.24, 0.64, 1]
+        front.duration = Self.erosionDuration
+        front.timingFunctions = [
+            CAMediaTimingFunction(controlPoints: 0.20, 0.70, 0.22, 1),
+            CAMediaTimingFunction(name: .easeInEaseOut),
+            CAMediaTimingFunction(name: .easeOut),
+        ]
+        front.isRemovedOnCompletion = false
+        front.fillMode = .forwards
+        emitter.add(front, forKey: "erosionFront")
+
         let gate = CAKeyframeAnimation(keyPath: "birthRate")
-        gate.values = [0.0, 1.0, 1.0, 0.0]
-        gate.keyTimes = [0, 0.04, 0.82, 1]
+        gate.values = [0.0, 1.0, 1.0, 0.46, 0.0]
+        gate.keyTimes = [0, 0.03, 0.70, 0.90, 1]
         gate.duration = Self.emissionWindow
         gate.timingFunctions = [
             CAMediaTimingFunction(name: .easeIn),
             CAMediaTimingFunction(name: .linear),
+            CAMediaTimingFunction(name: .easeOut),
             CAMediaTimingFunction(name: .easeOut),
         ]
         emitter.add(gate, forKey: "dustGate")
@@ -361,6 +321,91 @@ final class WindowDismissalEffectView: NSView {
         cell.greenRange = 0.10
         cell.blueRange = 0.10
         return cell
+    }
+
+    // MARK: - Cached erosion atlas
+
+    private static func fragmentMasks(movesRight: Bool) -> [CGImage] {
+        movesRight ? rightwardFragmentMasks : leftwardFragmentMasks
+    }
+
+    private static let rightwardFragmentMasks: [CGImage] = {
+        makeFragmentMasks(movesRight: true)
+    }()
+
+    private static let leftwardFragmentMasks: [CGImage] = {
+        makeFragmentMasks(movesRight: false)
+    }()
+
+    private static func makeFragmentMasks(movesRight: Bool) -> [CGImage] {
+        (0..<erosionMaskFrameCount).compactMap { frame in
+            makeFragmentMask(frame: frame, movesRight: movesRight)
+        }
+    }
+
+    private static func makeFragmentMask(frame: Int, movesRight: Bool) -> CGImage? {
+        let width = erosionMaskWidth
+        let height = erosionMaskHeight
+        let last = max(1, erosionMaskFrameCount - 1)
+        let normalized = CGFloat(frame) / CGFloat(last)
+        let progress = -0.10 + normalized * 1.22
+        let feather: CGFloat = 0.045
+
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let alpha: UInt8
+                if frame == 0 {
+                    alpha = 255
+                } else if frame == last {
+                    alpha = 0
+                } else {
+                    let xn = CGFloat(x) / CGFloat(max(1, width - 1))
+                    let yn = CGFloat(y) / CGFloat(max(1, height - 1))
+                    let direction = movesRight ? xn : (1 - xn)
+                    let fine = hashNoise(x, y)
+                    let cluster = hashNoise(x / 6 + 29, y / 5 + 71)
+                    let verticalWave = CGFloat(sin(Double(yn * 12.0))) * 0.025
+                    let threshold = direction
+                        + (fine - 0.5) * 0.34
+                        + (cluster - 0.5) * 0.22
+                        + verticalWave
+                    let t = max(0, min(1, (threshold - progress + feather) / (feather * 2)))
+                    let smooth = t * t * (3 - 2 * t)
+                    alpha = UInt8((smooth * 255).rounded())
+                }
+
+                let offset = (y * width + x) * 4
+                pixels[offset] = alpha
+                pixels[offset + 1] = alpha
+                pixels[offset + 2] = alpha
+                pixels[offset + 3] = alpha
+            }
+        }
+
+        let data = Data(pixels) as CFData
+        guard let provider = CGDataProvider(data: data) else { return nil }
+        return CGImage(
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: true,
+            intent: .defaultIntent)
+    }
+
+    private static func hashNoise(_ x: Int, _ y: Int) -> CGFloat {
+        var value = UInt64(x) &* 0x9E37_79B1_85EB_CA87
+        value ^= UInt64(y) &* 0xC2B2_AE3D_27D4_EB4F
+        value ^= value >> 33
+        value &*= 0xFF51_AFD7_ED55_8CCD
+        value ^= value >> 33
+        return CGFloat(value & 0xFFFF) / CGFloat(0xFFFF)
     }
 
     private static let softParticleImage: CGImage? = {

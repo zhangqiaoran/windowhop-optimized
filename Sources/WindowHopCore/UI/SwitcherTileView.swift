@@ -254,6 +254,7 @@ final class SwitcherTileView: NSView {
     var titleFontForTesting: NSFont? { titleLabel.font }
     var metadataFontForTesting: NSFont? { tabsLabel.font }
     var selectionScaleForTesting: CGFloat { selectionScale }
+    var isDismissalGhostForTesting: Bool { alphaValue == 0 }
 
     /// Tiles are pooled and reconfigured (never recreated per session) so the
     /// panel opens fast even with 100+ windows.
@@ -621,6 +622,19 @@ final class SwitcherTileView: NSView {
                 .kern: DesignTokens.metadataLetterSpacing,
                 .paragraphStyle: metadataParagraph,
             ])
+    }
+
+    /// Keeps this pooled tile in layout while removing every original pixel
+    /// from view. The one-shot snapshot overlay becomes the sole visual source,
+    /// so its alpha mask creates real holes instead of revealing an unchanged
+    /// thumbnail underneath.
+    func setDismissalGhostHidden(_ hidden: Bool) {
+        alphaValue = hidden ? 0 : 1
+        setAccessibilityHidden(hidden)
+        if hidden {
+            isHovered = false
+            closeButton.isHidden = true
+        }
     }
 
     /// Releases heavy snapshot references whenever a pooled tile leaves the

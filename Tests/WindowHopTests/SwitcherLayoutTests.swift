@@ -196,37 +196,30 @@ final class SwitcherLayoutTests: XCTestCase {
                        "More Options (⌘,)")
     }
 
-    func testLiquidGlassPercentageControlsRealBackgroundDensity() {
+    func testLiquidGlassPercentageControlsRestrainedClearGlassDensity() {
         let panel = SwitcherPanel(rasterizableBackground: true)
 
         Preferences.shared.glassTransparencyPercent = 100
-        XCTAssertEqual(
-            panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.frostedGlassBaseDensityAlpha,
-            accuracy: 0.001)
-        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
+        XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.frostedGlassBaseDensityAlpha
-                + DesignTokens.frostedGlassVariableDensityAlpha * 0.10,
+            DesignTokens.glassMaximumDensityAlpha * 0.10,
             accuracy: 0.001)
-        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 50
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.frostedGlassBaseDensityAlpha
-                + DesignTokens.frostedGlassVariableDensityAlpha * 0.50,
+            DesignTokens.glassMaximumDensityAlpha * 0.50,
             accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 0
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.frostedGlassBaseDensityAlpha
-                + DesignTokens.frostedGlassVariableDensityAlpha,
+            DesignTokens.glassMaximumDensityAlpha,
             accuracy: 0.001)
+        XCTAssertLessThanOrEqual(panel.liquidGlassDensityAlphaForTesting, 0.20)
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
@@ -267,9 +260,12 @@ final class SwitcherLayoutTests: XCTestCase {
     func testDismissalEffectUsesBoundedGPUEmitterBudget() {
         XCTAssertEqual(WindowDismissalEffectView.emitterCellCountForTesting, 4)
         XCTAssertGreaterThanOrEqual(
-            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 700)
+            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 600)
         XCTAssertLessThanOrEqual(
-            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 950)
+            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 700)
+        XCTAssertTrue(WindowDismissalEffectView.usesFragmentMaskForTesting)
+        XCTAssertGreaterThanOrEqual(
+            WindowDismissalEffectView.erosionMaskFrameCountForTesting, 30)
         XCTAssertGreaterThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 0.90)
         XCTAssertLessThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 1.10)
         XCTAssertLessThan(WindowDismissalEffectView.emissionWindowForTesting,
@@ -280,6 +276,15 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(WindowDismissalEffectView.listReflowDelayForTesting,
                        WindowDismissalEffectView.animationDurationForTesting * 0.80,
                        accuracy: 0.0001)
+    }
+
+    func testDismissalGhostActuallyHidesOriginalTilePixels() {
+        let tile = configuredTile(imageSize: NSSize(width: 300, height: 200))
+        XCTAssertFalse(tile.isDismissalGhostForTesting)
+        tile.setDismissalGhostHidden(true)
+        XCTAssertTrue(tile.isDismissalGhostForTesting)
+        tile.setDismissalGhostHidden(false)
+        XCTAssertFalse(tile.isDismissalGhostForTesting)
     }
 
     func testPreviewTitleKeepsBottomBreathingRoom() {

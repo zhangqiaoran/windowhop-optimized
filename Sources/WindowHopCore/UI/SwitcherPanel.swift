@@ -167,6 +167,10 @@ public final class SwitcherPanel: NSPanel {
     private var appliedSelectedIndex = -1
     private var mode = AppearanceMode.appIcons
     private var items: [SwitcherItem] = []
+    /// IDs whose original pooled tile is visually hidden while a snapshot
+    /// overlay performs true erosion. Geometry remains reserved until the
+    /// controller's 80% hand-off removes the item.
+    private var dismissalGhostIDs = Set<AnyHashable>()
     /// O(1) delivery lookup for asynchronous preview captures. A session can
     /// deliver many images in quick succession, so repeatedly scanning the list
     /// needlessly scales the UI work with the number of open windows.
@@ -357,17 +361,15 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Higher values still mean more transparent, but 100% remains a real
-    /// frosted material rather than collapsing into clear plastic. The slider
-    /// controls the thickness of the milky background layer; foreground labels,
-    /// previews, badges, and controls remain at full opacity.
+    /// Literal clear-glass mapping: 100% adds no neutral density at all. Lower
+    /// values add only a restrained content-zone density while native Clear
+    /// Glass continues to provide refraction/blur behind the whole panel.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
         let density = CGFloat(Preferences.liquidGlassDensity(
             forTransparencyPercent: percent))
-        let densityAlpha = DesignTokens.frostedGlassBaseDensityAlpha
-            + density * DesignTokens.frostedGlassVariableDensityAlpha
+        let densityAlpha = density * DesignTokens.glassMaximumDensityAlpha
         liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
             .withAlphaComponent(densityAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
@@ -375,8 +377,8 @@ public final class SwitcherPanel: NSPanel {
         panelBackgroundView.wantsLayer = true
         panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
         panelBackgroundView.layer?.cornerCurve = .continuous
-        panelBackgroundView.layer?.borderWidth = DesignTokens.frostedGlassBorderWidth
-        panelBackgroundView.layer?.borderColor = DesignTokens.frostedGlassBorder.cgColor
+        panelBackgroundView.layer?.borderWidth = DesignTokens.glassBorderWidth
+        panelBackgroundView.layer?.borderColor = DesignTokens.glassBorder.cgColor
 
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
@@ -393,7 +395,7 @@ public final class SwitcherPanel: NSPanel {
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
         effectView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(densityAlpha * 0.72).cgColor
+            .withAlphaComponent(densityAlpha * DesignTokens.glassFallbackDensityScale).cgColor
     }
 
     /// The panel background: system glass on macOS 26+, the closest
@@ -462,6 +464,8 @@ public final class SwitcherPanel: NSPanel {
 
         mode = Preferences.shared.appearanceMode
         self.items = items
+        let liveIDs = Set(items.map(\.id))
+        dismissalGhostIDs.formIntersection(liveIDs)
         selectedIndex = index
         itemIndexByID.removeAll(keepingCapacity: true)
         itemIndexByID.reserveCapacity(items.count)
@@ -555,7 +559,9 @@ public final class SwitcherPanel: NSPanel {
         selectionLensView.layer?.removeAnimation(forKey: "selectionLensMove")
         selectionLensView.isHidden = true
         expandedPreviewView.clear()
+        dismissalGhostIDs.removeAll(keepingCapacity: true)
         for tile in tilePool.prefix(visibleTileCount) {
+            tile.setDismissalGhostHidden(false)
             tile.releaseTransientPreview()
         }
         orderOut(nil)
@@ -565,14 +571,24 @@ public final class SwitcherPanel: NSPanel {
     /// inward and upward, keeping more of the plume visible while the centered
     /// panel performs its simultaneous shrink.
     public func playDismissalEffect(at index: Int) {
-        guard index >= 0, index < visibleTileCount else { return }
+        guard index >= 0, index < visibleTileCount,
+              index < items.count else { return }
         let tile = tilePool[index]
+        guard let snapshot = tile.snapshotForDismissalEffect() else { return }
+
         let overlayFrame = tile.convert(tile.bounds, to: chromeView)
         let horizontal: CGFloat = overlayFrame.midX < chromeView.bounds.midX ? 0.72 : -0.72
         let effect = WindowDismissalEffectView(
             frame: overlayFrame,
-            snapshot: tile.snapshotForDismissalEffect(),
+            snapshot: snapshot,
             driftDirection: CGVector(dx: horizontal, dy: 1))
+
+        // Hide the real pooled tile only after its snapshot exists. Any hole in
+        // the animated mask now exposes the glass behind it, not a duplicate
+        // copy of the thumbnail.
+        dismissalGhostIDs.insert(items[index].id)
+        tile.setDismissalGhostHidden(true)
+
         chromeView.addSubview(effect, positioned: .above, relativeTo: scrollView)
         effect.play()
     }
@@ -595,9 +611,11 @@ public final class SwitcherPanel: NSPanel {
                 tile.onClick = { [weak self] in self?.onItemClicked?(index) }
                 tile.onCloseRequest = { [weak self] in self?.onItemCloseRequested?(index) }
                 tile.resetHoverState()
+                tile.setDismissalGhostHidden(dismissalGhostIDs.contains(item.id))
                 tile.isHidden = false
             } else {
                 tile.resetHoverState()
+                tile.setDismissalGhostHidden(false)
                 tile.releaseTransientPreview()
                 tile.isHidden = true
             }

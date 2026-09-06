@@ -405,7 +405,7 @@ struct AppearancePane: View {
             }
             Section {
                 HStack {
-                    Text("Frosted Glass transparency")
+                    Text("Glass transparency")
                     Spacer()
                     Text("\(Int(preferences.glassTransparencyPercent.rounded()))%")
                         .monospacedDigit()
@@ -414,12 +414,12 @@ struct AppearancePane: View {
                 Slider(value: $preferences.glassTransparencyPercent,
                        in: 0...100,
                        step: 1)
-                    .accessibilityLabel("Frosted Glass transparency")
+                    .accessibilityLabel("Glass transparency")
                     .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
             } header: {
-                Text("Frosted Glass")
+                Text("Clear Glass")
             } footer: {
-                Text("Higher values are more transparent, but 100% still keeps the Control Center-style frosted blur and soft milky glass body. Lower values make that glass progressively thicker and grayer. Window previews, icons, and text stay at full opacity, and the selected window uses the same frosted material.")
+                Text("100% is the clearest native glass with no added white density. Lower values add only a light neutral glass body while keeping the desktop visibly refracted behind the switcher. Window previews, icons, and text remain at full opacity.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

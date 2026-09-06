@@ -1,5 +1,12 @@
 # User-facing defaults and configurability
 
+## Unreleased 3.3 clear-glass + true-dissolve decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Literal Clear Glass | 100% | Yes | 100% adds **0** neutral density. Lower values linearly add at most 20% content-zone density; the outer macOS 26+ material remains native `NSGlassEffectView.Style.clear` with no tint. |
+| True thumbnail erosion | Enabled | No | The original pooled tile is visually hidden after its snapshot is captured, while its geometry remains reserved through the 80% hand-off. A cached 36-frame deterministic fragment-mask atlas actually removes snapshot pixels; a narrow moving emitter follows the same erosion front so dust originates from disappearing image regions. |
+
 ## my-alt-tab 3.2.0 80% dust-to-reflow choreography
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
