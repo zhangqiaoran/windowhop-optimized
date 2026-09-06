@@ -85,6 +85,8 @@ public final class Preferences: ObservableObject {
     public static let shared = Preferences()
     public static let windowFiltersDidChange = Notification.Name(
         "com.zhangqiaoran.myalttab.windowFiltersDidChange")
+    public static let panelAppearanceDidChange = Notification.Name(
+        "com.zhangqiaoran.myalttab.panelAppearanceDidChange")
 
     public enum Key: String, CaseIterable {
         case switcherEnabled
@@ -93,6 +95,7 @@ public final class Preferences: ObservableObject {
         case persistentShortcut
         case appearanceMode
         case previewRowAlignment
+        case glassTransparencyPercent
         /// Kept only to migrate 1.1.2 dwell presets.
         case navigationPreviewDelay
         case expandedPreviewDelay
@@ -121,6 +124,9 @@ public final class Preferences: ObservableObject {
         public static let persistentShortcut: PersistentShortcut? = .optionTab
         public static let appearanceMode = AppearanceMode.appIcons
         public static let previewRowAlignment = PreviewRowAlignment.center
+        /// 100 keeps the existing native glass appearance; lower values add
+        /// an adaptive system-background tint without fading switcher content.
+        public static let glassTransparencyPercent = 100.0
         public static let expandedPreviewDelay = ExpandedPreviewDelay.threeSeconds
         /// Default multi-display behavior: draw one panel on the pointer display
         /// while listing windows from every connected display. The legacy placement
@@ -150,6 +156,7 @@ public final class Preferences: ObservableObject {
         .persistentShortcut,
         .appearanceMode,
         .previewRowAlignment,
+        .glassTransparencyPercent,
         .expandedPreviewDelay,
         .focusedMultiDisplayMode,
         .switcherDisplayPlacement,
@@ -172,6 +179,7 @@ public final class Preferences: ObservableObject {
         Key.persistentShortcut.rawValue: Defaults.persistentShortcut?.encoded ?? "",
         Key.appearanceMode.rawValue: Defaults.appearanceMode.rawValue,
         Key.previewRowAlignment.rawValue: Defaults.previewRowAlignment.rawValue,
+        Key.glassTransparencyPercent.rawValue: Defaults.glassTransparencyPercent,
         Key.expandedPreviewDelay.rawValue: Defaults.expandedPreviewDelay.rawValue,
         Key.focusedMultiDisplayMode.rawValue: Defaults.focusedMultiDisplayMode,
         Key.switcherDisplayPlacement.rawValue: Defaults.switcherDisplayPlacement.rawValue,
@@ -218,6 +226,19 @@ public final class Preferences: ObservableObject {
         didSet {
             defaults.set(previewRowAlignment.rawValue,
                          forKey: Key.previewRowAlignment.rawValue)
+        }
+    }
+
+    @Published public var glassTransparencyPercent: Double {
+        didSet {
+            let clamped = Self.clampedGlassTransparency(glassTransparencyPercent)
+            if clamped != glassTransparencyPercent {
+                glassTransparencyPercent = clamped
+                return
+            }
+            defaults.set(glassTransparencyPercent,
+                         forKey: Key.glassTransparencyPercent.rawValue)
+            notifyPanelAppearanceChanged()
         }
     }
 
@@ -334,6 +355,9 @@ public final class Preferences: ObservableObject {
         previewRowAlignment = PreviewRowAlignment(
             rawValue: Self.string(defaults, .previewRowAlignment) ?? "")
             ?? Defaults.previewRowAlignment
+        glassTransparencyPercent = Self.clampedGlassTransparency(
+            Self.double(defaults, .glassTransparencyPercent)
+                ?? Defaults.glassTransparencyPercent)
         let restoredExpandedPreviewDelay = Self.expandedPreviewDelay(from: defaults)
         expandedPreviewDelay = restoredExpandedPreviewDelay
         defaults.set(restoredExpandedPreviewDelay.rawValue,
@@ -377,6 +401,18 @@ public final class Preferences: ObservableObject {
 
     private static func string(_ defaults: UserDefaults, _ key: Key) -> String? {
         defaults.object(forKey: key.rawValue) as? String
+    }
+
+    private static func double(_ defaults: UserDefaults, _ key: Key) -> Double? {
+        guard let number = defaults.object(forKey: key.rawValue) as? NSNumber else {
+            return nil
+        }
+        return number.doubleValue
+    }
+
+    public static func clampedGlassTransparency(_ value: Double) -> Double {
+        guard value.isFinite else { return Defaults.glassTransparencyPercent }
+        return min(100, max(0, value))
     }
 
     /// An empty stored string means "no value", matching how the registration
@@ -424,6 +460,7 @@ public final class Preferences: ObservableObject {
         defer {
             isRestoringDefaults = false
             notifyWindowFiltersChanged()
+            notifyPanelAppearanceChanged()
         }
         for key in Self.configurableKeys {
             switch key {
@@ -434,6 +471,8 @@ public final class Preferences: ObservableObject {
             case .appearanceMode: appearanceMode = Defaults.appearanceMode
             case .previewRowAlignment:
                 previewRowAlignment = Defaults.previewRowAlignment
+            case .glassTransparencyPercent:
+                glassTransparencyPercent = Defaults.glassTransparencyPercent
             case .expandedPreviewDelay:
                 expandedPreviewDelay = Defaults.expandedPreviewDelay
             case .focusedMultiDisplayMode:
@@ -484,5 +523,10 @@ public final class Preferences: ObservableObject {
     private func notifyWindowFiltersChanged() {
         guard !isRestoringDefaults else { return }
         NotificationCenter.default.post(name: Self.windowFiltersDidChange, object: self)
+    }
+
+    private func notifyPanelAppearanceChanged() {
+        guard !isRestoringDefaults else { return }
+        NotificationCenter.default.post(name: Self.panelAppearanceDidChange, object: self)
     }
 }

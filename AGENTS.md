@@ -89,10 +89,11 @@ Keep task logs in `artifacts/` (gitignored). Inspect a failed log before rerunni
 - Closing from the switcher acts on the selected window immediately through its native
   close button. It never offers to quit or force-quit the owning application; native
   unsaved-changes handling remains the target application's responsibility.
-- **Appearance is fixed**: icon size is Large, the only appearance options are App Icons
-  (default) and Window Previews, and theming is system Light/Dark only. No themes, no
-  custom sizes or opacity options. Window Previews additionally allows Left/Center/Right
-  alignment for an incomplete thumbnail row. This rule governs how the panel *looks*.
+- **Appearance stays intentionally small**: icon size is Large, the primary appearance options
+  are App Icons (default) and Window Previews, and theming is system Light/Dark only. No themes
+  or custom sizes. The shared panel glass additionally exposes one persisted 0–100% transparency
+  control, and Window Previews allows Left/Center/Right alignment for an incomplete thumbnail
+  row. This rule governs how the panel *looks*.
   Where the panel is drawn is display behavior, not appearance, and lives with the other
   display settings in Settings → Windows (see `Core/PanelPlacement.swift`).
 - All shortcut strings render through `Core/ShortcutFormatter` — never hardcode a

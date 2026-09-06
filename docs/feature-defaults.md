@@ -4,6 +4,12 @@
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.
 
+## Unreleased decisions
+
+| Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
+|---|---|---|---|
+| Glass transparency | 100% | Yes | Appearance pane; typed `UserDefaults` (`glassTransparencyPercent`) clamped to 0–100. 100% preserves the current native glass, lower values add an adaptive system tint without fading content, changes publish immediately to open switcher panels, and Restore Defaults resets to 100%. |
+
 ## my-alt-tab 1.3.1 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |

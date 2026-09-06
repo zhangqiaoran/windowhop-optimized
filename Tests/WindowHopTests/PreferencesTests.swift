@@ -26,6 +26,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
         XCTAssertEqual(preferences.previewRowAlignment, .center)
+        XCTAssertEqual(preferences.glassTransparencyPercent, 100)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
         XCTAssertEqual(preferences.expandedPreviewDelay.duration, 3)
         XCTAssertTrue(preferences.focusedMultiDisplayMode)
@@ -51,6 +52,7 @@ final class PreferencesTests: XCTestCase {
             keyCode: KeyCode.space, modifiers: [.maskAlternate])
         preferences.appearanceMode = .windowPreviews
         preferences.previewRowAlignment = .right
+        preferences.glassTransparencyPercent = 37
         preferences.expandedPreviewDelay = .fiveSeconds
         preferences.focusedMultiDisplayMode = false
         preferences.switcherDisplayPlacement = .specificDisplay
@@ -74,6 +76,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(restored.persistentShortcut, preferences.persistentShortcut)
         XCTAssertEqual(restored.appearanceMode, .windowPreviews)
         XCTAssertEqual(restored.previewRowAlignment, .right)
+        XCTAssertEqual(restored.glassTransparencyPercent, 37)
         XCTAssertEqual(restored.expandedPreviewDelay, .fiveSeconds)
         XCTAssertFalse(restored.focusedMultiDisplayMode)
         XCTAssertEqual(restored.switcherDisplayPlacement, .specificDisplay)
@@ -207,6 +210,7 @@ final class PreferencesTests: XCTestCase {
         preferences.persistentShortcut = nil
         preferences.appearanceMode = .windowPreviews
         preferences.previewRowAlignment = .left
+        preferences.glassTransparencyPercent = 12
         preferences.expandedPreviewDelay = .off
         preferences.focusedMultiDisplayMode = false
         preferences.includeOtherSpaces = false
@@ -228,6 +232,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
         XCTAssertEqual(preferences.previewRowAlignment, .center)
+        XCTAssertEqual(preferences.glassTransparencyPercent, 100)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
         XCTAssertTrue(preferences.focusedMultiDisplayMode)
         XCTAssertEqual(preferences.switcherDisplayPlacement, .allDisplays)
@@ -243,6 +248,27 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.automaticUpdateChecks)
         XCTAssertTrue(preferences.firstLaunchCompleted,
                       "Restore Defaults must not repeat first-run state")
+    }
+
+
+    func testGlassTransparencyClampsAndPersistsPercentRange() {
+        preferences.glassTransparencyPercent = -12
+        XCTAssertEqual(preferences.glassTransparencyPercent, 0)
+        preferences.glassTransparencyPercent = 118
+        XCTAssertEqual(preferences.glassTransparencyPercent, 100)
+        preferences.glassTransparencyPercent = 42
+        XCTAssertEqual(Preferences(defaults: defaults).glassTransparencyPercent, 42)
+
+        defaults.set(Double.nan, forKey: Preferences.Key.glassTransparencyPercent.rawValue)
+        XCTAssertEqual(Preferences(defaults: defaults).glassTransparencyPercent, 100)
+    }
+
+    func testGlassTransparencyPublishesRuntimeAppearanceChange() {
+        let expectation = expectation(
+            forNotification: Preferences.panelAppearanceDidChange,
+            object: preferences)
+        preferences.glassTransparencyPercent = 55
+        wait(for: [expectation], timeout: 1)
     }
 
     func testFocusedMultiDisplayModeForcesCrossDisplayInclusionWithoutLosingStoredChoice() {

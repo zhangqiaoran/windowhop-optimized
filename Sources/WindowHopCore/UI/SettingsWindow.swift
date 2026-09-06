@@ -404,6 +404,26 @@ struct AppearancePane: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                HStack {
+                    Text("Glass transparency")
+                    Spacer()
+                    Text("\(Int(preferences.glassTransparencyPercent.rounded()))%")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $preferences.glassTransparencyPercent,
+                       in: 0...100,
+                       step: 1)
+                    .accessibilityLabel("Glass transparency")
+                    .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
+            } header: {
+                Text("Glass")
+            } footer: {
+                Text("0% is the most opaque and 100% keeps the native glass at its clearest. Changes apply immediately to the switcher and still respect macOS Reduce Transparency and Increase Contrast.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Show an expanded preview after pausing",
                        selection: $preferences.expandedPreviewDelay) {
                     ForEach(ExpandedPreviewDelay.allCases) { delay in

@@ -146,6 +146,7 @@ public final class SwitcherPanel: NSPanel {
     private var expandedPreviewID: AnyHashable?
     private var presentationMode = SwitcherPresentationMode.cycling
     private var accessibilityDisplayObserver: NSObjectProtocol?
+    private var panelAppearanceObserver: NSObjectProtocol?
     /// Grid geometry of the current layout, for 2D arrow-key navigation.
     public private(set) var columnsPerRow = 1
 
@@ -210,6 +211,7 @@ public final class SwitcherPanel: NSPanel {
                                                       rasterizable: rasterizableBackground)
         hostView.addSubview(panelBackgroundView)
         contentView = hostView
+        applyGlassTransparency()
 
         scrollView.drawsBackground = false
         scrollView.hasHorizontalScroller = false
@@ -281,6 +283,13 @@ public final class SwitcherPanel: NSPanel {
             object: nil,
             queue: .main) { [weak self] _ in
                 self?.updateSettingsButtonVisibility(animated: false)
+                self?.applyGlassTransparency()
+            }
+        panelAppearanceObserver = NotificationCenter.default.addObserver(
+            forName: Preferences.panelAppearanceDidChange,
+            object: Preferences.shared,
+            queue: .main) { [weak self] _ in
+                self?.applyGlassTransparency()
             }
 
         // pre-warm the tile pool off the first-trigger latency path; tiles beyond
@@ -300,6 +309,31 @@ public final class SwitcherPanel: NSPanel {
         if let accessibilityDisplayObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(accessibilityDisplayObserver)
         }
+        if let panelAppearanceObserver {
+            NotificationCenter.default.removeObserver(panelAppearanceObserver)
+        }
+    }
+
+    /// Applies a neutral system tint on top of the native material instead of
+    /// fading the whole background view, so labels, previews, and controls keep
+    /// full contrast at every user-selected transparency level.
+    private func applyGlassTransparency() {
+        let percent = Preferences.clampedGlassTransparency(
+            Preferences.shared.glassTransparencyPercent)
+        let tintAlpha = CGFloat(1 - percent / 100)
+        let tint = NSColor.windowBackgroundColor.withAlphaComponent(tintAlpha)
+
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *),
+           let glass = panelBackgroundView as? NSGlassEffectView {
+            glass.tintColor = tintAlpha == 0 ? nil : tint
+            return
+        }
+        #endif
+
+        guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
+        effectView.wantsLayer = true
+        effectView.layer?.backgroundColor = tint.cgColor
     }
 
     /// The panel background: system glass on macOS 26+, the closest
