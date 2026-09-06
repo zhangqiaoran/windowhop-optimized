@@ -29,7 +29,7 @@ Native macOS window switcher maintained by **zhangqiaoran**.
 ![my-alt-tab dark window previews](docs/screenshots/switcher-previews-dark.png)
 
 ### Settings
-![my-alt-tab settings](docs/screenshots/settings-appearance.png)
+![my-alt-tab settings](docs/screenshots/settings-windows.png)
 
 ## Build from source
 
