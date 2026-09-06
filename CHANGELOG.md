@@ -4,13 +4,16 @@ All my-alt-tab releases from v1.0.0 onward are authored, maintained, and publish
 
 ## 3.4.3 — 2026-09-06 — zhangqiaoran
 
+- Fixed the rapid Alt/Option+Tab **release/repress race**: the event tap now returns to watching synchronously on modifier release, before the semantic event reaches main.
+- Removed the controller's redundant show-time tap-mode rewrite so delayed main-thread work cannot overwrite a newer physical shortcut sequence.
+- Committed activation targets are promoted into MRU order immediately before asynchronous AX focus confirmation, eliminating stale-order failures during repeated 1↔2 toggling.
 - Added a persisted **Settings language** preference with explicit **English / 中文** choices and immediate runtime switching.
 - Localized every Settings pane toolbar title plus General, Shortcuts, Windows, Appearance, Updates, About, permission status, update status, shortcut-recorder labels, and validation copy.
 - The toolbar and current Settings window title relabel in place when the language changes; no restart is required.
 - Retired the low-value **Show tab counts** preference. Existing stored values are ignored, the setting row is removed, and tab-count metadata remains disabled.
 - Corrected the Liquid Glass explanatory copy in Appearance so it describes the actual v3.4.2 background-only Clear Glass architecture rather than the superseded contentView/Regular Glass model.
 - Added deterministic localization/persistence tests and kept the existing click-through, root routing, clear-glass, dissolve, and reflow regression coverage.
-- Internal build: **30604**.
+- Internal build: **30605**.
 
 Full notes: [`RELEASE_NOTES_v3.4.3.md`](RELEASE_NOTES_v3.4.3.md).
 
