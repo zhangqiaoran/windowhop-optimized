@@ -14,12 +14,16 @@ private final class SwitcherTilesContainerView: NSView {
     }
 }
 
-/// One compositor surface follows selection across the grid. The panel itself
-/// owns the expensive blur; this view is only a translucent accent lens, so
-/// selection cost is independent of the number of thumbnails.
-private final class SelectionLensView: NSView {
+/// A single shared glass lens follows the selection. Keeping exactly one
+/// NSVisualEffectView avoids the N-card blur cost while still making the active
+/// preview look translucent and native.
+private final class SelectionLensView: NSVisualEffectView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        material = .selection
+        blendingMode = .withinWindow
+        state = .active
+        isEmphasized = true
         wantsLayer = true
         layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
         layer?.cornerCurve = .continuous
@@ -42,6 +46,10 @@ private final class SelectionLensView: NSView {
             layer?.backgroundColor = DesignTokens.selectionLensFill.cgColor
             layer?.borderColor = DesignTokens.selectionLensStroke.cgColor
             layer?.borderWidth = DesignTokens.selectionLensBorderWidth
+            layer?.shadowColor = DesignTokens.selectionLensGlow.cgColor
+            layer?.shadowOpacity = 1
+            layer?.shadowRadius = DesignTokens.selectionLensGlowRadius
+            layer?.shadowOffset = .zero
         }
     }
 }
