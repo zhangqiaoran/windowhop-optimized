@@ -149,8 +149,11 @@ final class SettingsTabViewController: NSTabViewController {
             item.image = NSImage(systemSymbolName: pane.symbol,
                                  accessibilityDescription: pane.title)
         }
-        if let selectedTabViewItem {
-            title = selectedTabViewItem.label
+        if selectedTabViewItemIndex >= 0,
+           selectedTabViewItemIndex < tabViewItems.count {
+            let selected = tabViewItems[selectedTabViewItemIndex]
+            title = selected.label
+            view.window?.title = selected.label
         }
     }
 
