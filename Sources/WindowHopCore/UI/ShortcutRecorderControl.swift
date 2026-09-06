@@ -24,7 +24,7 @@ final class ShortcutRecorderControl: NSButton {
         setButtonType(.momentaryPushIn)
         target = self
         action = #selector(toggleRecording)
-        setAccessibilityLabel("Open my-alt-tab shortcut")
+        setAccessibilityLabel(SettingsL10n.t("Open my-alt-tab shortcut"))
         refreshTitle()
     }
 
@@ -66,12 +66,13 @@ final class ShortcutRecorderControl: NSButton {
 
     private func refreshTitle() {
         if isRecording {
-            title = "Type shortcut… (⎋ cancels, ⌫ clears)"
+            title = SettingsL10n.t("Type shortcut… (⎋ cancels, ⌫ clears)")
         } else if let shortcut {
             title = shortcut.displayString
         } else {
-            title = "Record Shortcut…"
+            title = SettingsL10n.t("Record Shortcut…")
         }
+        setAccessibilityLabel(SettingsL10n.t("Open my-alt-tab shortcut"))
     }
 
     override func viewDidMoveToWindow() {
@@ -98,12 +99,13 @@ struct ShortcutRecorderField: NSViewRepresentable {
     @Binding var shortcut: PersistentShortcut?
     @Binding var validationMessage: String?
     let switcherShortcut: ShortcutSpec
+    let language: SettingsLanguage
 
     func makeNSView(context: Context) -> ShortcutRecorderControl {
         let control = ShortcutRecorderControl()
         control.onCapture = { captured in
             if let error = captured.validate(against: switcherShortcut) {
-                validationMessage = error.explanation
+                validationMessage = SettingsL10n.t(error.explanation)
             } else {
                 validationMessage = nil
                 shortcut = captured
@@ -117,6 +119,11 @@ struct ShortcutRecorderField: NSViewRepresentable {
     }
 
     func updateNSView(_ control: ShortcutRecorderControl, context: Context) {
+        _ = language
         control.shortcut = shortcut
+        control.setNeedsDisplay(control.bounds)
+        control.title = control.shortcut?.displayString
+            ?? SettingsL10n.t("Record Shortcut…")
+        control.setAccessibilityLabel(SettingsL10n.t("Open my-alt-tab shortcut"))
     }
 }
