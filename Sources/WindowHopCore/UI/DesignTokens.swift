@@ -6,7 +6,7 @@ import AppKit
 enum DesignTokens {
     // MARK: Panel chrome
     /// Keeps the complete 44×44 close hit target inside the visible panel without shrinking accessibility.
-    static let panelPadding: CGFloat = 18
+    static let panelPadding: CGFloat = 26
     static let panelCornerRadius: CGFloat = 22
     /// The grid may use up to this fraction of the screen's width/height.
     static let panelMaxWidthFraction: CGFloat = 0.90
@@ -14,9 +14,10 @@ enum DesignTokens {
     /// Settings is a compact global overlay. Most of the hit target remains
     /// inside the panel while a small named overlap keeps it attached to the
     /// outer top-right corner.
-    static let chromeButtonHitSize: CGFloat = 44
-    static let chromeButtonSymbolSize: CGFloat = 32
-    static let chromeButtonOutsideOverlap: CGFloat = 10
+    static let chromeButtonHitSize: CGFloat = 40
+    static let chromeButtonSymbolSize: CGFloat = 22
+    static let chromeButtonOutsideOverlap: CGFloat = 0
+    static let settingsButtonInset: CGFloat = 8
 
     // MARK: Settings window
     /// Every pane renders into this one canvas, so selecting a pane never
@@ -64,11 +65,11 @@ enum DesignTokens {
 
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
-    static let tileSpacing: CGFloat = 12
+    static let tileSpacing: CGFloat = 14
     /// Full-card separation between wrapped rows. The tile height already
     /// includes preview overlays, title, and metadata; this is the remaining
     /// visual breathing room between complete cards.
-    static let tileRowSpacing: CGFloat = 24
+    static let tileRowSpacing: CGFloat = 26
     static let tileLabelInset: CGFloat = 8
     /// Native system typography, tuned to the public product preview. Font
     /// family remains AppKit-owned so locale, rendering, and accessibility
