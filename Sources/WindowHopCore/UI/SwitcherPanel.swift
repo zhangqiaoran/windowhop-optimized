@@ -434,6 +434,7 @@ public final class SwitcherPanel: NSPanel {
     /// every Xcode 26 SDK even when the running macOS implements it. Resolve it
     /// dynamically so release builds remain SDK-compatible while newer systems
     /// still opt into interactive glass feedback.
+    @available(macOS 26.0, *)
     @discardableResult
     private static func enableInteractiveGlassIfAvailable(_ glass: NSGlassEffectView) -> Bool {
         let selector = NSSelectorFromString("setEffectIsInteractive:")
