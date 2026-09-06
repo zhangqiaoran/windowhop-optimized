@@ -1,6 +1,7 @@
 my-alt-tab 2.3.0
 author=zhangqiaoran
-validated_build_sha=d3cc6cca9bf3d56c1b051cf24ec7b71672de01d3
-validated_action_run=34009184978
-patch=clip-safe glass selection + unified my-alt-tab About interface
+validated_build_sha=54d34a8e80392865ed7d687f4096f1b05f0e8334
+validated_action_run=34011191585
+build=20301
+patch=clip-safe selection + polished About + live glass transparency + signed Sparkle updates
 package=Universal 2 my-alt-tab.app (arm64 + x86_64)

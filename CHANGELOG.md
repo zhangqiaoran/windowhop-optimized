@@ -4,6 +4,9 @@ All my-alt-tab releases from v1.0.0 onward are authored, maintained, and publish
 
 ## 2.3.0 — 2026-09-06 — zhangqiaoran
 
+- Refreshed the public 2.3.0 package as build 20301 to make the signed update newer than the original 20300 build.
+- Enabled signed Sparkle updates from the my-alt-tab GitHub release channel; automatic checks and automatic updates default to On.
+- Added a persisted 0–100% Glass transparency control with immediate runtime updates in the Appearance pane.
 - Refined the About interface and completed user-facing my-alt-tab branding across the project metadata.
 - Patch: fixed the selected Glass Focus plate being clipped on the right/bottom document edges.
 - Added dedicated right/bottom comfort spacing and a top chrome strip so the ellipsis no longer overlaps previews.

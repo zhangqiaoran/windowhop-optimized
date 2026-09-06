@@ -15,6 +15,8 @@ Native macOS window switcher maintained by **zhangqiaoran**.
 
 ## v2.3
 
+- Signed Sparkle updates are enabled for future releases; automatic checks and native manual update checks are available in Settings.
+- Appearance now includes a live **Glass transparency** slider from 0% to 100%.
 - More breathing room on the right and bottom edges.
 - The top-right **ellipsis (…)** lives in its own chrome strip and no longer covers thumbnails.
 - Closing a window removes it from the switcher immediately while a denser 28-particle dissolve plays.
