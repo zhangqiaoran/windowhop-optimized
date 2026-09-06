@@ -1,10 +1,13 @@
 #!/bin/bash
-# Builds the Release binary and assembles a runnable my-alt-tab.app with the
-# Sparkle framework embedded.
+# Builds a Release my-alt-tab.app and packages it as a zip.
+#
+# By default v2.1 builds a Universal 2 app (arm64 + x86_64) using SwiftPM's
+# Swift Build backend. Set MY_ALT_TAB_UNIVERSAL=0 for a current-architecture
+# developer build.
 #
 # Signing:
-#   - With DEVELOPER_ID_IDENTITY set: Developer ID + hardened runtime (release path).
-#   - Otherwise: ad-hoc signing — free to build and run locally, no paid account.
+#   - With DEVELOPER_ID_IDENTITY set: Developer ID + hardened runtime.
+#   - Otherwise: ad-hoc signing for local/community distribution.
 #
 # Usage: scripts/package-app.sh [version] [build-number]
 # Output: build/my-alt-tab.app and artifacts/my-alt-tab-<version>.zip
@@ -16,27 +19,60 @@ DEFAULT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Support/Info
 VERSION="${1:-$DEFAULT_VERSION}"
 BUILD_NUMBER="${2:-$DEFAULT_BUILD}"
 IDENTITY="${DEVELOPER_ID_IDENTITY:--}"
+UNIVERSAL="${MY_ALT_TAB_UNIVERSAL:-1}"
 
-swift build -c release
+if [ "$UNIVERSAL" = "1" ]; then
+    BUILD_ARGS=(-c release --build-system swiftbuild --arch arm64 --arch x86_64)
+else
+    BUILD_ARGS=(-c release)
+fi
+
+swift build "${BUILD_ARGS[@]}"
+BIN_DIR=$(swift build "${BUILD_ARGS[@]}" --show-bin-path)
+EXECUTABLE="$BIN_DIR/WindowHop"
+
+if [ ! -x "$EXECUTABLE" ]; then
+    echo "missing built executable: $EXECUTABLE" >&2
+    exit 1
+fi
+
+# Sparkle is a binary framework. Resolve it instead of assuming one SwiftPM
+# output layout; the swiftbuild backend uses a different artifact directory.
+SPARKLE_FRAMEWORK=$(find "$BIN_DIR" .build -type d -name Sparkle.framework -print 2>/dev/null | head -n 1)
+if [ -z "$SPARKLE_FRAMEWORK" ]; then
+    echo "unable to locate Sparkle.framework" >&2
+    exit 1
+fi
 
 APP=build/my-alt-tab.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
-cp .build/release/WindowHop "$APP/Contents/MacOS/my-alt-tab"
+cp "$EXECUTABLE" "$APP/Contents/MacOS/my-alt-tab"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-# ditto preserves the framework's symlink structure; cp -R would break it
-ditto .build/release/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
 
-# sign nested code first (Sparkle's helpers), then the framework, then the app
+if [ "$UNIVERSAL" = "1" ]; then
+    APP_ARCHS=$(lipo -archs "$APP/Contents/MacOS/my-alt-tab")
+    echo "my-alt-tab architectures: $APP_ARCHS"
+    [[ " $APP_ARCHS " == *" arm64 "* ]] || { echo "arm64 slice missing" >&2; exit 1; }
+    [[ " $APP_ARCHS " == *" x86_64 "* ]] || { echo "x86_64 slice missing" >&2; exit 1; }
+
+    SPARKLE_BINARY="$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"
+    if [ -f "$SPARKLE_BINARY" ]; then
+        SPARKLE_ARCHS=$(lipo -archs "$SPARKLE_BINARY")
+        echo "Sparkle architectures: $SPARKLE_ARCHS"
+        [[ " $SPARKLE_ARCHS " == *" arm64 "* ]] || { echo "Sparkle arm64 slice missing" >&2; exit 1; }
+        [[ " $SPARKLE_ARCHS " == *" x86_64 "* ]] || { echo "Sparkle x86_64 slice missing" >&2; exit 1; }
+    fi
+fi
+
+# Sign nested code first, then the framework, then the app.
 SIGN_FLAGS=(--force --sign "$IDENTITY")
 if [ "$IDENTITY" != "-" ]; then
-    # A hash is safer than a display name when the Keychain contains renewed
-    # certificates with identical names. Every non-ad-hoc release identity
-    # still requires timestamping and Hardened Runtime.
     SIGN_FLAGS+=(--timestamp --options runtime)
 fi
 codesign "${SIGN_FLAGS[@]}" "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc"
@@ -53,7 +89,6 @@ fi
 mkdir -p artifacts
 ZIP="artifacts/my-alt-tab-$VERSION.zip"
 rm -f "$ZIP"
-# ditto -c -k preserves symlinks and signatures, as Sparkle requires
 ditto -c -k --keepParent "$APP" "$ZIP"
 
 echo "built $APP (version $VERSION, build $BUILD_NUMBER, identity: $IDENTITY)"
