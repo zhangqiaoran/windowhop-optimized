@@ -6,10 +6,10 @@
 - Public name: `WindowHop`
 - Benefit-first description: Switch between windows, not just apps. Fast, native macOS
   window switcher with large app icons or live previews — free, GPL, no telemetry.
-- Repository: `zhangqiaoran/windowhop-optimized` (public)
+- Repository: `zhangqiaoran/my-alt-tab` (public)
 - Public identifiers: bundle identifier `com.zhangqiaoran.myalttab`; SwiftPM package, executable
   target, and app name `WindowHop`; library target `WindowHopCore`
-- Landing page: <https://zhangqiaoran.github.io/windowhop-optimized/>, published from `docs/` by
+- Landing page: <https://zhangqiaoran.github.io/my-alt-tab/>, published from `docs/` by
   `.github/workflows/pages.yml`. It lives in this repository; there is no separate site repo.
 - License: `GPL-3.0-only`, with AltTab attribution recorded in `UPSTREAM.md`
 - Current maintainer/release author: `zhangqiaoran`. The codebase is GPL-3.0 modified software; upstream attribution is preserved in `UPSTREAM.md` and `AUTHORS.md`. `NSHumanReadableCopyright` in `Support/Info.plist` is the canonical current-project string.
@@ -325,7 +325,7 @@ notes. A missing configurability decision is a review failure.
   `.github/workflows/release-community.yml`. Verify the resulting GitHub Release artifact.
   Developer ID notarization is a separate future capability, not assumed by the community build.
 - Do not publish a release or change a version unless the task explicitly authorizes it.
-- Pass `-R zhangqiaoran/windowhop-optimized` to `gh`; without it the wrong repository can be selected.
+- Pass `-R zhangqiaoran/my-alt-tab` to `gh`; without it the wrong repository can be selected.
 
 ## Completion report
 
