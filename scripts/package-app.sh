@@ -82,7 +82,15 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$EXECUTABLE" "$APP/Contents/MacOS/my-alt-tab"
 cp Support/Info.plist "$APP/Contents/Info.plist"
-cp Support/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+# App icon is generated from the single committed source image so the official
+# package, README branding, and future regenerations cannot drift apart.
+ICON_BUILD="build/generated-icon"
+rm -rf "$ICON_BUILD"
+swift scripts/make-icon.swift "$ICON_BUILD" Support/AppIconSource.png
+iconutil -c icns "$ICON_BUILD/AppIcon.iconset" -o "$ICON_BUILD/AppIcon.icns"
+cp "$ICON_BUILD/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+
 ditto "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
