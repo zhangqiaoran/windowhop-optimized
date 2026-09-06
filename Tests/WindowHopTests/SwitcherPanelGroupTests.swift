@@ -119,4 +119,24 @@ final class SwitcherPanelGroupTests: XCTestCase {
 
         XCTAssertEqual(group.captureScale, 3)
     }
+
+    func testGlobalMouseClassificationKeepsClicksInsideVisiblePanel() throws {
+        try XCTSkipIf(NSScreen.screens.isEmpty, "needs a display")
+        let list = items(3)
+        group.prepare(for: targets(1), tileCount: list.count,
+                      tileSize: NSSize(width: 200, height: 160))
+        group.show(items: list, selectedIndex: 0, presentationMode: .cycling)
+
+        let panel = try XCTUnwrap(group.panelForTesting(at: 0))
+        let inside = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+        let outside = NSPoint(x: panel.frame.maxX + 100, y: panel.frame.maxY + 100)
+
+        XCTAssertTrue(group.containsScreenPoint(inside),
+                      "clicks inside the nonactivating switcher must not be classified as outside")
+        XCTAssertFalse(group.containsScreenPoint(outside))
+
+        group.hide()
+        XCTAssertFalse(group.containsScreenPoint(inside),
+                       "hidden panels must not reserve stale outside-click geometry")
+    }
 }
