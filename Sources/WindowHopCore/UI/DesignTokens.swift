@@ -6,7 +6,7 @@ import AppKit
 enum DesignTokens {
     // MARK: Panel chrome
     /// Keeps the complete 44×44 close hit target inside the visible panel without shrinking accessibility.
-    static let panelPadding: CGFloat = 14
+    static let panelPadding: CGFloat = 18
     static let panelCornerRadius: CGFloat = 22
     /// The grid may use up to this fraction of the screen's width/height.
     static let panelMaxWidthFraction: CGFloat = 0.90
@@ -41,22 +41,26 @@ enum DesignTokens {
     static let iconSelectionCornerRadius: CGFloat = 18
     /// Preview selection is a single accent-colored plate behind the canvas,
     /// not a border stacked over the image.
-    static let previewSelectionPadding: CGFloat = 2
+    static let previewSelectionPadding: CGFloat = 3
 
     // MARK: Glass Focus Engine
     /// v2.0 uses one shared moving lens instead of one blur surface per tile.
     /// Selection therefore stays constant-cost as the number of windows grows.
     static let selectionLensInset: CGFloat = 4
-    static let selectionLensCornerRadius: CGFloat = 16
-    static let selectionLensBorderWidth: CGFloat = 2
-    static let selectedTileScale: CGFloat = 1.022
-    static let selectedTileScaleDuration: TimeInterval = 0.105
+    static let selectionLensCornerRadius: CGFloat = 17
+    static let selectionLensBorderWidth: CGFloat = 1.5
+    static let selectedTileScale: CGFloat = 1.018
+    static let selectedTileScaleDuration: TimeInterval = 0.095
     static var selectionLensFill: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.13)
+        NSColor.windowBackgroundColor.withAlphaComponent(0.10)
     }
     static var selectionLensStroke: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.92)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.78)
     }
+    static var selectionLensGlow: NSColor {
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.22)
+    }
+    static let selectionLensGlowRadius: CGFloat = 10
 
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
@@ -64,7 +68,7 @@ enum DesignTokens {
     /// Full-card separation between wrapped rows. The tile height already
     /// includes preview overlays, title, and metadata; this is the remaining
     /// visual breathing room between complete cards.
-    static let tileRowSpacing: CGFloat = 22
+    static let tileRowSpacing: CGFloat = 24
     static let tileLabelInset: CGFloat = 8
     /// Native system typography, tuned to the public product preview. Font
     /// family remains AppKit-owned so locale, rendering, and accessibility
@@ -81,12 +85,12 @@ enum DesignTokens {
     static let titleZoneHeight: CGFloat = 34
     static let titleMaxLines = 2
     static let metadataHeight: CGFloat = 16
-    static let labelBottomInset: CGFloat = 6
+    static let labelBottomInset: CGFloat = 10
     static let titleMetadataSpacing: CGFloat = 1
     static let contentTopInset: CGFloat = 8
     /// The one gap between the bottom of the content (icon or preview) and the
     /// top of the title zone — identical on every card, in both appearances.
-    static let contentTitleGap: CGFloat = 9
+    static let contentTitleGap: CGFloat = 10
 
     /// Tile height derived from the content height, so the label zone and the
     /// content-to-title gap stay identical across appearances and screens.
