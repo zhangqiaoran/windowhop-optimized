@@ -226,7 +226,9 @@ public final class SwitcherController {
                 preferredIndex: nextIndex)
 
             if state.isActive {
-                panels.update(items: items, selectedIndex: state.selectedIndex)
+                panels.update(items: items,
+                              selectedIndex: state.selectedIndex,
+                              animatedLayout: true)
                 state.updateColumns(panels.columnsPerRow)
                 targetExpandedPreview(at: state.selectedIndex)
             } else if case .cancel = listCommand {
@@ -296,6 +298,7 @@ public final class SwitcherController {
             preserved.insert(item.id)
         }
 
+        let previousItemCount = items.count
         let plan = SessionListReconciler.reconcile(sessionIds: sessionIds,
                                                    freshIds: freshIds,
                                                    preserving: preserved)
@@ -323,7 +326,9 @@ public final class SwitcherController {
         } ?? state.selectedIndex
         let command = state.listChanged(itemCount: items.count, preferredIndex: preferredIndex)
         if state.isActive {
-            panels.update(items: items, selectedIndex: state.selectedIndex)
+            panels.update(items: items,
+                          selectedIndex: state.selectedIndex,
+                          animatedLayout: items.count < previousItemCount)
             state.updateColumns(panels.columnsPerRow)
             targetExpandedPreview(at: state.selectedIndex)
         }

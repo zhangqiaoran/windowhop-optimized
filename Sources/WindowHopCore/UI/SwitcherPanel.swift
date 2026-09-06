@@ -506,12 +506,23 @@ public final class SwitcherPanel: NSPanel {
         updateSettingsButtonVisibility(animated: false)
     }
 
-    public func update(items: [SwitcherItem], selectedIndex index: Int) {
+    public func update(items: [SwitcherItem],
+                       selectedIndex index: Int,
+                       animatedLayout: Bool = false) {
         if expandedPreviewID != nil {
             expandedPreviewID = nil
             expandedPreviewView.isHidden = true
             scrollView.isHidden = false
         }
+
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let shouldAnimateReflow = animatedLayout && isVisible && !reduceMotion
+        let oldVisualCenters = shouldAnimateReflow ? stableVisualCentersByID() : [:]
+        let oldLensCenter = shouldAnimateReflow
+            ? (selectionLensView.layer?.presentation()?.position
+                ?? selectionLensView.layer?.position)
+            : nil
+
         mode = Preferences.shared.appearanceMode
         self.items = items
         selectedIndex = index
@@ -521,8 +532,13 @@ public final class SwitcherPanel: NSPanel {
             itemIndexByID[item.id] = itemIndex
         }
         rebuildTiles(items: items)
-        layoutOnPlacementScreen(tileCount: items.count)
+        layoutOnPlacementScreen(tileCount: items.count,
+                                animatePanelResize: shouldAnimateReflow)
         applySelection(fullRefresh: true)
+
+        if shouldAnimateReflow {
+            animateStableReflow(from: oldVisualCenters, oldLensCenter: oldLensCenter)
+        }
     }
 
     public func select(_ index: Int) {
@@ -608,17 +624,18 @@ public final class SwitcherPanel: NSPanel {
         orderOut(nil)
     }
 
-    /// Plays one fixed-cost close flourish above the tile. The effect owns only
-    /// a transient snapshot and a fixed 28-particle layer set, then self-removes.
+    /// Plays one fixed-cost close flourish above the tile. Dust is biased
+    /// inward and upward, keeping more of the plume visible while the centered
+    /// panel performs its simultaneous shrink.
     public func playDismissalEffect(at index: Int) {
         guard index >= 0, index < visibleTileCount else { return }
         let tile = tilePool[index]
-        // Convert into chrome coordinates before the session model removes the
-        // tile. The overlay then survives grid reflow/shrink independently.
         let overlayFrame = tile.convert(tile.bounds, to: chromeView)
+        let horizontal: CGFloat = overlayFrame.midX < chromeView.bounds.midX ? 0.72 : -0.72
         let effect = WindowDismissalEffectView(
             frame: overlayFrame,
-            snapshot: tile.snapshotForDismissalEffect())
+            snapshot: tile.snapshotForDismissalEffect(),
+            driftDirection: CGVector(dx: horizontal, dy: 1))
         chromeView.addSubview(effect, positioned: .above, relativeTo: scrollView)
         effect.play()
     }
@@ -651,7 +668,8 @@ public final class SwitcherPanel: NSPanel {
         visibleTileCount = items.count
     }
 
-    private func layoutOnPlacementScreen(tileCount: Int) {
+    private func layoutOnPlacementScreen(tileCount: Int,
+                                         animatePanelResize: Bool = false) {
         guard let screen = layoutScreen else { return }
         let padding = DesignTokens.panelPadding
         let spacing = DesignTokens.tileSpacing
@@ -775,7 +793,69 @@ public final class SwitcherPanel: NSPanel {
             width: controlSize, height: controlSize)
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
-        setFrame(NSRect(origin: origin, size: panelSize), display: true)
+        setFrame(NSRect(origin: origin, size: panelSize),
+                 display: true,
+                 animate: animatePanelResize)
+    }
+
+    /// Captures current presentation-layer centers by stable window id. If a
+    /// second close interrupts the first spring, the next reflow starts from
+    /// the pixels actually on screen instead of from stale model geometry.
+    private func stableVisualCentersByID() -> [AnyHashable: CGPoint] {
+        var centers: [AnyHashable: CGPoint] = [:]
+        centers.reserveCapacity(min(items.count, visibleTileCount))
+        for (index, item) in items.enumerated() where index < visibleTileCount {
+            guard centers[item.id] == nil else { continue }
+            let layer = tilePool[index].layer
+            centers[item.id] = layer?.presentation()?.position
+                ?? layer?.position
+                ?? CGPoint(x: tilePool[index].frame.midX,
+                           y: tilePool[index].frame.midY)
+        }
+        return centers
+    }
+
+    /// Surviving windows are matched by stable id, so removal never causes the
+    /// "everything snaps one slot left" effect. Only layers that actually move
+    /// receive a spring; the algorithm is O(n) for a list rebuild and has no
+    /// frame-by-frame CPU work.
+    private func animateStableReflow(from oldCenters: [AnyHashable: CGPoint],
+                                     oldLensCenter: CGPoint?) {
+        for (index, item) in items.enumerated() where index < visibleTileCount {
+            guard let from = oldCenters[item.id],
+                  let layer = tilePool[index].layer else { continue }
+            let to = layer.position
+            guard hypot(to.x - from.x, to.y - from.y) > 0.5 else { continue }
+
+            let spring = CASpringAnimation(keyPath: "position")
+            spring.fromValue = NSValue(point: from)
+            spring.toValue = NSValue(point: to)
+            spring.mass = DesignTokens.panelReflowSpringMass
+            spring.stiffness = DesignTokens.panelReflowSpringStiffness
+            spring.damping = DesignTokens.panelReflowSpringDamping
+            spring.initialVelocity = DesignTokens.panelReflowSpringInitialVelocity
+            spring.duration = min(spring.settlingDuration,
+                                  DesignTokens.panelReflowDuration)
+            layer.add(spring, forKey: "stableWindowReflow")
+        }
+
+        guard let oldLensCenter,
+              !selectionLensView.isHidden,
+              let lensLayer = selectionLensView.layer else { return }
+        let target = lensLayer.position
+        guard hypot(target.x - oldLensCenter.x, target.y - oldLensCenter.y) > 0.5 else {
+            return
+        }
+        let spring = CASpringAnimation(keyPath: "position")
+        spring.fromValue = NSValue(point: oldLensCenter)
+        spring.toValue = NSValue(point: target)
+        spring.mass = DesignTokens.panelReflowSpringMass
+        spring.stiffness = DesignTokens.panelReflowSpringStiffness
+        spring.damping = DesignTokens.panelReflowSpringDamping
+        spring.initialVelocity = DesignTokens.panelReflowSpringInitialVelocity
+        spring.duration = min(spring.settlingDuration,
+                              DesignTokens.panelReflowDuration)
+        lensLayer.add(spring, forKey: "selectionLensReflow")
     }
 
     private func layoutExpandedPreview() {

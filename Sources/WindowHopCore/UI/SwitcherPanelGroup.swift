@@ -109,8 +109,14 @@ public final class SwitcherPanelGroup {
         panels.forEach { $0.presentAgain(presentationMode: presentationMode) }
     }
 
-    public func update(items: [SwitcherItem], selectedIndex: Int) {
-        panels.forEach { $0.update(items: items, selectedIndex: selectedIndex) }
+    public func update(items: [SwitcherItem],
+                       selectedIndex: Int,
+                       animatedLayout: Bool = false) {
+        panels.forEach {
+            $0.update(items: items,
+                      selectedIndex: selectedIndex,
+                      animatedLayout: animatedLayout)
+        }
     }
 
     public func select(_ index: Int) {
