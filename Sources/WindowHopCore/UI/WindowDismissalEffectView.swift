@@ -370,11 +370,11 @@ final class WindowDismissalEffectView: NSView {
         let center = CGPoint(x: CGFloat(dimension) / 2,
                              y: CGFloat(dimension) / 2)
         let colors = [
-            NSColor.white.withAlphaComponent(0.0).cgColor,
-            NSColor.white.withAlphaComponent(0.72).cgColor,
             NSColor.white.withAlphaComponent(1.0).cgColor,
+            NSColor.white.withAlphaComponent(0.72).cgColor,
+            NSColor.white.withAlphaComponent(0.0).cgColor,
         ] as CFArray
-        let locations: [CGFloat] = [1.0, 0.46, 0.0]
+        let locations: [CGFloat] = [0.0, 0.46, 1.0]
         guard let gradient = CGGradient(colorsSpace: colorSpace,
                                         colors: colors,
                                         locations: locations)
