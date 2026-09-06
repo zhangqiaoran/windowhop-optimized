@@ -2,6 +2,18 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.3.0 — 2026-09-06 — zhangqiaoran
+
+- Returned the switcher to literal **Clear Glass** semantics. At 100% transparency, the panel adds **zero** neutral/white density; lower settings add only a restrained linear density capped at 20%, so the desktop remains visibly refracted instead of becoming a white slab.
+- Kept macOS 26+ on native `NSGlassEffectView.Style.clear` with no tint while preserving the 2 pt fixed system-blue selection ring.
+- Fixed the core reason the previous close effect looked like "particles over an unchanged thumbnail": the pooled source tile now becomes visually hidden after its snapshot is captured, while keeping its layout slot until the existing 80% hand-off.
+- Replaced the old soft sweep with a cached **36-frame deterministic fragment-mask atlas**. Fine/coarse noise thresholds create holes, islands, and an irregular erosion front that actually removes snapshot pixels.
+- Moved the `CAEmitterLayer` from a full-card emitter to a narrow moving strip that tracks the erosion front, so dust is emitted from the image regions that are disappearing.
+- The fragment masks are low-resolution, deterministic, lazily cached, and composited by Core Animation; no display link, per-frame CPU image processing, or runtime random generator is used.
+- Preserved the 80% dust-before-reflow choreography, 0.42 s synchronized list shrink, Universal 2 packaging, and Sparkle EdDSA updates.
+
+Full notes: [`RELEASE_NOTES_v3.3.0.md`](RELEASE_NOTES_v3.3.0.md).
+
 ## 3.2.0 — 2026-09-06 — zhangqiaoran
 
 - Made the reserved top chrome genuinely transparent on macOS 26+: the outer panel uses clear native glass with no white tint, while the adjustable frosted-density layer is localized to the window-content zone and fades out before the ellipsis row.

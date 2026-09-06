@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.2.0.zip`.
+2. Download `my-alt-tab-3.3.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.3.0
+
+- **Literal Clear Glass:** 100% adds no white density; even 0% adds only a light 20% maximum content-zone density. macOS 26+ remains native `NSGlassEffectView.Style.clear`.
+- **True thumbnail dissolve:** the real pooled tile is hidden after snapshot capture, so erosion holes expose glass instead of an unchanged copy underneath.
+- A cached **36-frame irregular alpha-mask atlas** physically removes snapshot regions using deterministic fine/coarse noise.
+- The GPU dust emitter is now a narrow moving front that follows the disappearing edge instead of spraying uniformly across the whole card.
+- The 80% particle-first hand-off and smooth 0.42 s list reflow remain unchanged.
 
 ## v3.2.0
 
@@ -85,7 +93,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.2.0.zip
+artifacts/my-alt-tab-3.3.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

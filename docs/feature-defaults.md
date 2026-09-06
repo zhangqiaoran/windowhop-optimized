@@ -1,6 +1,6 @@
 # User-facing defaults and configurability
 
-## Unreleased 3.3 clear-glass + true-dissolve decisions
+## my-alt-tab 3.3.0 clear-glass + true-dissolve decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|

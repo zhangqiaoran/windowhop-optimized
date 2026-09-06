@@ -1,0 +1,8 @@
+my-alt-tab 3.3.0
+author=zhangqiaoran
+validated_build_sha=9d9f9f29eeea5008af47d18b4180b45c6bf1e263
+validated_action_run=34017035694
+build=30300
+patch=literal clear glass + hidden source ghost + 36-frame true fragment erosion + moving dust front
+signing=ad-hoc app + Sparkle EdDSA archive
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)

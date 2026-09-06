@@ -2,15 +2,24 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.2.0.zip`。
+2. 下载 `my-alt-tab-3.3.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.3.0
+
+- **真正的透明玻璃**：100% 时不再叠任何白色密度；即使拉到 0%，额外密度最高也只到 20%，桌面背景始终能明显透过玻璃看到。
+- macOS 26+ 继续使用原生 `NSGlassEffectView.Style.clear`，不再通过乳白层强行制造“磨砂感”。
+- **缩略图本体真的会消散**：抓取 Snapshot 后，底下原来的 Tile 会视觉隐藏，只保留布局占位；因此 Mask 挖掉哪里，那里就真的露出后面的玻璃，不会再看到一张完整缩略图垫在粒子下面。
+- 使用缓存的 **36 帧不规则 Alpha Mask**，通过细粒度 + 粗粒度确定性噪声制造缺口、碎块、孤岛和侵蚀边缘。
+- 粒子发射器改成跟随侵蚀边缘移动的窄带，灰尘从正在消失的图片边缘产生，而不是整张卡片同时喷粒子。
+- 保留粒子达到 80% 后再开始 0.42 秒柔和缩小的节奏。
 
 ## v3.2.0
 
@@ -75,7 +84,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.2.0.zip
+artifacts/my-alt-tab-3.3.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
