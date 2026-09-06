@@ -103,7 +103,7 @@ Repository screenshots are generated from the app's own UI/demo harness. System 
 ## Build
 
 ```bash
-git clone https://github.com/zhangqiaoran/windowhop-optimized.git my-alt-tab
+git clone https://github.com/zhangqiaoran/my-alt-tab.git my-alt-tab
 cd my-alt-tab
 chmod +x scripts/package-app.sh
 ./scripts/package-app.sh
@@ -132,5 +132,5 @@ Full notes: [`RELEASE_NOTES_v2.0.0.md`](RELEASE_NOTES_v2.0.0.md)
 - Version: **2.0.0**
 - Build: **20000**
 - Bundle ID: `com.zhangqiaoran.myalttab`
-- Repository: `zhangqiaoran/windowhop-optimized`
+- Repository: `zhangqiaoran/my-alt-tab`
 - License: GNU GPL-3.0
