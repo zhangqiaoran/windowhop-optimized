@@ -2,6 +2,18 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.0 — 2026-09-06 — zhangqiaoran
+
+- Re-architected Liquid Glass into three independent visual layers: a material-only native glass background, a separate perceptual milky-density layer, and fully opaque foreground chrome. Changing glass strength can no longer fade thumbnails, labels, controls, or the blue focus ring.
+- Defined the slider as a real **liquid ↔ milky continuum**: 100% uses zero milk and thins the native Clear Glass surface to about 60% alpha so wallpaper color reads through strongly; lower values progressively restore the glass surface and add milk using a perceptual `(1-liquid)^1.55` curve, reaching a translucent 72% milk layer at 0%.
+- Verified the official Release compiler is Swift 6.3.3 targeting macOS 26, so the native `NSGlassEffectView.Style.clear` path is compiled into the shipped app.
+- Rebuilt close-list resizing with **Stable-ID FLIP** in one `NSAnimationContext`: NSWindow frame, glass material, foreground chrome, scroll/document geometry, surviving tiles, controls, and the blue focus ring now share one animation clock and one timing curve.
+- Removed the old independent Core Animation position reflow and the selected-tile 1.018× scale animation that could combine with NSWindow live resize and look like a small hitch or dropped frame.
+- Reflow interruption starts from presentation-layer geometry by stable window ID, preserving smooth repeated closes.
+- Preserved 3.3's true 36-frame thumbnail erosion, moving dust front, 80% dust-before-reflow hand-off, Universal 2 packaging, and Sparkle EdDSA updates.
+
+Full notes: [`RELEASE_NOTES_v3.4.0.md`](RELEASE_NOTES_v3.4.0.md).
+
 ## 3.3.0 — 2026-09-06 — zhangqiaoran
 
 - Returned the switcher to literal **Clear Glass** semantics. At 100% transparency, the panel adds **zero** neutral/white density; lower settings add only a restrained linear density capped at 20%, so the desktop remains visibly refracted instead of becoming a white slab.

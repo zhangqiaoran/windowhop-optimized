@@ -2,15 +2,23 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.3.0.zip`。
+2. 下载 `my-alt-tab-3.4.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.4.0
+
+- **数值越大越液态，数值越小越乳白**：100% 时乳白层为 0，同时把原生 Clear Glass 本体降低到约 60% surface alpha，让壁纸颜色和光影更明显地透进来；越往 0% 拉，玻璃本体逐步恢复到 100%，乳白层按感知曲线逐渐加厚，0% 可达到约 72% 的半透明乳白层。
+- 玻璃背景、乳白 Density、缩略图/文字/蓝框现在是三套独立层级；调玻璃不会再让前景内容跟着变淡。
+- **窗口缩小改成 Stable-ID FLIP**：NSWindow、玻璃、前景 Chrome、ScrollView、存活卡片、按钮和蓝色选中框全部由同一个 `NSAnimationContext`、同一条缓动曲线驱动，不再混用 NSWindow 动画与独立 CA 卡片动画。
+- 移除了选中卡片额外的 1.018× 缩放，避免它和列表收缩叠加产生轻微抖动。
+- 保留 3.3.0 的 36 帧真实缩略图侵蚀、跟随侵蚀边缘的粒子以及粒子 80% 后再开始列表收缩。
 
 ## v3.3.0
 
@@ -84,7 +92,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.3.0.zip
+artifacts/my-alt-tab-3.4.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。

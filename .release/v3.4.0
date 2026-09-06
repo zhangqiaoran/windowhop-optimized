@@ -1,0 +1,8 @@
+my-alt-tab 3.4.0
+author=zhangqiaoran
+validated_build_sha=9c7be61eaa129ce18355ce0f0e7ae78cac5a5e73
+validated_action_run=34017917449
+build=30400
+patch=independent liquid-glass planes + perceptual liquid-to-milk curve + stable-ID unified FLIP reflow
+signing=ad-hoc app + Sparkle EdDSA archive
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)

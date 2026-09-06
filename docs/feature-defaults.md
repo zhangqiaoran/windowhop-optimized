@@ -1,6 +1,6 @@
 # User-facing defaults and configurability
 
-## Unreleased 3.4 liquid-glass + unified-FLIP decisions
+## my-alt-tab 3.4.0 liquid-glass + unified-FLIP decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|

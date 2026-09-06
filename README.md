@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.3.0.zip`.
+2. Download `my-alt-tab-3.4.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.4.0
+
+- **Liquid means liquid:** the glass slider now controls both native material surface strength and an independent milky layer. 100% is the most transparent/liquid state; 0% is the strongest milky state.
+- Glass is now a background-only sibling below fully opaque switcher content, so thinning the material never fades thumbnails, labels, controls, or the blue focus ring.
+- Window removal uses a single **Stable-ID FLIP** transaction for window, glass, chrome, scroll geometry, surviving tiles, and selection instead of mixing NSWindow animation with independent Core Animation tile motion.
+- Selected tiles no longer add a separate 1.018× scale animation during reflow, removing another source of perceived micro-jitter.
+- The true thumbnail erosion and 80% dust-first close choreography from 3.3 remain intact.
 
 ## v3.3.0
 
@@ -93,7 +101,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.3.0.zip
+artifacts/my-alt-tab-3.4.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.
