@@ -291,6 +291,17 @@ final class PreferencesTests: XCTestCase {
         XCTAssertLessThan(
             Preferences.liquidGlassDensity(forTransparencyPercent: 90),
             Preferences.liquidGlassDensity(forTransparencyPercent: 80))
+        XCTAssertEqual(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
+            0.48,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 0),
+            1,
+            accuracy: 0.0001)
+        XCTAssertLessThan(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 90),
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50))
     }
 
     func testFocusedMultiDisplayModeForcesCrossDisplayInclusionWithoutLosingStoredChoice() {
