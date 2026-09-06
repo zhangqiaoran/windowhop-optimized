@@ -30,8 +30,9 @@ jobs:
       - name: Render README assets
         shell: bash
         run: |
-          python3 -m pip install --user pillow
-          python3 scripts/render-brand-assets.py Support/AppIconSource.png
+          python3 -m venv .venv-brand
+          .venv-brand/bin/python -m pip install pillow
+          .venv-brand/bin/python scripts/render-brand-assets.py Support/AppIconSource.png
 
       - name: Render macOS app icon
         shell: bash
