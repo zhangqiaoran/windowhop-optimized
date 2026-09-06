@@ -74,31 +74,6 @@ jobs:
           echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
           echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
 
-      - name: Remove superseded 3.5/3.6 releases
-        if: steps.version.outputs.version == '3.4.1'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          for TAG in v3.5.0 v3.6.0; do
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              gh release delete "$TAG" --cleanup-tag -y
-            elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-              git push origin ":refs/tags/$TAG"
-            fi
-          done
-
-          for TAG in v3.5.0 v3.6.0; do
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              echo "::error::Release $TAG still exists"
-              exit 1
-            fi
-            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-              echo "::error::Tag $TAG still exists"
-              exit 1
-            fi
-          done
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
