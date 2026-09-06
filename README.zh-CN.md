@@ -2,15 +2,22 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.4.3** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.4.4** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.4.3.zip`。
+2. 下载 `my-alt-tab-3.4.4.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.4.4
+
+- **修复 Alt/Option + Tab 快速 1↔2 来回切换偶尔失效**：修饰键松开时，EventTap 现在会立刻在输入线程结束当前 held session；即使主线程还没处理完上一轮，下一次 Alt/Option+Tab 也会被识别为全新的切换，而不是上一轮的 `step` 后被丢掉。
+- 用户确认切换后，会立即把目标窗口提升到 MRU 第一位，不再等待异步 AX 焦点通知，因此高速来回切换时不会因为旧排序再次选中同一个窗口。
+- 面板显示过程中不再由主线程重复改写 EventTap 的 held/sticky 状态，避免延迟 UI 工作覆盖更新的真实按键序列。
+- 保留 3.4.3 的中英文设置、移除标签页数量设置、点击防穿透、Clear Liquid Glass、96 状态消散、Stable-ID FLIP、Universal 2 和 Sparkle 更新。
 
 ## v3.4.3
 
