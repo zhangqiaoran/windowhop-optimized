@@ -119,11 +119,9 @@ struct ShortcutRecorderField: NSViewRepresentable {
     }
 
     func updateNSView(_ control: ShortcutRecorderControl, context: Context) {
+        // Referencing language makes SwiftUI refresh the AppKit control when the
+        // Settings language changes, even when the shortcut value itself did not.
         _ = language
         control.shortcut = shortcut
-        control.setNeedsDisplay(control.bounds)
-        control.title = control.shortcut?.displayString
-            ?? SettingsL10n.t("Record Shortcut…")
-        control.setAccessibilityLabel(SettingsL10n.t("Open my-alt-tab shortcut"))
     }
 }
