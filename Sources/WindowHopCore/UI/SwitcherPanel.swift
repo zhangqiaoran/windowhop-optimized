@@ -738,7 +738,11 @@ public final class SwitcherPanel: NSPanel {
     var settingsButtonIsVisibleForTesting: Bool {
         settingsButton.isEnabled && settingsButton.alphaValue > 0
     }
+    var settingsButtonToolTipForTesting: String? { settingsButton.toolTip }
     var gridFrameForTesting: NSRect { scrollView.frame }
+    var gridRightInsetForTesting: CGFloat {
+        panelBackgroundView.frame.maxX - scrollView.frame.maxX
+    }
     var panelBackgroundFrameForTesting: NSRect { panelBackgroundView.frame }
 
     func setPanelHoverForTesting(_ hovered: Bool) {
