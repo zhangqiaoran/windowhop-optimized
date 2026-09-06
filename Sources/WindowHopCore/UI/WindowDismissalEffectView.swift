@@ -62,12 +62,8 @@ final class WindowDismissalEffectView: NSView {
         scale.values = [1.0, 1.008, 0.89]
         scale.keyTimes = [0, 0.15, 1]
 
-        let blurLikeFade = CABasicAnimation(keyPath: "filters")
-        blurLikeFade.fromValue = nil
-        blurLikeFade.toValue = nil
-
         let group = CAAnimationGroup()
-        group.animations = [fade, scale, blurLikeFade]
+        group.animations = [fade, scale]
         group.duration = Self.duration
         group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.80, 0.18, 1.0)
         group.isRemovedOnCompletion = false
