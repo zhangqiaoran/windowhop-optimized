@@ -2,12 +2,12 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v2.1.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v2.1.1** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-2.1.0.zip`。
+2. 下载 `my-alt-tab-2.1.1.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
@@ -43,7 +43,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.1.0.zip
+artifacts/my-alt-tab-2.1.1.zip
 ```
 
 v2.1 的打包流程以 **Universal 2** 为目标；只有 CI 同时验证 **arm64（M 系列）** 和 **x86_64（Intel）** 两个架构后才正式发布。
