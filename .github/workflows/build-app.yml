@@ -11,6 +11,10 @@ on:
       - 'Package.swift'
       - 'Package.resolved'
       - 'scripts/**'
+      - 'README*.md'
+      - 'CHANGELOG.md'
+      - 'RELEASE_NOTES_*.md'
+      - 'docs/**'
       - '.github/workflows/build-app.yml'
 
 permissions:
