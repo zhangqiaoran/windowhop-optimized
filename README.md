@@ -2,16 +2,25 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v2.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.0.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-2.4.0.zip`.
+2. Download `my-alt-tab-3.0.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.0.0
+
+- **Fluid list reflow:** when windows disappear from an open switcher, survivors are matched by stable window ID and spring from their current presentation-layer positions while the centered panel shrinks with native AppKit animation.
+- **Dusting close engine:** window close now uses a deterministic 56-particle R2 low-discrepancy distribution, gradient erosion, and cubic inward/upward wind paths for a softer drifting disintegration.
+- **Interruptible motion:** repeated closes start from the currently rendered Core Animation presentation state instead of stale geometry, avoiding jumps during fast interaction.
+- **Proactive Updates:** opening Settings → Updates silently probes the signed Sparkle feed; a new version exposes a prominent **Update Now…** path into Sparkle's verified installer.
+- **Zero idle animation cost:** no display link, repeating particle timer, or background motion loop was added. Reduce Motion is respected.
+- Removed obsolete UI design tokens left over from earlier layout iterations.
 
 ## v2.4.0
 
@@ -61,7 +70,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.4.0.zip
+artifacts/my-alt-tab-3.0.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

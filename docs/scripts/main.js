@@ -1,11 +1,11 @@
 const WINDOWHOP_SITE = Object.freeze({
-  version: "2.4.0",
+  version: "3.0.0",
   website: "https://zhangqiaoran.github.io/my-alt-tab/",
   github: "https://github.com/zhangqiaoran/my-alt-tab",
   issues: "https://github.com/zhangqiaoran/my-alt-tab/issues",
   releases: "https://github.com/zhangqiaoran/my-alt-tab/releases",
-  releaseNotes: "https://github.com/zhangqiaoran/my-alt-tab/releases/tag/v2.4.0",
-  download: "https://github.com/zhangqiaoran/my-alt-tab/releases/latest/download/my-alt-tab-2.4.0.zip",
+  releaseNotes: "https://github.com/zhangqiaoran/my-alt-tab/releases/tag/v3.0.0",
+  download: "https://github.com/zhangqiaoran/my-alt-tab/releases/latest/download/my-alt-tab-3.0.0.zip",
   license: "https://github.com/zhangqiaoran/my-alt-tab/blob/main/LICENSE",
   altTab: "https://github.com/lwouis/alt-tab-macos",
 });
