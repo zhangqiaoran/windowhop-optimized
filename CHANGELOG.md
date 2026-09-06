@@ -2,6 +2,15 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.2.0 — 2026-09-06 — zhangqiaoran
+
+- Increased panel breathing room so the rightmost preview no longer crowds the edge.
+- Replaced the top-right gear with a compact ellipsis action fully inset inside the panel.
+- Upgraded window-close dissolution to a richer 18-particle two-wave effect with fixed O(1) cost.
+- Preserved shared glass focus, fast two-window MRU switching, and event-driven idle behavior.
+
+Full notes: [`RELEASE_NOTES_v2.2.0.md`](RELEASE_NOTES_v2.2.0.md).
+
 ## 2.1.1 — 2026-09-06 — zhangqiaoran
 
 - Fixed local packaging on Macs that do not have the full Xcode/XCBuild stack.
