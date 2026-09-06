@@ -526,10 +526,19 @@ public final class SwitcherPanel: NSPanel {
             + CGFloat(max(0, visibleColumns - 1)) * spacing
         let contentGridHeight = CGFloat(rows) * tileSize.height
             + CGFloat(max(0, rows - 1)) * rowSpacing
-        let leadingOverflow = DesignTokens.closeButtonLeadingOverflow
-        let topOverflow = DesignTokens.closeButtonTopOverflow
-        let documentWidth = contentGridWidth + leadingOverflow
-        let documentHeight = contentGridHeight + topOverflow
+        // NSClipView clips strictly to the document view. The selected tile
+        // intentionally draws outside its nominal tile frame (glass lens +
+        // glow + compositor scale), so reserve a real document gutter instead
+        // of relying on panel padding that exists outside the clip view.
+        let selectionOverflow = DesignTokens.selectionVisualOverflow
+        let leadingOverflow = max(
+            DesignTokens.closeButtonLeadingOverflow, selectionOverflow)
+        let trailingOverflow = selectionOverflow
+        let topOverflow = max(
+            DesignTokens.closeButtonTopOverflow, selectionOverflow)
+        let bottomOverflow = selectionOverflow
+        let documentWidth = contentGridWidth + leadingOverflow + trailingOverflow
+        let documentHeight = contentGridHeight + topOverflow + bottomOverflow
         tilesContainer.frame = NSRect(x: 0, y: 0,
                                       width: documentWidth, height: documentHeight)
         selectionFrames.removeAll(keepingCapacity: true)
@@ -550,7 +559,8 @@ public final class SwitcherPanel: NSPanel {
                 remainingWidth: contentGridWidth - rowWidth)
             let tileFrame = NSRect(
                 x: leadingOverflow + rowOffset + CGFloat(column) * (tileSize.width + spacing),
-                y: CGFloat(rows - 1 - row) * (tileSize.height + rowSpacing),
+                y: bottomOverflow
+                    + CGFloat(rows - 1 - row) * (tileSize.height + rowSpacing),
                 width: tileSize.width,
                 height: tileSize.height)
             tile.frame = tileFrame
@@ -575,16 +585,18 @@ public final class SwitcherPanel: NSPanel {
             x: padding - leadingOverflow,
             y: padding + DesignTokens.panelBottomComfort,
             width: documentWidth,
-            height: visibleGridHeight + topOverflow)
+            height: visibleGridHeight + topOverflow + bottomOverflow)
         // start reading from the first row (top of the grid)
         tilesContainer.scroll(NSPoint(
             x: 0,
             y: max(0, contentGridHeight - visibleGridHeight)))
 
         let panelSize = NSSize(
-            width: contentGridWidth + padding * 2 + DesignTokens.panelTrailingComfort,
+            width: contentGridWidth + padding * 2
+                + DesignTokens.panelTrailingComfort + trailingOverflow,
             height: visibleGridHeight + padding * 2
-                + DesignTokens.panelBottomComfort + DesignTokens.chromeReservedTop)
+                + DesignTokens.panelBottomComfort
+                + DesignTokens.chromeReservedTop + bottomOverflow)
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
 
         // v2.3 gives global controls their own top chrome strip. The ellipsis
@@ -751,6 +763,13 @@ public final class SwitcherPanel: NSPanel {
     }
     var settingsButtonToolTipForTesting: String? { settingsButton.toolTip }
     var gridFrameForTesting: NSRect { scrollView.frame }
+    var documentFrameForTesting: NSRect { tilesContainer.frame }
+    var selectionLensFrameInDocumentForTesting: NSRect { selectionLensView.frame }
+    var selectionLensVisualBoundsForTesting: NSRect {
+        selectionLensView.frame.insetBy(
+            dx: -DesignTokens.selectionLensGlowRadius,
+            dy: -DesignTokens.selectionLensGlowRadius)
+    }
     var gridRightInsetForTesting: CGFloat {
         panelBackgroundView.frame.maxX - scrollView.frame.maxX
     }
