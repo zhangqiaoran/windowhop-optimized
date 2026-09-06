@@ -1,50 +1,17 @@
 import AppKit
 import QuartzCore
 
-/// One-shot close flourish with a fixed amount of compositor work.
+/// One-shot window close effect with a fixed compositor budget.
 ///
-/// v2.2 uses two deterministic particle waves distributed across the tile
-/// surface instead of emitting every dot from the center. The count is fixed,
-/// there is no timer/polling loop, and every transient layer self-destructs.
+/// v2.3 uses a deterministic low-discrepancy particle layout: particles begin
+/// across the tile surface instead of from one center point, so the card reads
+/// as dissolving rather than merely "popping". Count and duration are fixed,
+/// therefore the effect remains O(1) and adds zero idle work.
 final class WindowDismissalEffectView: NSView {
-    private struct ParticleSpec {
-        let x: CGFloat
-        let y: CGFloat
-        let dx: CGFloat
-        let dy: CGFloat
-        let size: CGFloat
-        let delay: CFTimeInterval
-        let accent: Bool
-    }
+    private static let particleCount = 28
+    private static let duration: CFTimeInterval = 0.29
 
-    private static let duration: CFTimeInterval = 0.34
-
-    /// Fixed 18-particle burst: enough visual density to read as dissolution,
-    /// but still O(1) regardless of window count or preview size.
-    private static let particles: [ParticleSpec] = [
-        .init(x: 0.12, y: 0.78, dx: -52, dy: 34, size: 6, delay: 0.00, accent: true),
-        .init(x: 0.26, y: 0.84, dx: -30, dy: 58, size: 4, delay: 0.01, accent: false),
-        .init(x: 0.43, y: 0.88, dx: -10, dy: 68, size: 5, delay: 0.00, accent: true),
-        .init(x: 0.61, y: 0.86, dx: 18, dy: 62, size: 4, delay: 0.02, accent: false),
-        .init(x: 0.78, y: 0.80, dx: 44, dy: 48, size: 6, delay: 0.01, accent: true),
-        .init(x: 0.88, y: 0.66, dx: 62, dy: 22, size: 4, delay: 0.03, accent: false),
-
-        .init(x: 0.90, y: 0.46, dx: 70, dy: -4, size: 5, delay: 0.00, accent: true),
-        .init(x: 0.84, y: 0.26, dx: 56, dy: -42, size: 4, delay: 0.02, accent: false),
-        .init(x: 0.69, y: 0.14, dx: 30, dy: -60, size: 6, delay: 0.01, accent: true),
-        .init(x: 0.50, y: 0.12, dx: 4, dy: -68, size: 4, delay: 0.04, accent: false),
-        .init(x: 0.31, y: 0.16, dx: -28, dy: -58, size: 5, delay: 0.02, accent: true),
-        .init(x: 0.14, y: 0.28, dx: -56, dy: -38, size: 4, delay: 0.03, accent: false),
-
-        .init(x: 0.08, y: 0.48, dx: -70, dy: 0, size: 5, delay: 0.00, accent: true),
-        .init(x: 0.18, y: 0.60, dx: -46, dy: 16, size: 3, delay: 0.055, accent: false),
-        .init(x: 0.35, y: 0.64, dx: -20, dy: 30, size: 4, delay: 0.045, accent: false),
-        .init(x: 0.55, y: 0.58, dx: 20, dy: 22, size: 3, delay: 0.06, accent: true),
-        .init(x: 0.72, y: 0.54, dx: 40, dy: 10, size: 4, delay: 0.05, accent: false),
-        .init(x: 0.48, y: 0.38, dx: 8, dy: -28, size: 3, delay: 0.07, accent: true),
-    ]
-
-    static var particleCountForTesting: Int { particles.count }
+    static var particleCountForTesting: Int { particleCount }
     static var animationDurationForTesting: CFTimeInterval { duration }
 
     private let snapshotView = NSImageView()
@@ -79,7 +46,7 @@ final class WindowDismissalEffectView: NSView {
         animateGlassFlash()
         emitParticles()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.duration + 0.12) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.duration + 0.06) { [weak self] in
             self?.removeFromSuperview()
         }
     }
@@ -88,21 +55,21 @@ final class WindowDismissalEffectView: NSView {
         guard let layer = snapshotView.layer else { return }
 
         let fade = CAKeyframeAnimation(keyPath: "opacity")
-        fade.values = [1.0, 0.88, 0.0]
-        fade.keyTimes = [0, 0.24, 1]
+        fade.values = [1.0, 0.72, 0.0]
+        fade.keyTimes = [0, 0.20, 1]
 
         let scale = CAKeyframeAnimation(keyPath: "transform.scale")
-        scale.values = [1.0, 1.012, 0.90]
-        scale.keyTimes = [0, 0.18, 1]
+        scale.values = [1.0, 1.008, 0.89]
+        scale.keyTimes = [0, 0.15, 1]
 
-        let tilt = CABasicAnimation(keyPath: "transform.rotation.z")
-        tilt.fromValue = 0
-        tilt.toValue = -0.018
+        let blurLikeFade = CABasicAnimation(keyPath: "filters")
+        blurLikeFade.fromValue = nil
+        blurLikeFade.toValue = nil
 
         let group = CAAnimationGroup()
-        group.animations = [fade, scale, tilt]
+        group.animations = [fade, scale, blurLikeFade]
         group.duration = Self.duration
-        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.76, 0.22, 1.0)
+        group.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.80, 0.18, 1.0)
         group.isRemovedOnCompletion = false
         group.fillMode = .forwards
         layer.add(group, forKey: "windowDismissal")
@@ -112,31 +79,32 @@ final class WindowDismissalEffectView: NSView {
         guard let root = layer else { return }
 
         let flash = CAShapeLayer()
-        let rect = bounds.insetBy(dx: 4, dy: 4)
+        let rect = bounds.insetBy(dx: 3, dy: 3)
         flash.frame = bounds
         flash.path = CGPath(
             roundedRect: rect,
-            cornerWidth: DesignTokens.cardCornerRadius + 4,
-            cornerHeight: DesignTokens.cardCornerRadius + 4,
+            cornerWidth: DesignTokens.cardCornerRadius + 5,
+            cornerHeight: DesignTokens.cardCornerRadius + 5,
             transform: nil)
-        flash.fillColor = NSColor.clear.cgColor
+        flash.fillColor = NSColor.keyboardFocusIndicatorColor
+            .withAlphaComponent(0.05).cgColor
         flash.strokeColor = NSColor.keyboardFocusIndicatorColor
-            .withAlphaComponent(0.62).cgColor
-        flash.lineWidth = 1.5
+            .withAlphaComponent(0.72).cgColor
+        flash.lineWidth = 1.4
         flash.opacity = 0
         root.addSublayer(flash)
 
         let opacity = CAKeyframeAnimation(keyPath: "opacity")
-        opacity.values = [0.0, 0.75, 0.0]
-        opacity.keyTimes = [0, 0.18, 1]
+        opacity.values = [0.0, 0.82, 0.0]
+        opacity.keyTimes = [0, 0.14, 1]
 
         let scale = CABasicAnimation(keyPath: "transform.scale")
         scale.fromValue = 0.985
-        scale.toValue = 1.055
+        scale.toValue = 1.07
 
         let group = CAAnimationGroup()
         group.animations = [opacity, scale]
-        group.duration = Self.duration * 0.72
+        group.duration = Self.duration * 0.82
         group.timingFunction = CAMediaTimingFunction(name: .easeOut)
         group.isRemovedOnCompletion = false
         group.fillMode = .forwards
@@ -146,25 +114,45 @@ final class WindowDismissalEffectView: NSView {
     private func emitParticles() {
         guard let root = layer else { return }
         let baseTime = root.convertTime(CACurrentMediaTime(), from: nil)
+        let count = Double(Self.particleCount)
 
-        for (index, spec) in Self.particles.enumerated() {
-            let origin = CGPoint(x: bounds.width * spec.x, y: bounds.height * spec.y)
-            let destination = CGPoint(x: origin.x + spec.dx, y: origin.y + spec.dy)
+        // Two irrational multipliers give a low-discrepancy 2D distribution
+        // without randomness, storage, sorting, or per-frame generation.
+        let xStep = 0.754_877_666
+        let yStep = 0.569_840_296
+        let goldenAngle = Double.pi * (3 - sqrt(5.0))
+
+        for index in 0..<Self.particleCount {
+            let i = Double(index + 1)
+            let xUnit = fractional(i * xStep)
+            let yUnit = fractional(i * yStep)
+            let origin = CGPoint(
+                x: bounds.width * (0.08 + 0.84 * xUnit),
+                y: bounds.height * (0.10 + 0.80 * yUnit))
+
+            let wave = index.isMultiple(of: 2) ? 1.0 : 0.72
+            let angle = goldenAngle * i
+            let distance = (48.0 + 32.0 * fractional(i / count + xUnit)) * wave
+            let dx = cos(angle) * distance
+            let dy = sin(angle) * distance
+            let destination = CGPoint(x: origin.x + dx, y: origin.y + dy)
             let curve = CGPoint(
-                x: origin.x + spec.dx * 0.46 - spec.dy * 0.10,
-                y: origin.y + spec.dy * 0.46 + spec.dx * 0.10)
+                x: origin.x + dx * 0.48 - dy * 0.13,
+                y: origin.y + dy * 0.48 + dx * 0.13)
 
+            let accent = index % 3 != 1
+            let size = CGFloat(2.8 + Double(index % 4) * 0.85)
             let dot = CALayer()
-            dot.bounds = CGRect(x: 0, y: 0, width: spec.size, height: spec.size)
+            dot.bounds = CGRect(x: 0, y: 0, width: size, height: size)
             dot.position = origin
-            dot.cornerRadius = spec.size / 2
-            dot.backgroundColor = (spec.accent
+            dot.cornerRadius = size / 2
+            dot.backgroundColor = (accent
                 ? NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.92)
-                : NSColor.white.withAlphaComponent(0.86)).cgColor
+                : NSColor.white.withAlphaComponent(0.88)).cgColor
             dot.shadowColor = NSColor.keyboardFocusIndicatorColor
-                .withAlphaComponent(spec.accent ? 0.35 : 0.12).cgColor
+                .withAlphaComponent(accent ? 0.30 : 0.10).cgColor
             dot.shadowOpacity = 1
-            dot.shadowRadius = spec.accent ? 3 : 1.5
+            dot.shadowRadius = accent ? 2.6 : 1.2
             dot.shadowOffset = .zero
             root.addSublayer(dot)
 
@@ -174,28 +162,32 @@ final class WindowDismissalEffectView: NSView {
                 NSValue(point: curve),
                 NSValue(point: destination),
             ]
-            position.keyTimes = [0, 0.48, 1]
+            position.keyTimes = [0, 0.44, 1]
 
             let opacity = CAKeyframeAnimation(keyPath: "opacity")
-            opacity.values = [0.15, 1.0, 0.0]
-            opacity.keyTimes = [0, 0.16, 1]
+            opacity.values = [0.0, 1.0, 0.82, 0.0]
+            opacity.keyTimes = [0, 0.08, 0.34, 1]
 
             let scale = CAKeyframeAnimation(keyPath: "transform.scale")
-            scale.values = [0.55, spec.accent ? 1.18 : 1.0, 0.12]
-            scale.keyTimes = [0, 0.24, 1]
+            scale.values = [0.45, accent ? 1.28 : 1.08, 0.10]
+            scale.keyTimes = [0, 0.18, 1]
 
             let rotation = CABasicAnimation(keyPath: "transform.rotation.z")
             rotation.fromValue = 0
-            rotation.toValue = (index.isMultiple(of: 2) ? 1.4 : -1.4)
+            rotation.toValue = index.isMultiple(of: 2) ? 1.8 : -1.8
 
             let group = CAAnimationGroup()
             group.animations = [position, opacity, scale, rotation]
-            group.duration = Self.duration * (0.74 + Double(index % 4) * 0.045)
-            group.beginTime = baseTime + spec.delay
+            group.duration = Self.duration * (0.78 + Double(index % 5) * 0.035)
+            group.beginTime = baseTime + Double(index % 7) * 0.006
             group.timingFunction = CAMediaTimingFunction(name: .easeOut)
             group.isRemovedOnCompletion = false
             group.fillMode = .forwards
             dot.add(group, forKey: "particleDismissal")
         }
+    }
+
+    private func fractional(_ value: Double) -> Double {
+        value - floor(value)
     }
 }
