@@ -86,6 +86,13 @@ private final class SwitcherPanelHostView: NSView {
     private var trackingArea: NSTrackingArea?
     private(set) var isPointerInside = false
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard bounds.contains(point) else { return nil }
+        return super.hitTest(point) ?? self
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
@@ -133,6 +140,8 @@ public enum SwitcherPresentationMode: Equatable {
 /// materials and semantic colors keep it correct in Light/Dark Mode, Increase
 /// Contrast, and Reduce Transparency.
 public final class SwitcherPanel: NSPanel {
+    public override var canBecomeKey: Bool { true }
+    public override var canBecomeMain: Bool { false }
     public var onItemClicked: ((Int) -> Void)?
     /// Hover close control on a tile; routes through the same direct close as Delete.
     public var onItemCloseRequested: ((Int) -> Void)?
@@ -240,7 +249,14 @@ public final class SwitcherPanel: NSPanel {
         hasShadow = true
         hidesOnDeactivate = false
         animationBehavior = .none
-        becomesKeyOnlyIfNeeded = true
+        // A borderless, nonactivating panel must still own mouse clicks. When
+        // the user deliberately clicks the switcher, let it become key without
+        // activating the application; this prevents the click from falling
+        // through to the real window underneath.
+        becomesKeyOnlyIfNeeded = false
+        ignoresMouseEvents = false
+        acceptsMouseMovedEvents = true
+        worksWhenModal = true
         isReleasedWhenClosed = false
 
         // The native switcher's background. On macOS 26+ that is the system
@@ -252,43 +268,35 @@ public final class SwitcherPanel: NSPanel {
         chromeView.wantsLayer = true
         chromeView.layer?.backgroundColor = NSColor.clear.cgColor
 
-        // v3.5 follows AppKit's intended hierarchy: foreground content is the
-        // NSGlassEffectView.contentView, never a sibling floating above glass.
-        // Nearby glass controls share one NSGlassEffectContainerView sampling
-        // pass so background color/refraction stays consistent.
+        // Keep the native Glass strictly in the visual background. Foreground
+        // chrome is a sibling above it, not NSGlassEffectView.contentView.
+        // This is the same interaction-safe topology used before the regression:
+        // Glass can be optically thin while cards/buttons remain ordinary AppKit
+        // hit-test targets.
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizableBackground {
             let glass = NSGlassEffectView()
-            glass.style = .regular
+            glass.style = .clear
             glass.cornerRadius = DesignTokens.panelCornerRadius
-            Self.enableInteractiveGlassIfAvailable(glass)
-            glass.contentView = chromeView
-
-            let group = NSView()
-            group.wantsLayer = true
-            group.layer?.backgroundColor = NSColor.clear.cgColor
-            group.addSubview(glass)
-
-            let container = NSGlassEffectContainerView()
-            container.spacing = DesignTokens.glassContainerSpacing
-            container.contentView = group
 
             panelBackgroundView = glass
-            glassGroupView = group
-            glassRootView = container
+            glassRootView = glass
             usesNativeGlassContainer = true
-            hostView.addSubview(container)
+            hostView.addSubview(glass)
+            hostView.addSubview(chromeView, positioned: .above, relativeTo: glass)
         } else {
-            let fallback = Self.makeFallbackBackgroundView(wrapping: chromeView)
+            let fallback = Self.makeFallbackBackgroundView()
             panelBackgroundView = fallback
             glassRootView = fallback
             hostView.addSubview(fallback)
+            hostView.addSubview(chromeView, positioned: .above, relativeTo: fallback)
         }
         #else
-        let fallback = Self.makeFallbackBackgroundView(wrapping: chromeView)
+        let fallback = Self.makeFallbackBackgroundView()
         panelBackgroundView = fallback
         glassRootView = fallback
         hostView.addSubview(fallback)
+        hostView.addSubview(chromeView, positioned: .above, relativeTo: fallback)
         #endif
         contentView = hostView
 
@@ -348,25 +356,9 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.isEnabled = false
         settingsButton.setAccessibilityHidden(true)
 
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *),
-           usesNativeGlassContainer,
-           let group = glassGroupView {
-            let settingsGlass = NSGlassEffectView()
-            settingsGlass.style = .regular
-            settingsGlass.cornerRadius = DesignTokens.chromeButtonHitSize / 2
-            Self.enableInteractiveGlassIfAvailable(settingsGlass)
-            settingsGlass.contentView = settingsButton
-            settingsGlass.alphaValue = 0
-            settingsButton.alphaValue = 1
-            group.addSubview(settingsGlass)
-            settingsGlassView = settingsGlass
-        } else {
-            hostView.addSubview(settingsButton)
-        }
-        #else
+        // Keep controls out of NSGlassEffectView.contentView. The button itself
+        // is the interaction target; the panel background supplies the Glass.
         hostView.addSubview(settingsButton)
-        #endif
 
         hostView.onHoverChanged = { [weak self] _ in
             self?.updateSettingsButtonVisibility(animated: true)
@@ -447,10 +439,9 @@ public final class SwitcherPanel: NSPanel {
         return true
     }
 
-    /// 100% means maximum Liquid Glass, not a faded view:
-    /// native glass remains alpha=1 with no tint. Lower values progressively
-    /// add a white system-glass tint; only the pre-26 fallback uses the manual
-    /// milk layer.
+    /// Liquid Glass transparency is literal: high values make only the
+    /// background material optically thinner. Foreground previews, labels and
+    /// controls are siblings, so they remain fully opaque and fully interactive.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
@@ -458,53 +449,37 @@ public final class SwitcherPanel: NSPanel {
             forTransparencyPercent: percent))
         let milkFactor = CGFloat(Preferences.liquidGlassMilkFactor(
             forTransparencyPercent: percent))
-        let nativeTintAlpha = milkFactor * DesignTokens.glassNativeMaximumTintAlpha
-        let fallbackMilkAlpha = milkFactor * DesignTokens.glassMaximumMilkAlpha
+        let surfaceAlpha = CGFloat(Preferences.liquidGlassSurfaceAlpha(
+            forTransparencyPercent: percent))
+        let milkAlpha = milkFactor * DesignTokens.glassMaximumMilkAlpha
 
-        panelBackgroundView.alphaValue = 1
+        panelBackgroundView.alphaValue = surfaceAlpha
+        liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(milkAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
+
+        panelBackgroundView.wantsLayer = true
+        panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
+        panelBackgroundView.layer?.cornerCurve = .continuous
 
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            // Do not paint a manual border over Liquid Glass. AppKit's own edge
-            // treatment is part of what makes the material read as refractive.
+            // Clear is AppKit's transparent Glass style. Avoid extra tint and
+            // manual borders so wallpaper/window color can read through it.
+            glass.style = .clear
+            glass.tintColor = nil
             glass.layer?.borderWidth = 0
-            // A large switcher with labels/previews needs Regular Liquid Glass:
-            // it retains AppKit's adaptive background/brightness behavior.
-            // Transparency is controlled only through tint, never by changing
-            // the material variant or fading the material itself.
-            glass.style = .regular
-            Self.enableInteractiveGlassIfAvailable(glass)
-            glass.tintColor = nativeTintAlpha <= 0.001
-                ? nil
-                : NSColor.white.withAlphaComponent(nativeTintAlpha)
-            liquidGlassDensityView.layer?.backgroundColor = NSColor.clear.cgColor
-
-            if let settingsGlass = settingsGlassView as? NSGlassEffectView {
-                settingsGlass.layer?.borderWidth = 0
-                settingsGlass.style = .regular
-                Self.enableInteractiveGlassIfAvailable(settingsGlass)
-                settingsGlass.tintColor = nativeTintAlpha <= 0.001
-                    ? nil
-                    : NSColor.white.withAlphaComponent(nativeTintAlpha * 0.72)
-            }
             return
         }
         #endif
 
-        // The compatibility material has no native Liquid Glass edge treatment,
-        // so keep a restrained semantic border only on this path.
-        panelBackgroundView.wantsLayer = true
-        panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
-        panelBackgroundView.layer?.cornerCurve = .continuous
+        // Compatibility path for pre-26 systems.
         panelBackgroundView.layer?.borderWidth = DesignTokens.glassBorderWidth
         let borderAlpha = DesignTokens.glassBorderAlphaLow
             + (DesignTokens.glassBorderAlphaHigh - DesignTokens.glassBorderAlphaLow) * liquid
         panelBackgroundView.layer?.borderColor = NSColor.white
             .withAlphaComponent(borderAlpha).cgColor
-        liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(fallbackMilkAlpha).cgColor
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
         effectView.layer?.backgroundColor = NSColor.clear.cgColor
@@ -512,7 +487,7 @@ public final class SwitcherPanel: NSPanel {
 
     /// Pre-macOS-26 fallback. Foreground content is still embedded inside the
     /// material view, matching the native hierarchy as closely as possible.
-    private static func makeFallbackBackgroundView(wrapping content: NSView) -> NSView {
+    private static func makeFallbackBackgroundView() -> NSView {
         let effectView = NSVisualEffectView()
         effectView.material = DesignTokens.panelMaterial
         effectView.blendingMode = .behindWindow
@@ -521,9 +496,6 @@ public final class SwitcherPanel: NSPanel {
         effectView.layer?.cornerRadius = DesignTokens.panelCornerRadius
         effectView.layer?.cornerCurve = .continuous
         effectView.layer?.masksToBounds = true
-        content.frame = effectView.bounds
-        content.autoresizingMask = [.width, .height]
-        effectView.addSubview(content)
         return effectView
     }
 
@@ -551,6 +523,7 @@ public final class SwitcherPanel: NSPanel {
 
     private enum RootPointerAction: Equatable {
         case close(Int)
+        case item(Int)
         case settings
         case permission
     }
@@ -564,6 +537,8 @@ public final class SwitcherPanel: NSPanel {
                 switch action {
                 case .close(let index):
                     onItemCloseRequested?(index)
+                case .item(let index):
+                    onItemClicked?(index)
                 case .settings:
                     onSettingsRequested?()
                 case .permission:
@@ -594,6 +569,12 @@ public final class SwitcherPanel: NSPanel {
                       let hitFrame = tile.closeControlFrame(in: hostView),
                       hitFrame.contains(point) else { continue }
                 return .close(index)
+            }
+            for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
+                let tile = tilePool[index]
+                guard !tile.isHidden else { continue }
+                let hitFrame = tile.convert(tile.bounds, to: hostView)
+                if hitFrame.contains(point) { return .item(index) }
             }
         }
         return nil
@@ -1272,6 +1253,9 @@ public final class SwitcherPanel: NSPanel {
     var foregroundChromeUsesGlassContentViewForTesting: Bool {
         chromeView.superview === panelBackgroundView
     }
+    var foregroundChromeIsSiblingAboveGlassForTesting: Bool {
+        chromeView.superview === hostView && panelBackgroundView.superview === hostView
+    }
     var usesNativeGlassContainerForTesting: Bool { usesNativeGlassContainer }
     var nativeGlassRuntimeSupportsInteractionForTesting: Bool {
         #if compiler(>=6.2)
@@ -1287,6 +1271,12 @@ public final class SwitcherPanel: NSPanel {
     }
     func closeTargetIndexForTesting(atHostPoint point: NSPoint) -> Int? {
         guard case .close(let index) = rootPointerAction(atHostPoint: point) else {
+            return nil
+        }
+        return index
+    }
+    func itemTargetIndexForTesting(atHostPoint point: NSPoint) -> Int? {
+        guard case .item(let index) = rootPointerAction(atHostPoint: point) else {
             return nil
         }
         return index
