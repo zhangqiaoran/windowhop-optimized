@@ -105,7 +105,9 @@ struct ShortcutRecorderField: NSViewRepresentable {
         let control = ShortcutRecorderControl()
         control.onCapture = { captured in
             if let error = captured.validate(against: switcherShortcut) {
-                validationMessage = SettingsL10n.t(error.explanation)
+                // Store the stable English key; the SwiftUI label localizes it
+                // at render time so switching languages updates existing errors.
+                validationMessage = error.explanation
             } else {
                 validationMessage = nil
                 shortcut = captured
