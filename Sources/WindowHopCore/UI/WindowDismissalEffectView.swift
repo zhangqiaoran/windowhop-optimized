@@ -10,8 +10,8 @@ import QuartzCore
 final class WindowDismissalEffectView: NSView {
     private static let duration: CFTimeInterval = 1.02
     private static let emissionWindow: CFTimeInterval = 0.42
-    private static let nominalParticleBirthRate: Float = 830
-    private static let emitterCellCount = 3
+    private static let nominalParticleBirthRate: Float = 885
+    private static let emitterCellCount = 4
 
     static var animationDurationForTesting: CFTimeInterval { duration }
     static var emissionWindowForTesting: CFTimeInterval { emissionWindow }
@@ -223,7 +223,7 @@ final class WindowDismissalEffectView: NSView {
 
     /// Dense micro-particles are emitted by the compositor, not individually
     /// allocated CALayers. At the configured birth rate the 0.42 s emission
-    /// window produces roughly 350 motes across three size classes.
+    /// window produces roughly 370 motes across four size classes.
     private func emitDustField() {
         guard let root = layer,
               let particle = Self.softParticleImage else { return }
@@ -282,7 +282,23 @@ final class WindowDismissalEffectView: NSView {
             angle: angle,
             spread: .pi * 0.28)
 
-        emitter.emitterCells = [micro, dust, glint]
+        // Sparse larger, low-alpha motes form the soft dust cloud visible
+        // behind the sharper micro-particles in the reference dissolve.
+        let haze = makeCell(
+            image: particle,
+            birthRate: 55,
+            lifetime: 1.12,
+            velocity: 44,
+            velocityRange: 22,
+            scale: 0.46,
+            scaleRange: 0.18,
+            alphaSpeed: -0.34,
+            spin: 1.4,
+            color: NSColor.secondaryLabelColor.withAlphaComponent(0.18),
+            angle: angle,
+            spread: .pi * 0.48)
+
+        emitter.emitterCells = [micro, dust, glint, haze]
         emitter.birthRate = 0
         root.addSublayer(emitter)
 

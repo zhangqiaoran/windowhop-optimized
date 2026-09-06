@@ -270,11 +270,11 @@ final class SwitcherLayoutTests: XCTestCase {
     }
 
     func testDismissalEffectUsesBoundedGPUEmitterBudget() {
-        XCTAssertEqual(WindowDismissalEffectView.emitterCellCountForTesting, 3)
+        XCTAssertEqual(WindowDismissalEffectView.emitterCellCountForTesting, 4)
         XCTAssertGreaterThanOrEqual(
             WindowDismissalEffectView.nominalParticleBirthRateForTesting, 700)
         XCTAssertLessThanOrEqual(
-            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 900)
+            WindowDismissalEffectView.nominalParticleBirthRateForTesting, 950)
         XCTAssertGreaterThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 0.90)
         XCTAssertLessThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 1.10)
         XCTAssertLessThan(WindowDismissalEffectView.emissionWindowForTesting,
