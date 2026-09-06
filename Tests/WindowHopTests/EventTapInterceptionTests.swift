@@ -59,7 +59,7 @@ final class EventTapInterceptionTests: XCTestCase {
         var state = EventTapInterceptionState(
             mode: .watching,
             holdModifier: .maskAlternate,
-            persistentShortcut: .commandTab)
+            persistentShortcut: nil)
 
         XCTAssertEqual(
             state.decide(type: .keyDown, keyCode: KeyCode.tab, flags: .maskAlternate),
