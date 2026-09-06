@@ -1,29 +1,13 @@
 # User-facing defaults and configurability
 
-## Post-3.6 root-level pointer-routing hotfix
-
-| Fix | Decision |
-|---|---|
-| Glass-independent input | Close, settings, and permission pointer actions are resolved in `SwitcherPanel.sendEvent` from final host-space rectangles. The material hierarchy no longer participates in deciding whether controls are clickable. |
-| First click | Global panel buttons use an `NSButton` subclass whose `acceptsFirstMouse` returns true, matching the close control in the nonactivating panel. |
-| Close geometry | Each tile exposes its visible close-control rectangle converted directly into host coordinates; routing no longer depends on nested `hitTest` conversions through Glass / Scroll views. |
-| Settings geometry | The visible settings surface is converted from its actual superview to `hostView`; root routing invokes `onSettingsRequested` directly. |
-
-## my-alt-tab 3.6.0 interaction + native-edge regression fixes
-
-| Fix | Decision |
-|---|---|
-| Close control routing | `OverlayCloseButton` accepts first mouse in the nonactivating panel. `SwitcherPanel.sendEvent` additionally resolves visible close-hit regions before the private Glass hierarchy can consume/reroute the click. |
-| Native Glass interaction | `effectIsInteractive` is still beta and absent from some Xcode 26 Swift SDK overlays. The app probes `setEffectIsInteractive:` at runtime and enables it only when the running AppKit exposes the selector, keeping Release builds SDK-compatible. |
-| Native Glass edge | Remove the custom CALayer white border on real `NSGlassEffectView`; keep that border only on the pre-26 fallback, allowing AppKit's dynamic glass edge/highlight to remain visible. |
-| Glass variant | Use `.regular` at every slider value. The switcher is a large interactive surface with labels/previews, so it benefits from Regular Liquid Glass adaptive background/brightness behavior. The slider changes only white tint: 100% has no tint; lower values become progressively milky. |
-
-## my-alt-tab 3.5.0 native-glass + paced-dissolve decisions
+## my-alt-tab 3.4.1 liquid-glass, dissolve, and input-routing decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
-| Native Liquid Glass hierarchy | Enabled on macOS 26+ | Yes | Foreground chrome returns to `NSGlassEffectView.contentView` as recommended by AppKit. The panel and contextual ellipsis glass share an `NSGlassEffectContainerView` (spacing 0) for one sampling pass and consistent adaptive appearance. Native glass alpha stays 1.0 at every slider value; 100% uses no tint, while lower values add a perceptual white `tintColor`. |
-| 120 Hz-class erosion pacing | Enabled | No | Fragment masks increase from 36 to 96 and use linear temporal spacing. The compact gray+alpha atlas is prewarmed off the close hot path. Pixel erosion ends one nominal 60 Hz frame before the existing 80% reflow hand-off, preventing final mask swaps from competing with the first Stable-ID FLIP frame. |
+| Native Liquid Glass hierarchy | Enabled on macOS 26+ | Yes | Foreground chrome lives inside `NSGlassEffectView.contentView`; the main surface and contextual ellipsis share an `NSGlassEffectContainerView`. Native glass alpha remains 1.0, 100% uses no tint, and lower values add perceptual white tint only. |
+| Native system edge | Enabled on macOS 26+ | No | Real `NSGlassEffectView` has no custom CALayer white border, allowing AppKit to render its dynamic edge/highlight. The pre-26 fallback retains its semantic border. |
+| Root-level pointer routing | Enabled | No | Close, Settings, and permission actions are resolved in `SwitcherPanel.sendEvent` from final host-space rectangles. Global panel buttons accept first mouse, so Glass / ScrollView hit-test forwarding cannot make visible controls inert. |
+| 96-state erosion pacing | Enabled | No | Compact grayscale+alpha masks use linear temporal spacing and are prewarmed off the close hot path. Pixel erosion finishes one nominal 60 Hz frame before the 80% Stable-ID FLIP hand-off; dust/haze may continue across the hand-off. |
 
 ## my-alt-tab 3.4.0 liquid-glass + unified-FLIP decisions
 

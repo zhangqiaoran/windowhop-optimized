@@ -2,33 +2,24 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.6.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.4.1** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.6.0.zip`。
+2. 下载 `my-alt-tab-3.4.1.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
 
-## v3.6.0
+## v3.4.1
 
-- **修复关闭按钮失效**：关闭按钮显式支持非激活 Panel 的 First Mouse，同时在 SwitcherPanel 根级增加关闭命中路由，不再依赖 NSGlassEffectView 内部私有 View 层级把点击正确传下来。
-- **Liquid Glass 统一使用 Regular**：主切换器和三点按钮都保持原生 Regular Liquid Glass，Glass 本身始终 alpha=1。100% 完全不加白色 tint，保留最完整的自适应亮度、背景响应、折射和高光；数值越低才逐渐增加乳白 tint。
-- macOS 26 原生 Glass 不再覆盖我们自己的 CALayer 白边，让系统自己的动态玻璃边缘和高光完整显示；只有 macOS 14/15 fallback 保留人工边框。
-- Apple 文档中的 `effectIsInteractive` 目前仍是 Beta，而且 GitHub Release 使用的部分 Xcode 26 Swift SDK overlay 没有直接暴露这个属性。3.6 改成运行时检测 `setEffectIsInteractive:`，系统支持才开启，因此不会再因为 Beta API 阻塞编译。
-- 保留 3.5 的 **96 帧真实缩略图侵蚀**、线性 120Hz 级 Mask 节奏、后台预热、80% FLIP 前一个显示帧的收尾间隔、跟随侵蚀边缘的粒子以及 2px 蓝色选中框。
-- Universal 2 和 Sparkle 自动更新保持不变。
-
-## v3.5.0
-
-- **按 Apple 推荐方式重构 Liquid Glass**：macOS 26+ 的缩略图、文字和控件重新放回 `NSGlassEffectView.contentView`；主玻璃和三点按钮玻璃放进同一个 `NSGlassEffectContainerView` 采样组，背景颜色、反射和折射可以由系统统一处理。
-- **100% 就是最液态**：原生 Glass 在任何数值下都保持 alpha 1.0。100% 完全不加白色 tint，保留完整折射、高光和背景取色；数值越小，才按感知曲线逐渐增加乳白 tint。不会再通过把整个 Glass 变淡来“模拟透明”。
-- **粒子最后几帧重新优化**：结合你上传的视频，定位到 3.4.0 的 36 帧离散侵蚀一直跑到 0.88 秒，而列表在 0.816 秒已经开始 FLIP 缩小，两套工作在最后约 64ms 重叠。
-- 侵蚀 Mask 提升到 **96 帧**，时间分布改成线性，约等于 120Hz 级别的 Mask 状态；真实缩略图侵蚀会在 80% 重排节点前提前一个 60Hz 显示帧完成，避免最后换 Mask 和窗口缩小抢同一帧。
-- Mask 从 RGBA 改成灰度+Alpha，虽然帧数大幅增加，但单帧带宽减半；左右两个侵蚀方向和粒子纹理都会提前在后台预热。
-- 保留 Stable-ID FLIP、36 帧版本已经实现的真实缩略图消散思路、跟随侵蚀边缘的粒子、2px 系统蓝选中框和 Sparkle 自动更新。
+- **重新校正原生 Liquid Glass 层级**：macOS 26+ 的缩略图、文字和控件放在 `NSGlassEffectView.contentView` 内，并通过 `NSGlassEffectContainerView` 统一采样，让系统的背景响应、折射和高光成为一个完整效果。
+- **Regular Liquid Glass 始终保持完整强度**：Glass 本身 alpha 固定为 1.0；100% 完全不叠白色 tint，数值降低时只逐步增加乳白 tint，不再通过降低整个 Glass 的透明度来模拟效果。
+- **彻底修复关闭、设置和权限按钮点不动**：点击在 `SwitcherPanel` 根级按最终几何区域直接路由，不再依赖 Glass / ScrollView 内部 hit-test 层级。
+- **粒子消散最后几帧更顺滑**：真实缩略图侵蚀提升到 96 个灰度+Alpha Mask 状态，线性节奏、后台预热，并在 80% Stable-ID FLIP 重排前留出一个显示帧的收尾间隔。
+- macOS 26 原生 Glass 交给 AppKit 自己绘制动态边缘，不再覆盖自定义白边；旧系统 fallback 继续保留语义边框。
+- Universal 2、真实窗口立即关闭、GPU 粒子/烟尘尾部、Reduce Motion 和 Sparkle EdDSA 自动更新保持不变。
 
 ## v3.4.0
 
@@ -110,7 +101,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.6.0.zip
+artifacts/my-alt-tab-3.4.1.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。

@@ -1,8 +1,0 @@
-my-alt-tab 3.5.0
-author=zhangqiaoran
-validated_build_sha=c38e517e4c38fe4a044869389d8d709e6ff8e6dc
-validated_action_run=34019829503
-build=30500
-patch=native NSGlassEffect content/container hierarchy + full-strength clear glass + 96-frame paced erosion + prewarmed compact mask atlas
-signing=ad-hoc app + Sparkle EdDSA archive
-package=Universal 2 my-alt-tab.app (arm64 + x86_64)
