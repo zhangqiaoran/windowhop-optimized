@@ -14,19 +14,35 @@ private final class SwitcherTilesContainerView: NSView {
     }
 }
 
-/// A single shared glass lens follows the selection. Keeping exactly one
-/// NSVisualEffectView avoids the N-card blur cost while still making the active
-/// preview look translucent and native.
-private final class SelectionLensView: NSVisualEffectView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        material = .selection
-        blendingMode = .withinWindow
-        state = .active
-        isEmphasized = true
+/// A single shared Liquid Glass lens follows the selection. macOS 26+ uses
+/// NSGlassEffectView so the selected item has the same native refraction and
+/// edge treatment as the panel itself; older systems use the closest
+/// NSVisualEffectView fallback. There is still exactly one moving material
+/// surface, so selection cost stays constant regardless of window count.
+private final class SelectionLensView: NSView {
+    private var materialView: NSView!
+    private var fallbackEffectView: NSVisualEffectView?
+    private var usesNativeLiquidGlass = false
+    private var transparencyPercent = Preferences.Defaults.glassTransparencyPercent
+
+    init(rasterizable: Bool) {
+        super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
         layer?.cornerCurve = .continuous
+
+        materialView = Self.makeMaterialView(rasterizable: rasterizable)
+        materialView.frame = bounds
+        materialView.autoresizingMask = [.width, .height]
+        addSubview(materialView)
+
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), materialView is NSGlassEffectView {
+            usesNativeLiquidGlass = true
+        }
+        #endif
+        fallbackEffectView = materialView as? NSVisualEffectView
+
         setAccessibilityElement(false)
         refreshAppearance()
     }
@@ -41,9 +57,55 @@ private final class SelectionLensView: NSVisualEffectView {
         refreshAppearance()
     }
 
+    func applyLiquidGlass(transparencyPercent: Double) {
+        self.transparencyPercent = Preferences.clampedGlassTransparency(transparencyPercent)
+        refreshAppearance()
+    }
+
+    private static func makeMaterialView(rasterizable: Bool) -> NSView {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), !rasterizable {
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = DesignTokens.selectionLensCornerRadius
+            return glass
+        }
+        #endif
+
+        let effect = NSVisualEffectView()
+        effect.material = .selection
+        effect.blendingMode = .withinWindow
+        effect.state = .active
+        effect.isEmphasized = true
+        effect.wantsLayer = true
+        effect.layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
+        effect.layer?.cornerCurve = .continuous
+        effect.layer?.masksToBounds = true
+        return effect
+    }
+
     private func refreshAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = DesignTokens.selectionLensFill.cgColor
+            let density = CGFloat(Preferences.liquidGlassTintAlpha(
+                forTransparencyPercent: transparencyPercent))
+            let tintAlpha = DesignTokens.selectionLiquidGlassBaseTintAlpha
+                + density * DesignTokens.selectionLiquidGlassDensityTintScale
+            let accent = NSColor.controlAccentColor.withAlphaComponent(tintAlpha)
+
+            #if compiler(>=6.2)
+            if #available(macOS 26.0, *),
+               let glass = materialView as? NSGlassEffectView {
+                glass.tintColor = accent
+            }
+            #endif
+
+            if let fallbackEffectView {
+                fallbackEffectView.layer?.backgroundColor = NSColor.controlAccentColor
+                    .withAlphaComponent(
+                        tintAlpha * DesignTokens.selectionLiquidGlassFallbackFillScale)
+                    .cgColor
+            }
+
+            layer?.backgroundColor = NSColor.clear.cgColor
             layer?.borderColor = DesignTokens.selectionLensStroke.cgColor
             layer?.borderWidth = DesignTokens.selectionLensBorderWidth
             layer?.shadowColor = DesignTokens.selectionLensGlow.cgColor
@@ -51,6 +113,12 @@ private final class SelectionLensView: NSVisualEffectView {
             layer?.shadowRadius = DesignTokens.selectionLensGlowRadius
             layer?.shadowOffset = .zero
         }
+    }
+
+    var usesLiquidGlassMaterialForTesting: Bool {
+        if usesNativeLiquidGlass { return true }
+        return fallbackEffectView?.material == .selection
+            && fallbackEffectView?.state == .active
     }
 }
 
@@ -123,7 +191,7 @@ public final class SwitcherPanel: NSPanel {
     private let chromeView = NSView()
     private let scrollView = NSScrollView()
     private let tilesContainer = SwitcherTilesContainerView()
-    private let selectionLensView = SelectionLensView()
+    private let selectionLensView: SelectionLensView
     /// Cached target frames make every selection transition a direct O(1)
     /// indexed lookup. Geometry is rebuilt only when the window list/layout is.
     private var selectionFrames: [NSRect] = []
@@ -186,6 +254,7 @@ public final class SwitcherPanel: NSPanel {
     /// macOS 26 glass background cannot be rasterized with cacheDisplay (it
     /// draws empty), so layout renders use the visual-effect fallback instead.
     public init(rasterizableBackground: Bool = false) {
+        selectionLensView = SelectionLensView(rasterizable: rasterizableBackground)
         super.init(contentRect: .zero,
                    styleMask: [.nonactivatingPanel, .borderless],
                    backing: .buffered,
@@ -211,7 +280,7 @@ public final class SwitcherPanel: NSPanel {
                                                       rasterizable: rasterizableBackground)
         hostView.addSubview(panelBackgroundView)
         contentView = hostView
-        applyGlassTransparency()
+        applyLiquidGlassAppearance()
 
         scrollView.drawsBackground = false
         scrollView.hasHorizontalScroller = false
@@ -283,13 +352,13 @@ public final class SwitcherPanel: NSPanel {
             object: nil,
             queue: .main) { [weak self] _ in
                 self?.updateSettingsButtonVisibility(animated: false)
-                self?.applyGlassTransparency()
+                self?.applyLiquidGlassAppearance()
             }
         panelAppearanceObserver = NotificationCenter.default.addObserver(
             forName: Preferences.panelAppearanceDidChange,
             object: Preferences.shared,
             queue: .main) { [weak self] _ in
-                self?.applyGlassTransparency()
+                self?.applyLiquidGlassAppearance()
             }
 
         // pre-warm the tile pool off the first-trigger latency path; tiles beyond
@@ -314,14 +383,18 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Applies a neutral system tint on top of the native material instead of
-    /// fading the whole background view, so labels, previews, and controls keep
-    /// full contrast at every user-selected transparency level.
-    private func applyGlassTransparency() {
+    /// Applies a perceptual Liquid Glass density curve without fading labels,
+    /// previews, or controls. 100% stays maximally clear; values just below it
+    /// become visibly denser instead of changing by an almost invisible linear
+    /// amount. The selected-window lens follows the same user setting.
+    private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
-        let tintAlpha = CGFloat(1 - percent / 100)
+        let tintAlpha = CGFloat(Preferences.liquidGlassTintAlpha(
+            forTransparencyPercent: percent))
         let tint = NSColor.windowBackgroundColor.withAlphaComponent(tintAlpha)
+
+        selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
@@ -789,7 +862,7 @@ public final class SwitcherPanel: NSPanel {
     var selectionLensFrameForTesting: NSRect { selectionLensView.frame }
     var selectionLensIsVisibleForTesting: Bool { !selectionLensView.isHidden }
     var selectionLensUsesGlassMaterialForTesting: Bool {
-        selectionLensView.material == .selection && selectionLensView.state == .active
+        selectionLensView.usesLiquidGlassMaterialForTesting
     }
     var selectionGeometryCountForTesting: Int { selectionFrames.count }
 

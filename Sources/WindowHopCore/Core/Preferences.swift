@@ -124,8 +124,8 @@ public final class Preferences: ObservableObject {
         public static let persistentShortcut: PersistentShortcut? = .optionTab
         public static let appearanceMode = AppearanceMode.appIcons
         public static let previewRowAlignment = PreviewRowAlignment.center
-        /// 100 keeps the existing native glass appearance; lower values add
-        /// an adaptive system-background tint without fading switcher content.
+        /// 100 is the clearest Liquid Glass presentation. Lower values add
+        /// perceptually stronger native tint without fading switcher content.
         public static let glassTransparencyPercent = 100.0
         public static let expandedPreviewDelay = ExpandedPreviewDelay.threeSeconds
         /// Default multi-display behavior: draw one panel on the pointer display
@@ -413,6 +413,15 @@ public final class Preferences: ObservableObject {
     public static func clampedGlassTransparency(_ value: Double) -> Double {
         guard value.isFinite else { return Defaults.glassTransparencyPercent }
         return min(100, max(0, value))
+    }
+
+    /// Converts the user-facing 0–100 Liquid Glass transparency into the tint
+    /// density used by AppKit materials. Human perception is not linear here:
+    /// a 90% setting should already look noticeably denser than the completely
+    /// clear 100% endpoint, while preserving exact 0% and 100% endpoints.
+    public static func liquidGlassTintAlpha(forTransparencyPercent value: Double) -> Double {
+        let transparency = clampedGlassTransparency(value) / 100
+        return pow(1 - transparency, 0.55)
     }
 
     /// An empty stored string means "no value", matching how the registration

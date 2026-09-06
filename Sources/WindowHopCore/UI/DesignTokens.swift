@@ -64,19 +64,22 @@ enum DesignTokens {
     /// Selection therefore stays constant-cost as the number of windows grows.
     static let selectionLensInset: CGFloat = 4
     static let selectionLensCornerRadius: CGFloat = 17
-    static let selectionLensBorderWidth: CGFloat = 1.5
+    static let selectionLensBorderWidth: CGFloat = 1.2
     static let selectedTileScale: CGFloat = 1.018
     static let selectedTileScaleDuration: TimeInterval = 0.095
-    static var selectionLensFill: NSColor {
-        NSColor.windowBackgroundColor.withAlphaComponent(0.10)
-    }
+    /// The selected item is its own Liquid Glass surface. Even at 100% panel
+    /// transparency it keeps a faint accent refraction so selection remains
+    /// visible without turning back into an opaque focus plate.
+    static let selectionLiquidGlassBaseTintAlpha: CGFloat = 0.08
+    static let selectionLiquidGlassDensityTintScale: CGFloat = 0.22
+    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.55
     static var selectionLensStroke: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.78)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.58)
     }
     static var selectionLensGlow: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.22)
+        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.20)
     }
-    static let selectionLensGlowRadius: CGFloat = 10
+    static let selectionLensGlowRadius: CGFloat = 12
     /// The glass lens, its glow, and the compositor-only selected-tile scale all
     /// extend beyond the tile frame. NSClipView clips at the document-view
     /// boundary, so the document canvas must reserve this much space on every

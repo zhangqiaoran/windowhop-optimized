@@ -4,6 +4,12 @@
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.
 
+## Unreleased refinements
+
+| Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
+|---|---|---|---|
+| Liquid Glass presentation | 100% | Yes | Keeps the existing typed `glassTransparencyPercent` value and 0–100 persistence contract. Rendering now uses a perceptual density curve so 90% is visibly denser than the fully clear 100% endpoint. On macOS 26+ both the panel and selected-window focus lens use native `NSGlassEffectView`; older systems and rasterized test renders use the closest `NSVisualEffectView` fallback. Restore Defaults remains 100%. |
+
 ## my-alt-tab 2.3.0 refresh decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |

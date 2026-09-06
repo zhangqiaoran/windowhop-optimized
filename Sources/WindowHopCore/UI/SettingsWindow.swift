@@ -405,7 +405,7 @@ struct AppearancePane: View {
             }
             Section {
                 HStack {
-                    Text("Glass transparency")
+                    Text("Liquid Glass transparency")
                     Spacer()
                     Text("\(Int(preferences.glassTransparencyPercent.rounded()))%")
                         .monospacedDigit()
@@ -414,12 +414,12 @@ struct AppearancePane: View {
                 Slider(value: $preferences.glassTransparencyPercent,
                        in: 0...100,
                        step: 1)
-                    .accessibilityLabel("Glass transparency")
+                    .accessibilityLabel("Liquid Glass transparency")
                     .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
             } header: {
-                Text("Glass")
+                Text("Liquid Glass")
             } footer: {
-                Text("0% is the most opaque and 100% keeps the native glass at its clearest. Changes apply immediately to the switcher and still respect macOS Reduce Transparency and Increase Contrast.")
+                Text("100% is the clearest Liquid Glass. The perceptual curve makes 90% visibly denser instead of nearly identical, while 0% is the most opaque. The selected window uses its own Liquid Glass focus surface; earlier macOS versions use the closest native visual-effect material.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
