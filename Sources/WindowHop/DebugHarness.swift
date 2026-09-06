@@ -65,15 +65,12 @@ enum DebugHarness {
         }
 
         let savedMode = Preferences.shared.appearanceMode
-        let savedShowTabCounts = Preferences.shared.showTabCounts
         Preferences.shared.appearanceMode = .appIcons
-        Preferences.shared.showTabCounts = Preferences.Defaults.showTabCounts
         var pending = 0
         let finishOne = {
             pending -= 1
             if pending == 0 {
                 Preferences.shared.appearanceMode = savedMode
-                Preferences.shared.showTabCounts = savedShowTabCounts
                 exit(0)
             }
         }
