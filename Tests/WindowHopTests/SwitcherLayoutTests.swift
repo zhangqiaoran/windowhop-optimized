@@ -425,27 +425,13 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertTrue(panel.settingsButtonIsVisibleForTesting)
     }
 
-    func testHidingMetadataCompactsCardAndPanelWithoutChangingPreviewWidth() throws {
-        let saved = Preferences.shared.showTabCounts
-        defer { Preferences.shared.showTabCounts = saved }
-        Preferences.shared.showTabCounts = true
+    func testRetiredTabMetadataStaysHidden() throws {
         let panel = SwitcherPanel(rasterizableBackground: true)
         panel.update(items: [item("a")], selectedIndex: 0)
-        let visibleFrame = try XCTUnwrap(panel.tileFrameForTesting(at: 0))
-        let visibleCanvas = try XCTUnwrap(panel.tileForTesting(at: 0))
-            .previewCanvasFrameForTesting
-        let visiblePanelHeight = panel.panelBackgroundFrameForTesting.height
 
-        Preferences.shared.showTabCounts = false
-        panel.update(items: [item("a")], selectedIndex: 0)
-        let hiddenFrame = try XCTUnwrap(panel.tileFrameForTesting(at: 0))
-        let hiddenTile = try XCTUnwrap(panel.tileForTesting(at: 0))
-
-        XCTAssertEqual(hiddenFrame.width, visibleFrame.width)
-        XCTAssertLessThan(hiddenFrame.height, visibleFrame.height)
-        XCTAssertEqual(hiddenTile.previewCanvasFrameForTesting.width, visibleCanvas.width)
-        XCTAssertTrue(hiddenTile.metadataIsHiddenForTesting)
-        XCTAssertLessThan(panel.panelBackgroundFrameForTesting.height, visiblePanelHeight)
+        let tile = try XCTUnwrap(panel.tileForTesting(at: 0))
+        XCTAssertTrue(tile.metadataIsHiddenForTesting)
+        XCTAssertFalse(Preferences.shared.showTabCounts)
     }
 
     func testPooledTileCanReleaseHeavyPreviewBetweenSessions() {
