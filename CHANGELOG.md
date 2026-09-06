@@ -2,6 +2,15 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.3.0 — 2026-09-06 — zhangqiaoran
+
+- Added dedicated right/bottom comfort spacing and a top chrome strip so the ellipsis no longer overlaps previews.
+- Closing a window now removes it from the open switcher immediately instead of waiting for the AX destroy notification.
+- Increased the close dissolve to a fixed 28-particle deterministic surface distribution with a shorter 0.29s animation.
+- Preserved shared glass focus, fast two-window MRU switching, event-driven idle behavior, and Universal 2 packaging.
+
+Full notes: [`RELEASE_NOTES_v2.3.0.md`](RELEASE_NOTES_v2.3.0.md).
+
 ## 2.2.0 — 2026-09-06 — zhangqiaoran
 
 - Increased panel breathing room so the rightmost preview no longer crowds the edge.
