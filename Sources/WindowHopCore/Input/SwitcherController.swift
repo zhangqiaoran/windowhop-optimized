@@ -527,10 +527,6 @@ public final class SwitcherController {
             + "\(focusedMode ? "on" : "off")")
     }
 
-    private func sessionTapMode() -> TapMode {
-        state.phase == .held ? .sessionHeld : .sessionSticky
-    }
-
     private func endSession(resetTapMode: Bool = true) {
         storeRefreshScheduled = false
         pendingCloseIDs.removeAll(keepingCapacity: true)
