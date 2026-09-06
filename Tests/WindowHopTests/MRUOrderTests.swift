@@ -27,6 +27,19 @@ final class MRUOrderTests: XCTestCase {
         XCTAssertEqual(mru.ids, ["a", "c", "b"])
     }
 
+    func testFocusKeepsPreviouslyFocusedWindowSecondForFastToggle() {
+        var mru = MRUOrder<String>()
+        mru.add("chrome")
+        mru.add("finder")
+        mru.add("idea")
+
+        mru.focused("finder")
+        XCTAssertEqual(mru.ids, ["finder", "chrome", "idea"])
+
+        mru.focused("idea")
+        XCTAssertEqual(mru.ids, ["idea", "finder", "chrome"])
+    }
+
     func testFocusUnknownInsertsAtFront() {
         var mru = MRUOrder<String>()
         mru.add("a")
