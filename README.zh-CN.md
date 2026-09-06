@@ -1,16 +1,44 @@
-# my-alt-tab
+<p align="center">
+  <img src="docs/assets/app-icon.png" width="180" alt="my-alt-tab 应用图标">
+</p>
 
-由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
+<h1 align="center">my-alt-tab</h1>
 
-**当前版本：v3.4.4** · macOS 14+ · Swift / AppKit · GPL-3.0
+<p align="center">
+  <strong>轻量、原生的 macOS 窗口切换器。</strong><br>
+  快速切换 · 窗口预览 · Clear Glass · 粒子消散关闭
+</p>
 
-## 安装
+<p align="center">
+  <strong>v3.4.4</strong> · macOS 14+ · Universal 2 · English / 中文 · GPL-3.0
+</p>
 
-1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.4.4.zip`。
-3. 解压后得到 **my-alt-tab.app**。
-4. 把 **my-alt-tab.app** 拖进 **应用程序**。
-5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+<p align="center">
+  <img src="docs/assets/my-alt-tab-demo.gif" alt="my-alt-tab 快速窗口切换与粒子消散演示">
+</p>
+
+<p align="center">
+  <em>轻量、快速、原生。关闭一个窗口，看它化成粒子消散。</em>
+</p>
+
+## 3 步安装
+
+| 1 · 下载 | 2 · 安装 | 3 · 授权 |
+| --- | --- | --- |
+| 在 **Releases** 下载 `my-alt-tab-3.4.4.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
+
+## 为什么选择 my-alt-tab
+
+| | 功能 | 体验 |
+| --- | --- | --- |
+| 🪶 | **轻量** | 原生 Swift / AppKit，没有常驻逐帧动画循环。 |
+| ⚡ | **快速 1↔2 切换** | Alt/Option+Tab 连续快速来回切换依然稳定响应。 |
+| 🪟 | **窗口预览** | 直接看到并切到具体窗口，而不只是应用。 |
+| ✨ | **粒子消散关闭** | 关闭窗口时缩略图化为粒子消散，随后列表平滑收拢。 |
+| 💎 | **Clear Glass** | macOS 26 使用原生 Clear Glass，前景内容始终清晰。 |
+| 🌐 | **English / 中文** | 设置界面可即时切换中英文，无需重启。 |
+
+> **从 v3.4.4 开始使用新图标：** 上方这张霓虹叠层窗口图标现在就是正式 App 图标，打包时也会从同一源图自动生成。
 
 ## v3.4.4
 
@@ -118,7 +146,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.1.zip
+artifacts/my-alt-tab-3.4.4.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
