@@ -2,15 +2,24 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v2.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.0.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-2.4.0.zip`。
+2. 下载 `my-alt-tab-3.0.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.0.0
+
+- **窗口列表优雅收缩**：窗口关闭后，不再瞬间硬跳。通过稳定窗口 ID 匹配存活卡片，并从当前真实渲染位置进行弹性重排，同时面板使用原生 AppKit 动画居中缩小。
+- **全新风尘消散引擎**：固定 56 粒子预算，使用 R2 低差异分布覆盖整个窗口表面，并结合渐变侵蚀和三次贝塞尔风向轨迹，形成更飘逸的逐步风化效果。
+- **连续快速关闭也不会跳帧**：下一次动画直接读取 Core Animation presentation layer 的当前视觉位置，而不是从旧布局重新开始。
+- **更新中心升级**：打开“设置 → Updates”会静默检查签名版本源；发现新版后可直接点击 **Update Now…** 进入 Sparkle 验证安装流程。
+- **保持极低空闲开销**：没有新增 display link、循环粒子定时器或常驻动画；仅在实际操作发生时工作，并遵守 macOS“减少动态效果”。
+- 清理了一批历史遗留、已经没有使用价值的 UI Token。
 
 ## v2.4.0
 
@@ -51,7 +60,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.4.0.zip
+artifacts/my-alt-tab-3.0.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。

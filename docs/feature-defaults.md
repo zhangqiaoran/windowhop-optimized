@@ -1,6 +1,6 @@
 # User-facing defaults and configurability
 
-## Unreleased v3.0 motion and update decisions
+## my-alt-tab 3.0.0 motion and update decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|

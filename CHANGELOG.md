@@ -2,6 +2,18 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.0.0 — 2026-09-06 — zhangqiaoran
+
+- Rebuilt close motion into a 56-particle deterministic dusting engine using R2 low-discrepancy surface coverage, a gradient erosion front, and cubic inward/upward wind paths.
+- Replaced rigid window-list shrink with stable-ID reflow: surviving windows animate from their current Core Animation presentation positions while the centered panel resizes with native AppKit motion.
+- Repeated fast closes are interruptible and start from what is actually rendered on screen rather than stale model geometry.
+- Added a silent signed Sparkle version probe whenever Settings → Updates opens, plus a prominent **Update Now…** path into Sparkle's verified installer.
+- Preserved signed automatic updates, clear Liquid Glass transparency, Universal 2 support, MRU switching, and clip-safe selection.
+- Removed obsolete layout tokens left from earlier Settings/chrome iterations.
+- Motion remains event-driven: no display link, repeating particle timer, or idle animation loop was introduced; Reduce Motion is honored.
+
+Full notes: [`RELEASE_NOTES_v3.0.0.md`](RELEASE_NOTES_v3.0.0.md).
+
 ## 2.4.0 — 2026-09-06 — zhangqiaoran
 
 - Rebuilt Liquid Glass transparency around a literal 0–100 contract: higher values are genuinely more transparent.
