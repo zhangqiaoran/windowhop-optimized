@@ -77,6 +77,9 @@ enum DesignTokens {
     /// perceptual white tint. The fallback uses a separate translucent milk
     /// plane because pre-26 AppKit has no NSGlassEffectView tint semantics.
     static let glassNativeMaximumTintAlpha: CGFloat = 0.52
+    /// Keep the upper half on the most transparent native style. The lower
+    /// range switches to regular glass as milk becomes the user's intent.
+    static let glassClearStyleThreshold: Double = 55
     static let glassMaximumMilkAlpha: CGFloat = 0.72
     static let glassFallbackMilkScale: CGFloat = 0.90
     static let glassContainerSpacing: CGFloat = 0

@@ -257,6 +257,7 @@ public final class SwitcherPanel: NSPanel {
             let glass = NSGlassEffectView()
             glass.style = .clear
             glass.cornerRadius = DesignTokens.panelCornerRadius
+            glass.effectIsInteractive = true
             glass.contentView = chromeView
 
             let group = NSView()
@@ -350,6 +351,7 @@ public final class SwitcherPanel: NSPanel {
             let settingsGlass = NSGlassEffectView()
             settingsGlass.style = .clear
             settingsGlass.cornerRadius = DesignTokens.chromeButtonHitSize / 2
+            settingsGlass.effectIsInteractive = true
             settingsGlass.contentView = settingsButton
             settingsGlass.alphaValue = 0
             settingsButton.alphaValue = 1
@@ -445,26 +447,25 @@ public final class SwitcherPanel: NSPanel {
         panelBackgroundView.alphaValue = 1
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
-        panelBackgroundView.wantsLayer = true
-        panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
-        panelBackgroundView.layer?.cornerCurve = .continuous
-        panelBackgroundView.layer?.borderWidth = DesignTokens.glassBorderWidth
-        let borderAlpha = DesignTokens.glassBorderAlphaLow
-            + (DesignTokens.glassBorderAlphaHigh - DesignTokens.glassBorderAlphaLow) * liquid
-        panelBackgroundView.layer?.borderColor = NSColor.white
-            .withAlphaComponent(borderAlpha).cgColor
-
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            glass.style = .clear
+            // Do not paint a manual border over Liquid Glass. AppKit's own edge
+            // treatment is part of what makes the material read as refractive.
+            glass.layer?.borderWidth = 0
+            glass.effectIsInteractive = true
+            glass.style = percent >= DesignTokens.glassClearStyleThreshold
+                ? .clear
+                : .regular
             glass.tintColor = nativeTintAlpha <= 0.001
                 ? nil
                 : NSColor.white.withAlphaComponent(nativeTintAlpha)
             liquidGlassDensityView.layer?.backgroundColor = NSColor.clear.cgColor
 
             if let settingsGlass = settingsGlassView as? NSGlassEffectView {
-                settingsGlass.style = .clear
+                settingsGlass.layer?.borderWidth = 0
+                settingsGlass.effectIsInteractive = true
+                settingsGlass.style = glass.style
                 settingsGlass.tintColor = nativeTintAlpha <= 0.001
                     ? nil
                     : NSColor.white.withAlphaComponent(nativeTintAlpha * 0.72)
@@ -473,6 +474,16 @@ public final class SwitcherPanel: NSPanel {
         }
         #endif
 
+        // The compatibility material has no native Liquid Glass edge treatment,
+        // so keep a restrained semantic border only on this path.
+        panelBackgroundView.wantsLayer = true
+        panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
+        panelBackgroundView.layer?.cornerCurve = .continuous
+        panelBackgroundView.layer?.borderWidth = DesignTokens.glassBorderWidth
+        let borderAlpha = DesignTokens.glassBorderAlphaLow
+            + (DesignTokens.glassBorderAlphaHigh - DesignTokens.glassBorderAlphaLow) * liquid
+        panelBackgroundView.layer?.borderColor = NSColor.white
+            .withAlphaComponent(borderAlpha).cgColor
         liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
             .withAlphaComponent(fallbackMilkAlpha).cgColor
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
@@ -517,6 +528,28 @@ public final class SwitcherPanel: NSPanel {
         } else {
             settingsButton.frame = frame
         }
+    }
+
+    public override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown,
+           let index = closeTargetIndex(atWindowPoint: event.locationInWindow) {
+            onItemCloseRequested?(index)
+            return
+        }
+        super.sendEvent(event)
+    }
+
+    private func closeTargetIndex(atWindowPoint point: NSPoint) -> Int? {
+        let hostPoint = hostView.convert(point, from: nil)
+        for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
+            let tile = tilePool[index]
+            guard !tile.isHidden else { continue }
+            let tilePoint = tile.convert(hostPoint, from: hostView)
+            if tile.closeControlHitTest(tilePoint) != nil {
+                return index
+            }
+        }
+        return nil
     }
 
     public func show(items: [SwitcherItem],
@@ -1182,6 +1215,27 @@ public final class SwitcherPanel: NSPanel {
         chromeView.superview === panelBackgroundView
     }
     var usesNativeGlassContainerForTesting: Bool { usesNativeGlassContainer }
+    var nativeGlassIsInteractiveForTesting: Bool {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *),
+           let glass = panelBackgroundView as? NSGlassEffectView {
+            return glass.effectIsInteractive
+        }
+        #endif
+        return false
+    }
+    var nativeGlassHasManualBorderForTesting: Bool {
+        panelBackgroundView.layer?.borderWidth ?? 0 > 0
+    }
+    func closeTargetIndexForTesting(atHostPoint point: NSPoint) -> Int? {
+        for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
+            let tile = tilePool[index]
+            guard !tile.isHidden else { continue }
+            let tilePoint = tile.convert(point, from: hostView)
+            if tile.closeControlHitTest(tilePoint) != nil { return index }
+        }
+        return nil
+    }
     var usesUnifiedReflowForTesting: Bool { true }
     var selectionLensDensityAlphaForTesting: CGFloat {
         selectionLensView.densityAlphaForTesting

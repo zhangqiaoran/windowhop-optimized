@@ -336,6 +336,29 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertTrue(panel.usesUnifiedReflowForTesting)
     }
 
+    func testCloseOverlayRoutesAtPanelLevelAcrossGlassHierarchy() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.update(items: [item("a"), item("b")], selectedIndex: 0)
+        panel.prepareCloseForRendering(at: 0)
+        let closeFrame = try XCTUnwrap(panel.closeFrameForTesting(at: 0))
+        XCTAssertEqual(
+            panel.closeTargetIndexForTesting(
+                atHostPoint: NSPoint(x: closeFrame.midX, y: closeFrame.midY)),
+            0)
+    }
+
+    func testNativeGlassKeepsSystemEdgeAndInteractiveBehavior() {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            let panel = SwitcherPanel(rasterizableBackground: false)
+            panel.update(items: [item("a")], selectedIndex: 0)
+            XCTAssertTrue(panel.usesNativeGlassContainerForTesting)
+            XCTAssertTrue(panel.nativeGlassIsInteractiveForTesting)
+            XCTAssertFalse(panel.nativeGlassHasManualBorderForTesting)
+        }
+        #endif
+    }
+
     func testSettingsButtonIsContextualInCyclingAndPersistentModes() {
         let panel = SwitcherPanel(rasterizableBackground: true)
         let items = [item("a")]

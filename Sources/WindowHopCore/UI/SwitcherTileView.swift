@@ -3,6 +3,10 @@ import AppKit
 /// A complete visible circle inside a larger pointer target. Drawing the badge
 /// explicitly avoids SF Symbol optical bounds being cropped at the canvas edge.
 private final class OverlayCloseButton: NSButton {
+    /// The switcher is a nonactivating NSPanel. Never require a first click to
+    /// activate the panel before the destructive control can receive its action.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func draw(_ dirtyRect: NSRect) {
         let visible = DesignTokens.closeButtonVisibleSize
         let circleRect = NSRect(x: bounds.midX - visible / 2,
