@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 
 /// Every size, inset, radius, and font size the switcher UI uses, in one place.
 /// Tuned against the native macOS ⌘⇥ switcher's proportions. Views never hardcode
@@ -64,12 +65,14 @@ enum DesignTokens {
     static let selectedTileScale: CGFloat = 1.018
     static let selectedTileScaleDuration: TimeInterval = 0.095
     // MARK: v3 motion
-    /// Stable-id reflow runs only when an open list loses windows.
-    static let panelReflowDuration: CFTimeInterval = 0.36
-    static let panelReflowSpringMass: CGFloat = 1
-    static let panelReflowSpringStiffness: CGFloat = 285
-    static let panelReflowSpringDamping: CGFloat = 30
-    static let panelReflowSpringInitialVelocity: CGFloat = 0.15
+    /// Stable-id reflow runs only when an open list loses windows. The window
+    /// frame and surviving tile layers deliberately share one non-overshooting
+    /// curve; mixing AppKit's default resize curve with a spring is perceived
+    /// as a hitch even when no frames are actually dropped.
+    static let panelReflowDuration: CFTimeInterval = 0.42
+    static var panelReflowTimingFunction: CAMediaTimingFunction {
+        CAMediaTimingFunction(controlPoints: 0.18, 0.78, 0.20, 1.0)
+    }
     /// Control-Center-style frosted glass keeps a real milky/blurred body even
     /// at the clearest end. The user percentage controls thickness, not whether
     /// frosting exists at all.

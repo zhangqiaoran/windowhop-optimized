@@ -797,14 +797,32 @@ public final class SwitcherPanel: NSPanel {
             width: controlSize, height: controlSize)
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
-        setFrame(NSRect(origin: origin, size: panelSize),
-                 display: true,
-                 animate: animatePanelResize)
+        setPanelFrame(
+            NSRect(origin: origin, size: panelSize),
+            animated: animatePanelResize)
+    }
+
+    /// Uses NSAnimationContext instead of setFrame(..., animate: true) so the
+    /// outer panel follows the exact same duration/timing curve as tile motion.
+    /// This removes the "two animations fighting each other" cadence that can
+    /// look like dropped frames around frosted-glass live resize.
+    private func setPanelFrame(_ targetFrame: NSRect, animated: Bool) {
+        guard animated else {
+            setFrame(targetFrame, display: true)
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = DesignTokens.panelReflowDuration
+            context.timingFunction = DesignTokens.panelReflowTimingFunction
+            context.allowsImplicitAnimation = true
+            animator().setFrame(targetFrame, display: true)
+        }
     }
 
     /// Captures current presentation-layer centers by stable window id. If a
-    /// second close interrupts the first spring, the next reflow starts from
-    /// the pixels actually on screen instead of from stale model geometry.
+    /// second close interrupts the first easing animation, the next reflow
+    /// starts from the pixels actually on screen instead of stale geometry.
     private func stableVisualCentersByID() -> [AnyHashable: CGPoint] {
         var centers: [AnyHashable: CGPoint] = [:]
         centers.reserveCapacity(min(items.count, visibleTileCount))
@@ -820,9 +838,9 @@ public final class SwitcherPanel: NSPanel {
     }
 
     /// Surviving windows are matched by stable id, so removal never causes the
-    /// "everything snaps one slot left" effect. Only layers that actually move
-    /// receive a spring; the algorithm is O(n) for a list rebuild and has no
-    /// frame-by-frame CPU work.
+    /// "everything snaps one slot left" effect. A single compositor-driven
+    /// cubic curve is intentionally used instead of a spring: no overshoot, no
+    /// secondary oscillation, and exactly the same cadence as the panel frame.
     private func animateStableReflow(from oldCenters: [AnyHashable: CGPoint],
                                      oldLensCenter: CGPoint?) {
         for (index, item) in items.enumerated() where index < visibleTileCount {
@@ -830,17 +848,10 @@ public final class SwitcherPanel: NSPanel {
                   let layer = tilePool[index].layer else { continue }
             let to = layer.position
             guard hypot(to.x - from.x, to.y - from.y) > 0.5 else { continue }
-
-            let spring = CASpringAnimation(keyPath: "position")
-            spring.fromValue = NSValue(point: from)
-            spring.toValue = NSValue(point: to)
-            spring.mass = DesignTokens.panelReflowSpringMass
-            spring.stiffness = DesignTokens.panelReflowSpringStiffness
-            spring.damping = DesignTokens.panelReflowSpringDamping
-            spring.initialVelocity = DesignTokens.panelReflowSpringInitialVelocity
-            spring.duration = min(spring.settlingDuration,
-                                  DesignTokens.panelReflowDuration)
-            layer.add(spring, forKey: "stableWindowReflow")
+            addReflowPositionAnimation(to: layer,
+                                       from: from,
+                                       to: to,
+                                       key: "stableWindowReflow")
         }
 
         guard let oldLensCenter,
@@ -850,16 +861,23 @@ public final class SwitcherPanel: NSPanel {
         guard hypot(target.x - oldLensCenter.x, target.y - oldLensCenter.y) > 0.5 else {
             return
         }
-        let spring = CASpringAnimation(keyPath: "position")
-        spring.fromValue = NSValue(point: oldLensCenter)
-        spring.toValue = NSValue(point: target)
-        spring.mass = DesignTokens.panelReflowSpringMass
-        spring.stiffness = DesignTokens.panelReflowSpringStiffness
-        spring.damping = DesignTokens.panelReflowSpringDamping
-        spring.initialVelocity = DesignTokens.panelReflowSpringInitialVelocity
-        spring.duration = min(spring.settlingDuration,
-                              DesignTokens.panelReflowDuration)
-        lensLayer.add(spring, forKey: "selectionLensReflow")
+        addReflowPositionAnimation(to: lensLayer,
+                                   from: oldLensCenter,
+                                   to: target,
+                                   key: "selectionLensReflow")
+    }
+
+    private func addReflowPositionAnimation(to layer: CALayer,
+                                            from: CGPoint,
+                                            to: CGPoint,
+                                            key: String) {
+        let animation = CABasicAnimation(keyPath: "position")
+        animation.fromValue = NSValue(point: from)
+        animation.toValue = NSValue(point: to)
+        animation.duration = DesignTokens.panelReflowDuration
+        animation.timingFunction = DesignTokens.panelReflowTimingFunction
+        animation.isRemovedOnCompletion = true
+        layer.add(animation, forKey: key)
     }
 
     private func layoutExpandedPreview() {
