@@ -25,6 +25,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
+        XCTAssertEqual(preferences.settingsLanguage, .english)
         XCTAssertEqual(preferences.previewRowAlignment, .center)
         XCTAssertEqual(preferences.glassTransparencyPercent, 100)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
@@ -51,6 +52,7 @@ final class PreferencesTests: XCTestCase {
         preferences.persistentShortcut = PersistentShortcut(
             keyCode: KeyCode.space, modifiers: [.maskAlternate])
         preferences.appearanceMode = .windowPreviews
+        preferences.settingsLanguage = .simplifiedChinese
         preferences.previewRowAlignment = .right
         preferences.glassTransparencyPercent = 37
         preferences.expandedPreviewDelay = .fiveSeconds
@@ -62,7 +64,6 @@ final class PreferencesTests: XCTestCase {
         preferences.includeMinimizedWindows = true
         preferences.includeHiddenApplicationWindows = true
         preferences.includePictureInPictureWindows = true
-        preferences.showTabCounts = false
         preferences.showMenuBarItem = true
         preferences.showDockIcon = true
         preferences.automaticUpdateChecks = false
@@ -75,6 +76,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(restored.shortcut, .optionTab)
         XCTAssertEqual(restored.persistentShortcut, preferences.persistentShortcut)
         XCTAssertEqual(restored.appearanceMode, .windowPreviews)
+        XCTAssertEqual(restored.settingsLanguage, .simplifiedChinese)
         XCTAssertEqual(restored.previewRowAlignment, .right)
         XCTAssertEqual(restored.glassTransparencyPercent, 37)
         XCTAssertEqual(restored.expandedPreviewDelay, .fiveSeconds)
@@ -103,7 +105,6 @@ final class PreferencesTests: XCTestCase {
                      forKey: Preferences.Key.persistentShortcut.rawValue)
         defaults.set(AppearanceMode.windowPreviews.rawValue,
                      forKey: Preferences.Key.appearanceMode.rawValue)
-        defaults.set(false, forKey: Preferences.Key.showTabCounts.rawValue)
         defaults.set(true, forKey: Preferences.Key.showMenuBarItem.rawValue)
 
         let migrated = Preferences(defaults: defaults)
@@ -112,6 +113,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(migrated.shortcut, .optionTab)
         XCTAssertEqual(migrated.persistentShortcut, openShortcut)
         XCTAssertEqual(migrated.appearanceMode, .windowPreviews)
+        XCTAssertEqual(migrated.settingsLanguage, .english)
         XCTAssertEqual(migrated.previewRowAlignment, .center)
         XCTAssertEqual(migrated.expandedPreviewDelay, .threeSeconds,
                        "existing users inherit the documented three-second default")
@@ -131,6 +133,7 @@ final class PreferencesTests: XCTestCase {
 
     func testCorruptAppearanceAndBooleanValuesFallBackToDocumentedDefaults() {
         defaults.set("obsolete-mode", forKey: Preferences.Key.appearanceMode.rawValue)
+        defaults.set("klingon", forKey: Preferences.Key.settingsLanguage.rawValue)
         defaults.set("diagonal", forKey: Preferences.Key.previewRowAlignment.rawValue)
         defaults.set("obsolete-delay", forKey: Preferences.Key.expandedPreviewDelay.rawValue)
         defaults.set("not-a-boolean", forKey: Preferences.Key.includeOtherSpaces.rawValue)
@@ -141,6 +144,7 @@ final class PreferencesTests: XCTestCase {
         let restored = Preferences(defaults: defaults)
 
         XCTAssertEqual(restored.appearanceMode, .appIcons)
+        XCTAssertEqual(restored.settingsLanguage, .english)
         XCTAssertEqual(restored.previewRowAlignment, .center)
         XCTAssertEqual(restored.expandedPreviewDelay, .threeSeconds)
         XCTAssertTrue(restored.includeOtherSpaces)
@@ -209,6 +213,7 @@ final class PreferencesTests: XCTestCase {
         preferences.shortcut = .controlTab
         preferences.persistentShortcut = nil
         preferences.appearanceMode = .windowPreviews
+        preferences.settingsLanguage = .simplifiedChinese
         preferences.previewRowAlignment = .left
         preferences.glassTransparencyPercent = 12
         preferences.expandedPreviewDelay = .off
@@ -218,7 +223,6 @@ final class PreferencesTests: XCTestCase {
         preferences.includeMinimizedWindows = true
         preferences.includeHiddenApplicationWindows = true
         preferences.includePictureInPictureWindows = true
-        preferences.showTabCounts = true
         preferences.showMenuBarItem = true
         preferences.showDockIcon = true
         preferences.automaticUpdateChecks = false
@@ -231,6 +235,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.shortcut, .commandTab)
         XCTAssertEqual(preferences.persistentShortcut, .optionTab)
         XCTAssertEqual(preferences.appearanceMode, .appIcons)
+        XCTAssertEqual(preferences.settingsLanguage, .english)
         XCTAssertEqual(preferences.previewRowAlignment, .center)
         XCTAssertEqual(preferences.glassTransparencyPercent, 100)
         XCTAssertEqual(preferences.expandedPreviewDelay, .threeSeconds)
@@ -269,6 +274,19 @@ final class PreferencesTests: XCTestCase {
             object: preferences)
         preferences.glassTransparencyPercent = 55
         wait(for: [expectation], timeout: 1)
+    }
+
+    func testSettingsLanguagePersistsAndPublishesImmediateChange() {
+        let expectation = expectation(
+            forNotification: Preferences.settingsLanguageDidChange,
+            object: preferences)
+
+        preferences.settingsLanguage = .simplifiedChinese
+
+        wait(for: [expectation], timeout: 1)
+        XCTAssertEqual(Preferences(defaults: defaults).settingsLanguage, .simplifiedChinese)
+        XCTAssertEqual(SettingsLanguage.english.displayName, "English")
+        XCTAssertEqual(SettingsLanguage.simplifiedChinese.displayName, "中文")
     }
 
     func testLiquidGlassTransparencyIsLiteralAndMonotonic() {
