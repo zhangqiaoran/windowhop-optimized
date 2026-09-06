@@ -48,12 +48,12 @@ enum DesignTokens {
     // MARK: Tiles (both appearances)
     /// Preview canvases use this radius for their fixed content and focus ring.
     static let cardCornerRadius: CGFloat = 10
-    /// App Icons follows the native switcher idiom: no neutral border, with a
-    /// soft rounded selection background around the icon canvas.
+    /// App Icons and previews share the same transparent moving focus ring;
+    /// these paddings define its clip-safe geometry, not a painted fill.
     static let iconSelectionPadding: CGFloat = 6
     static let iconSelectionCornerRadius: CGFloat = 18
-    /// Preview selection is a single accent-colored plate behind the canvas,
-    /// not a border stacked over the image.
+    /// Preview geometry reserves a small focus-ring gutter. Selection itself
+    /// is transparent and is drawn once by the shared moving blue focus ring.
     static let previewSelectionPadding: CGFloat = 3
 
     // MARK: Glass Focus Engine

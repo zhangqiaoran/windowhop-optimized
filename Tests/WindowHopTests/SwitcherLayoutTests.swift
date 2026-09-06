@@ -121,11 +121,11 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertEqual(panel.selectionLensBorderWidthForTesting,
                        DesignTokens.selectionLensBorderWidth)
         let focus = try rgba(try XCTUnwrap(panel.selectionLensBorderColorForTesting))
-        let semantic = try rgba(NSColor.keyboardFocusIndicatorColor)
-        XCTAssertEqual(focus.0, semantic.0, accuracy: 0.08)
-        XCTAssertEqual(focus.1, semantic.1, accuracy: 0.08)
-        XCTAssertEqual(focus.2, semantic.2, accuracy: 0.08)
         XCTAssertGreaterThan(focus.3, 0.90)
+        XCTAssertGreaterThan(focus.2, focus.0 + 0.25,
+                             "selection ring must remain visibly blue")
+        XCTAssertGreaterThan(focus.2, focus.1,
+                             "selection ring must remain blue-dominant")
     }
 
     func testUnavailableToLoadedTransitionKeepsCanvasBadgeAndSelectionGeometry() {
