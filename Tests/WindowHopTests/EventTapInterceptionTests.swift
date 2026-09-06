@@ -55,6 +55,37 @@ final class EventTapInterceptionTests: XCTestCase {
             .pass)
     }
 
+    func testRapidReleaseAndRepressStartsFreshSessionBeforeMainThreadCatchesUp() {
+        var state = EventTapInterceptionState(
+            mode: .watching,
+            holdModifier: .maskAlternate,
+            persistentShortcut: .commandTab)
+
+        XCTAssertEqual(
+            state.decide(type: .keyDown, keyCode: KeyCode.tab, flags: .maskAlternate),
+            EventTapDecision(disposition: .consume, input: .trigger(backward: false)))
+        XCTAssertEqual(state.mode, .sessionHeld)
+
+        // The tap thread sees Option released before the controller necessarily
+        // handles the semantic release on main.
+        XCTAssertEqual(
+            state.decide(type: .flagsChanged, keyCode: 58, flags: []),
+            EventTapDecision(disposition: .pass, input: .modifierReleased))
+        XCTAssertEqual(state.mode, .watching)
+
+        // A second physical Option+Tab must already be a brand-new trigger, not
+        // a .step that the just-ended controller session will later discard.
+        XCTAssertEqual(
+            state.decide(type: .keyDown, keyCode: KeyCode.tab, flags: .maskAlternate),
+            EventTapDecision(disposition: .consume, input: .trigger(backward: false)))
+        XCTAssertEqual(state.mode, .sessionHeld)
+
+        XCTAssertEqual(
+            state.decide(type: .flagsChanged, keyCode: 58, flags: []),
+            EventTapDecision(disposition: .pass, input: .modifierReleased))
+        XCTAssertEqual(state.mode, .watching)
+    }
+
     func testOnlyConfiguredChordIsInterceptedWhileWatching() {
         var state = EventTapInterceptionState(
             mode: .watching,
