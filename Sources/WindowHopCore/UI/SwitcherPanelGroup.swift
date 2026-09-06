@@ -141,6 +141,10 @@ public final class SwitcherPanelGroup {
         panels.forEach { $0.hideExpandedPreview() }
     }
 
+    public func playDismissalEffect(at index: Int) {
+        panels.forEach { $0.playDismissalEffect(at: index) }
+    }
+
     /// Hides every panel. Ending a session must leave nothing on any display.
     public func hide() {
         panels.forEach { $0.hide() }
