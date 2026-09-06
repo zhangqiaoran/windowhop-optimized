@@ -2,32 +2,19 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
-## 3.6.0 — 2026-09-06 — zhangqiaoran
+## 3.4.1 — 2026-09-06 — zhangqiaoran
 
-- Fixed the 3.5 close-button regression introduced by the native Glass hierarchy. The overlay close control now explicitly accepts first mouse in the nonactivating panel, and the panel adds a root-level close-hit router so private Glass view wrappers cannot swallow the click.
-- Kept the Apple-recommended `NSGlassEffectView.contentView` + `NSGlassEffectContainerView` hierarchy, but switched the large switcher surface to **Regular Liquid Glass** consistently instead of using Clear Glass as the primary material.
-- Regular Glass remains alpha 1.0 at every slider value. **100% = no white tint, strongest native adaptive/refraction behavior**; lower values progressively add a nonlinear milky-white tint. The material itself is never faded to simulate transparency.
-- Removed the custom CALayer border from native `NSGlassEffectView` so AppKit's own dynamic Liquid Glass edge/highlight remains visible. The manual border is kept only for the pre-macOS-26 fallback.
-- Added runtime capability detection for beta `effectIsInteractive`. Current Apple documentation exposes it, but some Xcode 26 Swift SDK overlays do not; 3.6 probes `setEffectIsInteractive:` dynamically and enables it only when the running AppKit supports the selector, preserving build compatibility.
-- Retained 3.5's 96-frame compact grayscale+alpha erosion atlas, linear ~120 Hz-class mask pacing, prewarmed dissolve resources, one-frame settle gap before the 80% Stable-ID FLIP hand-off, and compositor-driven dust/haze tail.
-- Added regression coverage for close-hit routing across the Glass hierarchy and for native Glass not receiving a custom border.
-- Universal 2 packaging and Sparkle EdDSA updates remain unchanged.
+- Rebuilt the macOS 26 Liquid Glass hierarchy around `NSGlassEffectContainerView → NSGlassEffectView → contentView`, keeping switcher chrome inside the native material so AppKit can apply adaptive sampling, reflection, refraction, and legibility coherently.
+- Standardized the large switcher and contextual ellipsis on **Regular Liquid Glass** at alpha 1.0. 100% adds no white tint; lower values add only perceptual milky tint instead of fading the material itself.
+- Removed the custom CALayer white border from native `NSGlassEffectView` so AppKit owns the dynamic Liquid Glass edge/highlight; the pre-macOS-26 fallback keeps its semantic border.
+- Added runtime capability detection for beta `effectIsInteractive`, enabling it only when the running AppKit exposes `setEffectIsInteractive:`.
+- Fixed Close, Settings, and preview-permission clicks by resolving pointer actions at the `SwitcherPanel` boundary from final host-space rectangles. First-mouse handling no longer depends on nested Glass / ScrollView hit-test forwarding.
+- Increased true thumbnail erosion from 36 to 96 compact grayscale+alpha mask states with linear pacing and off-hot-path prewarming.
+- Pixel erosion now finishes one nominal 60 Hz frame before the existing 80% Stable-ID FLIP hand-off, eliminating the final-mask/reflow overlap while allowing compositor dust and haze to continue naturally.
+- Preserved immediate real-window close, Reduce Motion behavior, Universal 2 packaging, and Sparkle EdDSA update verification.
+- Internal build is 30601 so installations that briefly received higher-numbered builds can still update to marketing version 3.4.1.
 
-Full notes: [`RELEASE_NOTES_v3.6.0.md`](RELEASE_NOTES_v3.6.0.md).
-
-## 3.5.0 — 2026-09-06 — zhangqiaoran
-
-- Rebuilt the macOS 26 Liquid Glass hierarchy to follow AppKit's intended structure: switcher chrome is again the `NSGlassEffectView.contentView`, and the panel plus contextual ellipsis surface share one `NSGlassEffectContainerView` sampling group.
-- Native Liquid Glass now stays fully materialized at alpha 1.0 for every slider value. **100% = pure Clear Glass with no white tint**; lower values add a perceptual white `tintColor` using the existing nonlinear milk curve. This preserves refraction, edge highlights, adaptive brightness, and background color sampling instead of fading the entire glass effect.
-- Pre-macOS-26 systems keep the visual-effect fallback with a separate milk plane; foreground content remains embedded in the material hierarchy.
-- Analyzed the supplied ~29.87 FPS close-animation video and removed the source of the final-frame hitch: the previous 36-frame discrete erosion atlas continued until 0.88 s while Stable-ID FLIP reflow started at 0.816 s.
-- Increased true thumbnail erosion from **36 → 96 deterministic mask frames**, giving roughly 120 mask states/s during the erosion phase; temporal pacing is now linear rather than eased/discrete-compressed near the end.
-- Pixel erosion now finishes one nominal 60 Hz frame before the existing 80% reflow hand-off, so final bitmap-mask swaps no longer compete with the first FLIP resize frame. Dust/haze continues across the hand-off for visual continuity.
-- Converted erosion masks from 32-bit RGBA to compact grayscale+alpha storage, halving atlas bandwidth despite the higher frame count.
-- Both erosion directions and the particle texture are prewarmed off the first-close hot path.
-- Preserved Stable-ID unified FLIP, 2 pt system-blue selection focus, true source-tile hiding, Universal 2 packaging, and Sparkle EdDSA updates.
-
-Full notes: [`RELEASE_NOTES_v3.5.0.md`](RELEASE_NOTES_v3.5.0.md).
+Full notes: [`RELEASE_NOTES_v3.4.1.md`](RELEASE_NOTES_v3.4.1.md).
 
 ## 3.4.0 — 2026-09-06 — zhangqiaoran
 
