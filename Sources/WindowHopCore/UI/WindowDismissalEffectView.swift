@@ -9,16 +9,23 @@ import QuartzCore
 ///    sitting underneath a particle effect;
 /// 2. a narrow moving CAEmitterLayer follows that erosion front and sheds dust.
 ///
-/// The mask atlas is deterministic, low-resolution, and lazily cached. A close
-/// therefore performs no image filtering and no per-frame CPU simulation.
+/// The mask atlas is deterministic, low-resolution, and prewarmed off the hot
+/// path. v3.5 paces the atlas near 120 Hz and completes pixel erosion one
+/// display frame before the 80% FLIP hand-off, so the last dissolve frames no
+/// longer fight layout motion.
 final class WindowDismissalEffectView: NSView {
     private static let duration: CFTimeInterval = 1.02
-    private static let erosionDuration: CFTimeInterval = 0.88
-    private static let emissionWindow: CFTimeInterval = 0.74
+    private static let emissionWindow: CFTimeInterval = 0.72
     private static let reflowStartFraction: CFTimeInterval = 0.80
+    /// Finish mask swapping one nominal 60 Hz frame before layout motion starts.
+    /// The dust/haze tail continues through the hand-off, but no bitmap-mask
+    /// upload competes with the first FLIP frame.
+    private static let handoffSettleLead: CFTimeInterval = 1.0 / 60.0
     private static let nominalParticleBirthRate: Float = 640
     private static let emitterCellCount = 4
-    private static let erosionMaskFrameCount = 36
+    /// 96 tiny alpha frames over ~0.80 s yields ~120 mask updates/s. Core
+    /// Animation naturally coalesces them to the display refresh rate.
+    private static let erosionMaskFrameCount = 96
     private static let erosionMaskWidth = 112
     private static let erosionMaskHeight = 70
 
@@ -26,7 +33,25 @@ final class WindowDismissalEffectView: NSView {
         duration * reflowStartFraction
     }
 
+    private static var erosionDuration: CFTimeInterval {
+        max(0.1, listReflowDelay - handoffSettleLead)
+    }
+
+    /// Generates both directional atlases and the particle texture away from
+    /// the first close click. Static initialization is thread-safe.
+    static func prewarmAssets() {
+        DispatchQueue.global(qos: .utility).async {
+            _ = rightwardFragmentMasks
+            _ = leftwardFragmentMasks
+            _ = softParticleImage
+        }
+    }
+
     static var animationDurationForTesting: CFTimeInterval { duration }
+    static var erosionDurationForTesting: CFTimeInterval { erosionDuration }
+    static var maskCadenceForTesting: Double {
+        Double(erosionMaskFrameCount) / erosionDuration
+    }
     static var emissionWindowForTesting: CFTimeInterval { emissionWindow }
     static var reflowStartFractionForTesting: CFTimeInterval { reflowStartFraction }
     static var listReflowDelayForTesting: CFTimeInterval { listReflowDelay }
@@ -103,7 +128,9 @@ final class WindowDismissalEffectView: NSView {
         }
         contents.calculationMode = .discrete
         contents.duration = Self.erosionDuration
-        contents.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 0.72, 0.20, 1)
+        // Constant temporal spacing is intentional. The old eased discrete
+        // atlas compressed several final mask swaps into a short interval.
+        contents.timingFunction = CAMediaTimingFunction(name: .linear)
         contents.isRemovedOnCompletion = false
         contents.fillMode = .forwards
         maskLayer.contents = first
@@ -351,7 +378,10 @@ final class WindowDismissalEffectView: NSView {
         let progress = -0.10 + normalized * 1.22
         let feather: CGFloat = 0.045
 
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        // Gray + alpha cuts atlas memory/bandwidth in half versus the previous
+        // RGBA masks. Both channels use the same premultiplied value; only alpha
+        // matters when Core Animation uses the image as a layer mask.
+        var pixels = [UInt8](repeating: 0, count: width * height * 2)
         for y in 0..<height {
             for x in 0..<width {
                 let alpha: UInt8
@@ -375,11 +405,9 @@ final class WindowDismissalEffectView: NSView {
                     alpha = UInt8((smooth * 255).rounded())
                 }
 
-                let offset = (y * width + x) * 4
+                let offset = (y * width + x) * 2
                 pixels[offset] = alpha
                 pixels[offset + 1] = alpha
-                pixels[offset + 2] = alpha
-                pixels[offset + 3] = alpha
             }
         }
 
@@ -389,10 +417,11 @@ final class WindowDismissalEffectView: NSView {
             width: width,
             height: height,
             bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            bitsPerPixel: 16,
+            bytesPerRow: width * 2,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGBitmapInfo(
+                rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
             provider: provider,
             decode: nil,
             shouldInterpolate: true,

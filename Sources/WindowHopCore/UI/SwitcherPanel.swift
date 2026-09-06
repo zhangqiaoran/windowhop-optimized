@@ -142,9 +142,14 @@ public final class SwitcherPanel: NSPanel {
     /// changing the panel's internal layout.
     private let hostView = SwitcherPanelHostView()
     private var panelBackgroundView: NSView!
-    /// A real background-only density layer. This is separate from the glass
-    /// material so the user's percentage controls transparency rather than
-    /// merely changing NSGlassEffectView.tintColor.
+    /// Root rendering group. On macOS 26+ this is NSGlassEffectContainerView;
+    /// older systems point it at the NSVisualEffectView fallback.
+    private var glassRootView: NSView!
+    private var glassGroupView: NSView?
+    private var settingsGlassView: NSView?
+    private var usesNativeGlassContainer = false
+    /// Fallback-only milk plane. Native macOS 26 glass uses tintColor instead,
+    /// keeping all milk/refraction inside the system material.
     private let liquidGlassDensityView = NSView()
     private let liquidGlassDensityMask = CAGradientLayer()
     /// Everything inside the visible panel background (the preview grid).
@@ -239,17 +244,47 @@ public final class SwitcherPanel: NSPanel {
         // treatment come from AppKit, never a hardcoded color); older systems
         // fall back to the closest visual-effect material. Both respect
         // Reduce Transparency and Increase Contrast automatically.
-        chromeView.autoresizingMask = []
+        chromeView.autoresizingMask = [.width, .height]
         chromeView.wantsLayer = true
         chromeView.layer?.backgroundColor = NSColor.clear.cgColor
 
-        // v3.4: glass and foreground content are siblings. This is critical:
-        // the material can now become optically thinner without fading window
-        // previews, labels, controls, or the blue focus ring.
-        panelBackgroundView = Self.makeBackgroundView(
-            rasterizable: rasterizableBackground)
-        hostView.addSubview(panelBackgroundView)
-        hostView.addSubview(chromeView, positioned: .above, relativeTo: panelBackgroundView)
+        // v3.5 follows AppKit's intended hierarchy: foreground content is the
+        // NSGlassEffectView.contentView, never a sibling floating above glass.
+        // Nearby glass controls share one NSGlassEffectContainerView sampling
+        // pass so background color/refraction stays consistent.
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), !rasterizableBackground {
+            let glass = NSGlassEffectView()
+            glass.style = .clear
+            glass.cornerRadius = DesignTokens.panelCornerRadius
+            glass.contentView = chromeView
+
+            let group = NSView()
+            group.wantsLayer = true
+            group.layer?.backgroundColor = NSColor.clear.cgColor
+            group.addSubview(glass)
+
+            let container = NSGlassEffectContainerView()
+            container.spacing = DesignTokens.glassContainerSpacing
+            container.contentView = group
+
+            panelBackgroundView = glass
+            glassGroupView = group
+            glassRootView = container
+            usesNativeGlassContainer = true
+            hostView.addSubview(container)
+        } else {
+            let fallback = Self.makeFallbackBackgroundView(wrapping: chromeView)
+            panelBackgroundView = fallback
+            glassRootView = fallback
+            hostView.addSubview(fallback)
+        }
+        #else
+        let fallback = Self.makeFallbackBackgroundView(wrapping: chromeView)
+        panelBackgroundView = fallback
+        glassRootView = fallback
+        hostView.addSubview(fallback)
+        #endif
         contentView = hostView
 
         liquidGlassDensityView.wantsLayer = true
@@ -297,8 +332,9 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.wantsLayer = true
         settingsButton.layer?.cornerRadius = DesignTokens.chromeButtonHitSize / 2
         settingsButton.layer?.cornerCurve = .continuous
-        settingsButton.layer?.backgroundColor = NSColor.controlBackgroundColor
-            .withAlphaComponent(0.42).cgColor
+        settingsButton.layer?.backgroundColor = usesNativeGlassContainer
+            ? NSColor.clear.cgColor
+            : NSColor.controlBackgroundColor.withAlphaComponent(0.42).cgColor
         settingsButton.target = self
         settingsButton.action = #selector(settingsClicked)
         settingsButton.toolTip = "More Options (⌘,)"
@@ -306,7 +342,26 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.alphaValue = 0
         settingsButton.isEnabled = false
         settingsButton.setAccessibilityHidden(true)
+
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *),
+           usesNativeGlassContainer,
+           let group = glassGroupView {
+            let settingsGlass = NSGlassEffectView()
+            settingsGlass.style = .clear
+            settingsGlass.cornerRadius = DesignTokens.chromeButtonHitSize / 2
+            settingsGlass.contentView = settingsButton
+            settingsGlass.alphaValue = 0
+            settingsButton.alphaValue = 1
+            group.addSubview(settingsGlass)
+            settingsGlassView = settingsGlass
+        } else {
+            hostView.addSubview(settingsButton)
+        }
+        #else
         hostView.addSubview(settingsButton)
+        #endif
+
         hostView.onHoverChanged = { [weak self] _ in
             self?.updateSettingsButtonVisibility(animated: true)
         }
@@ -347,6 +402,10 @@ public final class SwitcherPanel: NSPanel {
                 self?.applyLiquidGlassAppearance()
             }
 
+        // Prewarm both dissolve atlases and the emitter texture off the close
+        // hot path. This avoids a first-use CPU/GPU resource burst.
+        WindowDismissalEffectView.prewarmAssets()
+
         // pre-warm the tile pool off the first-trigger latency path; tiles beyond
         // this grow the pool once and are then reused forever
         DispatchQueue.main.async { [weak self] in
@@ -369,12 +428,10 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Perceptual liquid ↔ milky mapping.
-    ///
-    /// 100%: the native Clear Glass surface is optically thin (~60% surface
-    /// alpha) and the milk layer is exactly zero.
-    /// 0%: the native surface is fully present and a 72% translucent neutral
-    /// body is added below foreground content.
+    /// 100% means maximum Liquid Glass, not a faded view:
+    /// native glass remains alpha=1 with no tint. Lower values progressively
+    /// add a white system-glass tint; only the pre-26 fallback uses the manual
+    /// milk layer.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
@@ -382,13 +439,10 @@ public final class SwitcherPanel: NSPanel {
             forTransparencyPercent: percent))
         let milkFactor = CGFloat(Preferences.liquidGlassMilkFactor(
             forTransparencyPercent: percent))
-        let surfaceAlpha = CGFloat(Preferences.liquidGlassSurfaceAlpha(
-            forTransparencyPercent: percent))
-        let milkAlpha = milkFactor * DesignTokens.glassMaximumMilkAlpha
+        let nativeTintAlpha = milkFactor * DesignTokens.glassNativeMaximumTintAlpha
+        let fallbackMilkAlpha = milkFactor * DesignTokens.glassMaximumMilkAlpha
 
-        panelBackgroundView.alphaValue = surfaceAlpha
-        liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(milkAlpha).cgColor
+        panelBackgroundView.alphaValue = 1
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
         panelBackgroundView.wantsLayer = true
@@ -404,29 +458,31 @@ public final class SwitcherPanel: NSPanel {
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
             glass.style = .clear
-            glass.tintColor = nil
+            glass.tintColor = nativeTintAlpha <= 0.001
+                ? nil
+                : NSColor.white.withAlphaComponent(nativeTintAlpha)
+            liquidGlassDensityView.layer?.backgroundColor = NSColor.clear.cgColor
+
+            if let settingsGlass = settingsGlassView as? NSGlassEffectView {
+                settingsGlass.style = .clear
+                settingsGlass.tintColor = nativeTintAlpha <= 0.001
+                    ? nil
+                    : NSColor.white.withAlphaComponent(nativeTintAlpha * 0.72)
+            }
             return
         }
         #endif
 
+        liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(fallbackMilkAlpha).cgColor
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
-        effectView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(
-                milkAlpha * DesignTokens.glassFallbackMilkScale).cgColor
+        effectView.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
-    /// Material-only background. Foreground chrome is deliberately not a
-    /// contentView child: changing material alpha must never fade app content.
-    private static func makeBackgroundView(rasterizable: Bool) -> NSView {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *), !rasterizable {
-            let glass = NSGlassEffectView()
-            glass.style = .clear
-            glass.cornerRadius = DesignTokens.panelCornerRadius
-            return glass
-        }
-        #endif
+    /// Pre-macOS-26 fallback. Foreground content is still embedded inside the
+    /// material view, matching the native hierarchy as closely as possible.
+    private static func makeFallbackBackgroundView(wrapping content: NSView) -> NSView {
         let effectView = NSVisualEffectView()
         effectView.material = DesignTokens.panelMaterial
         effectView.blendingMode = .behindWindow
@@ -435,7 +491,32 @@ public final class SwitcherPanel: NSPanel {
         effectView.layer?.cornerRadius = DesignTokens.panelCornerRadius
         effectView.layer?.cornerCurve = .continuous
         effectView.layer?.masksToBounds = true
+        content.frame = effectView.bounds
+        content.autoresizingMask = [.width, .height]
+        effectView.addSubview(content)
         return effectView
+    }
+
+    private func layoutGlassHierarchy(panelSize: NSSize) {
+        let frame = NSRect(origin: .zero, size: panelSize)
+        glassRootView.frame = frame
+
+        if let group = glassGroupView {
+            group.frame = glassRootView.bounds
+            panelBackgroundView.frame = group.bounds
+        } else {
+            panelBackgroundView.frame = frame
+        }
+        chromeView.frame = panelBackgroundView.bounds
+    }
+
+    private func setSettingsControlFrame(_ frame: NSRect) {
+        if let settingsGlassView {
+            settingsGlassView.frame = frame
+            settingsButton.frame = settingsGlassView.bounds
+        } else {
+            settingsButton.frame = frame
+        }
     }
 
     public func show(items: [SwitcherItem],
@@ -461,6 +542,8 @@ public final class SwitcherPanel: NSPanel {
 
     private struct ReflowGeometry {
         let windowFrame: NSRect
+        let glassRootFrame: NSRect
+        let glassGroupFrame: NSRect?
         let backgroundFrame: NSRect
         let chromeFrame: NSRect
         let densityFrame: NSRect
@@ -765,8 +848,7 @@ public final class SwitcherPanel: NSPanel {
             height: visibleGridHeight + padding * 2
                 + DesignTokens.panelBottomComfort
                 + DesignTokens.chromeReservedTop + bottomOverflow)
-        panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
-        chromeView.frame = panelBackgroundView.frame
+        layoutGlassHierarchy(panelSize: panelSize)
 
         // The empty top chrome stays clear. Frosted density only belongs to the
         // content zone and fades out before it reaches the reserved ellipsis row.
@@ -785,10 +867,10 @@ public final class SwitcherPanel: NSPanel {
         // thumbnail or selection lens.
         let controlSize = DesignTokens.chromeButtonHitSize
         let controlInset = DesignTokens.settingsButtonInset
-        settingsButton.frame = NSRect(
+        setSettingsControlFrame(NSRect(
             x: panelSize.width - controlSize - controlInset,
             y: panelSize.height - controlSize - controlInset,
-            width: controlSize, height: controlSize)
+            width: controlSize, height: controlSize))
         permissionButton.frame = NSRect(
             x: panelSize.width - controlSize * 2 - controlInset - 6,
             y: panelSize.height - controlSize - controlInset,
@@ -819,6 +901,12 @@ public final class SwitcherPanel: NSPanel {
 
         return ReflowGeometry(
             windowFrame: windowFrameOverride ?? frame,
+            glassRootFrame: usePresentationFrames
+                ? presentationFrame(of: glassRootView)
+                : glassRootView.frame,
+            glassGroupFrame: glassGroupView.map {
+                usePresentationFrames ? presentationFrame(of: $0) : $0.frame
+            },
             backgroundFrame: usePresentationFrames
                 ? presentationFrame(of: panelBackgroundView)
                 : panelBackgroundView.frame,
@@ -835,9 +923,12 @@ public final class SwitcherPanel: NSPanel {
             documentFrame: usePresentationFrames
                 ? presentationFrame(of: tilesContainer)
                 : tilesContainer.frame,
-            settingsFrame: usePresentationFrames
-                ? presentationFrame(of: settingsButton)
-                : settingsButton.frame,
+            settingsFrame: {
+                let settingsSurface = settingsGlassView ?? settingsButton
+                return usePresentationFrames
+                    ? presentationFrame(of: settingsSurface)
+                    : settingsSurface.frame
+            }(),
             permissionFrame: usePresentationFrames
                 ? presentationFrame(of: permissionButton)
                 : permissionButton.frame,
@@ -861,6 +952,10 @@ public final class SwitcherPanel: NSPanel {
 
     private func restoreReflowGeometry(_ old: ReflowGeometry) {
         setFrame(old.windowFrame, display: false)
+        glassRootView.frame = old.glassRootFrame
+        if let group = glassGroupView, let frame = old.glassGroupFrame {
+            group.frame = frame
+        }
         panelBackgroundView.frame = old.backgroundFrame
         chromeView.frame = old.chromeFrame
         liquidGlassDensityView.frame = old.densityFrame
@@ -868,7 +963,7 @@ public final class SwitcherPanel: NSPanel {
         scrollView.frame = old.scrollFrame
         scrollView.contentView.bounds = old.clipBounds
         tilesContainer.frame = old.documentFrame
-        settingsButton.frame = old.settingsFrame
+        setSettingsControlFrame(old.settingsFrame)
         permissionButton.frame = old.permissionFrame
         selectionLensView.frame = old.lensFrame
 
@@ -889,12 +984,18 @@ public final class SwitcherPanel: NSPanel {
             context.allowsImplicitAnimation = true
 
             animator().setFrame(target.windowFrame, display: false)
+            glassRootView.animator().frame = target.glassRootFrame
+            if let group = glassGroupView, let frame = target.glassGroupFrame {
+                group.animator().frame = frame
+            }
             panelBackgroundView.animator().frame = target.backgroundFrame
-            chromeView.animator().frame = target.chromeFrame
+            if !usesNativeGlassContainer {
+                chromeView.animator().frame = target.chromeFrame
+            }
             liquidGlassDensityView.animator().frame = target.densityFrame
             scrollView.animator().frame = target.scrollFrame
             tilesContainer.animator().frame = target.documentFrame
-            settingsButton.animator().frame = target.settingsFrame
+            (settingsGlassView ?? settingsButton).animator().frame = target.settingsFrame
             permissionButton.animator().frame = target.permissionFrame
 
             for (index, item) in items.enumerated() where index < visibleTileCount {
@@ -908,13 +1009,17 @@ public final class SwitcherPanel: NSPanel {
         } completionHandler: { [weak self] in
             guard let self else { return }
             self.setFrame(target.windowFrame, display: true)
+            self.glassRootView.frame = target.glassRootFrame
+            if let group = self.glassGroupView, let frame = target.glassGroupFrame {
+                group.frame = frame
+            }
             self.panelBackgroundView.frame = target.backgroundFrame
             self.chromeView.frame = target.chromeFrame
             self.liquidGlassDensityView.frame = target.densityFrame
             self.liquidGlassDensityMask.frame = self.liquidGlassDensityView.bounds
             self.scrollView.frame = target.scrollFrame
             self.tilesContainer.frame = target.documentFrame
-            self.settingsButton.frame = target.settingsFrame
+            self.setSettingsControlFrame(target.settingsFrame)
             self.permissionButton.frame = target.permissionFrame
             if !self.selectionLensView.isHidden {
                 self.selectionLensView.frame = target.lensFrame
@@ -937,8 +1042,7 @@ public final class SwitcherPanel: NSPanel {
                        visibleFrame.width * DesignTokens.panelMaxWidthFraction),
             height: min(max(currentSize.height, DesignTokens.expandedPreviewMinimumHeight),
                         visibleFrame.height * DesignTokens.panelMaxHeightFraction))
-        panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
-        chromeView.frame = panelBackgroundView.frame
+        layoutGlassHierarchy(panelSize: panelSize)
         liquidGlassDensityView.frame = chromeView.bounds
         liquidGlassDensityMask.frame = liquidGlassDensityView.bounds
         expandedPreviewView.frame = panelBackgroundView.bounds.insetBy(
@@ -946,10 +1050,10 @@ public final class SwitcherPanel: NSPanel {
             dy: DesignTokens.expandedPreviewPanelInset)
         let controlSize = DesignTokens.chromeButtonHitSize
         let controlInset = DesignTokens.settingsButtonInset
-        settingsButton.frame = NSRect(
+        setSettingsControlFrame(NSRect(
             x: panelSize.width - controlSize - controlInset,
             y: panelSize.height - controlSize - controlInset,
-            width: controlSize, height: controlSize)
+            width: controlSize, height: controlSize))
         permissionButton.isHidden = true
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
@@ -1074,11 +1178,10 @@ public final class SwitcherPanel: NSPanel {
     var liquidGlassSurfaceAlphaForTesting: CGFloat {
         panelBackgroundView.alphaValue
     }
-    var foregroundChromeIsIndependentOfGlassForTesting: Bool {
-        chromeView.superview === hostView
-            && panelBackgroundView.superview === hostView
-            && chromeView.superview === panelBackgroundView.superview
+    var foregroundChromeUsesGlassContentViewForTesting: Bool {
+        chromeView.superview === panelBackgroundView
     }
+    var usesNativeGlassContainerForTesting: Bool { usesNativeGlassContainer }
     var usesUnifiedReflowForTesting: Bool { true }
     var selectionLensDensityAlphaForTesting: CGFloat {
         selectionLensView.densityAlphaForTesting
@@ -1094,9 +1197,12 @@ public final class SwitcherPanel: NSPanel {
     }
     var selectionGeometryCountForTesting: Int { selectionFrames.count }
 
-    var settingsButtonFrameForTesting: NSRect { settingsButton.frame }
+    var settingsButtonFrameForTesting: NSRect {
+        (settingsGlassView ?? settingsButton).frame
+    }
     var settingsButtonIsVisibleForTesting: Bool {
-        settingsButton.isEnabled && settingsButton.alphaValue > 0
+        let surface = settingsGlassView ?? settingsButton
+        return settingsButton.isEnabled && surface.alphaValue > 0
     }
     var settingsButtonToolTipForTesting: String? { settingsButton.toolTip }
     var gridFrameForTesting: NSRect { scrollView.frame }
@@ -1114,7 +1220,7 @@ public final class SwitcherPanel: NSPanel {
         scrollView.frame.minY - panelBackgroundView.frame.minY
     }
     var settingsButtonIntersectsGridForTesting: Bool {
-        settingsButton.frame.intersects(scrollView.frame)
+        (settingsGlassView ?? settingsButton).frame.intersects(scrollView.frame)
     }
     var panelBackgroundFrameForTesting: NSRect { panelBackgroundView.frame }
 
@@ -1128,17 +1234,18 @@ public final class SwitcherPanel: NSPanel {
         settingsButton.isEnabled = visible
         settingsButton.setAccessibilityHidden(!visible)
         let target: CGFloat = visible ? 1 : 0
-        guard settingsButton.alphaValue != target else { return }
+        let visibilitySurface = settingsGlassView ?? settingsButton
+        guard visibilitySurface.alphaValue != target else { return }
         let shouldAnimate = animated
             && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         guard shouldAnimate else {
-            settingsButton.alphaValue = target
+            visibilitySurface.alphaValue = target
             return
         }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = DesignTokens.settingsVisibilityFadeDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            settingsButton.animator().alphaValue = target
+            visibilitySurface.animator().alphaValue = target
         }
     }
 

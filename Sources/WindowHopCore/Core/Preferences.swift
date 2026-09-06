@@ -425,16 +425,15 @@ public final class Preferences: ObservableObject {
     /// quickly enough to read as intentionally milky rather than merely dim.
     public static func liquidGlassMilkFactor(forTransparencyPercent value: Double) -> Double {
         let liquid = liquidGlassFactor(forTransparencyPercent: value)
-        return pow(1 - liquid, 1.55)
+        return pow(1 - liquid, 1.65)
     }
 
-    /// Controls only the background glass view (foreground content is a sibling).
-    /// High values intentionally reduce the material surface alpha so wallpaper
-    /// color and motion read through the refraction; low values restore the full
-    /// material before the separate milky layer is composited above it.
-    public static func liquidGlassSurfaceAlpha(forTransparencyPercent value: Double) -> Double {
-        let liquid = liquidGlassFactor(forTransparencyPercent: value)
-        return 0.60 + 0.40 * pow(1 - liquid, 0.85)
+    /// Native Liquid Glass must remain fully materialized. Fading the whole
+    /// NSGlassEffectView weakens refraction, edge highlights, and adaptive
+    /// background sampling together, so v3.5 keeps this at 1.0 and changes
+    /// only the glass tint / fallback milk layer.
+    public static func liquidGlassSurfaceAlpha(forTransparencyPercent _: Double) -> Double {
+        1
     }
 
     /// Retained as the literal inverse for migrations/tests that need a density

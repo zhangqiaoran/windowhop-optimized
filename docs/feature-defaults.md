@@ -1,5 +1,12 @@
 # User-facing defaults and configurability
 
+## Unreleased 3.5 native-glass + paced-dissolve decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Native Liquid Glass hierarchy | Enabled on macOS 26+ | Yes | Foreground chrome returns to `NSGlassEffectView.contentView` as recommended by AppKit. The panel and contextual ellipsis glass share an `NSGlassEffectContainerView` (spacing 0) for one sampling pass and consistent adaptive appearance. Native glass alpha stays 1.0 at every slider value; 100% uses no tint, while lower values add a perceptual white `tintColor`. |
+| 120 Hz-class erosion pacing | Enabled | No | Fragment masks increase from 36 to 96 and use linear temporal spacing. The compact gray+alpha atlas is prewarmed off the close hot path. Pixel erosion ends one nominal 60 Hz frame before the existing 80% reflow hand-off, preventing final mask swaps from competing with the first Stable-ID FLIP frame. |
+
 ## my-alt-tab 3.4.0 liquid-glass + unified-FLIP decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |

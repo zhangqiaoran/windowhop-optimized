@@ -196,15 +196,12 @@ final class SwitcherLayoutTests: XCTestCase {
                        "More Options (⌘,)")
     }
 
-    func testLiquidGlassPercentageMapsLiquidToMilkyPerceptually() {
+    func testLiquidGlassPercentageMapsNativeGlassToMilkyWithoutFadingMaterial() {
         let panel = SwitcherPanel(rasterizableBackground: true)
 
         Preferences.shared.glassTransparencyPercent = 100
         XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
-        XCTAssertEqual(
-            panel.liquidGlassSurfaceAlphaForTesting,
-            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
-            accuracy: 0.001)
+        XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 1, accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
         let milk90 = panel.liquidGlassDensityAlphaForTesting
@@ -221,10 +218,10 @@ final class SwitcherLayoutTests: XCTestCase {
             accuracy: 0.001)
         XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 1, accuracy: 0.001)
 
-        XCTAssertTrue(panel.foregroundChromeIsIndependentOfGlassForTesting)
+        XCTAssertTrue(panel.foregroundChromeUsesGlassContentViewForTesting)
     }
 
-    func testLiquidGlassCoreCurveIsMonotonic() {
+    func testLiquidGlassCoreCurveKeepsMaterialFullyPresent() {
         XCTAssertEqual(
             Preferences.liquidGlassMilkFactor(forTransparencyPercent: 100),
             0,
@@ -236,12 +233,14 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThan(
             Preferences.liquidGlassMilkFactor(forTransparencyPercent: 90),
             Preferences.liquidGlassMilkFactor(forTransparencyPercent: 70))
-        XCTAssertLessThan(
+        XCTAssertEqual(
             Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
-            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50))
-        XCTAssertLessThan(
-            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50),
-            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 0))
+            1,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 0),
+            1,
+            accuracy: 0.0001)
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
@@ -287,7 +286,13 @@ final class SwitcherLayoutTests: XCTestCase {
             WindowDismissalEffectView.nominalParticleBirthRateForTesting, 700)
         XCTAssertTrue(WindowDismissalEffectView.usesFragmentMaskForTesting)
         XCTAssertGreaterThanOrEqual(
-            WindowDismissalEffectView.erosionMaskFrameCountForTesting, 30)
+            WindowDismissalEffectView.erosionMaskFrameCountForTesting, 90)
+        XCTAssertGreaterThanOrEqual(
+            WindowDismissalEffectView.maskCadenceForTesting, 100)
+        XCTAssertLessThan(
+            WindowDismissalEffectView.erosionDurationForTesting,
+            WindowDismissalEffectView.listReflowDelayForTesting,
+            "pixel erosion must finish before FLIP reflow starts")
         XCTAssertGreaterThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 0.90)
         XCTAssertLessThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 1.10)
         XCTAssertLessThan(WindowDismissalEffectView.emissionWindowForTesting,

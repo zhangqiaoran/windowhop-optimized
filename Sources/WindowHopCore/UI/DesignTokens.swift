@@ -72,14 +72,17 @@ enum DesignTokens {
     static var panelReflowTimingFunction: CAMediaTimingFunction {
         CAMediaTimingFunction(controlPoints: 0.18, 0.78, 0.20, 1.0)
     }
-    /// 3.4 treats the slider as a liquid ↔ milky continuum. The high end is a
-    /// low-alpha native Clear Glass surface with zero milk. The low end restores
-    /// full glass plus a strong but still translucent white body.
+    /// v3.5 keeps native Clear Glass at full strength. Higher values remove
+    /// tint and expose the material's full refraction; lower values add a
+    /// perceptual white tint. The fallback uses a separate translucent milk
+    /// plane because pre-26 AppKit has no NSGlassEffectView tint semantics.
+    static let glassNativeMaximumTintAlpha: CGFloat = 0.52
     static let glassMaximumMilkAlpha: CGFloat = 0.72
-    static let glassFallbackMilkScale: CGFloat = 0.86
+    static let glassFallbackMilkScale: CGFloat = 0.90
+    static let glassContainerSpacing: CGFloat = 0
     static let glassBorderWidth: CGFloat = 0.7
-    static let glassBorderAlphaLow: CGFloat = 0.11
-    static let glassBorderAlphaHigh: CGFloat = 0.28
+    static let glassBorderAlphaLow: CGFloat = 0.10
+    static let glassBorderAlphaHigh: CGFloat = 0.24
     /// Selection never paints over window content. A semantic system-blue ring
     /// and a small blue glow provide focus without reducing preview clarity.
     static var selectionLensStroke: NSColor {

@@ -419,7 +419,7 @@ struct AppearancePane: View {
             } header: {
                 Text("Liquid Glass")
             } footer: {
-                Text("Higher values make the panel more liquid and transparent; lower values progressively add a milky white glass body. 100% keeps zero milk and thins the native Clear Glass surface so wallpaper color shows through strongly. 0% restores full glass plus the strongest translucent milk layer. Window previews, icons, text, and the blue focus ring always stay at full opacity.")
+                Text("Higher values mean more native Liquid Glass: 100% keeps the system Clear Glass fully materialized with no white tint, preserving its refraction, adaptive highlights, and background color sampling. Lower values progressively add a perceptual milky-white glass tint; 0% is the strongest milk. Foreground previews, text, controls, and the blue focus ring remain inside the glass content view for correct AppKit adaptation.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
