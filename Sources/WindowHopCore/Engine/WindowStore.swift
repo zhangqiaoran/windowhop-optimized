@@ -166,6 +166,19 @@ public final class WindowStore {
         }
     }
 
+    /// Commits a user-confirmed switch immediately, before the asynchronous AX
+    /// focus notification comes back. Without this optimistic MRU promotion, a
+    /// second very fast Alt/Option+Tab can snapshot the old [current, previous]
+    /// order and target the same window again. Real focus notifications still
+    /// reinforce/correct this order afterward.
+    func noteCommittedActivation(_ window: TrackedWindow) {
+        guard windows.contains(where: { $0 === window }) else { return }
+        window.isOnCurrentSpace = true
+        windowFocused(window)
+        DebugLog.log("MRU committed immediately for rapid-toggle target \(window.stableId)")
+        onChange?()
+    }
+
     func removeWindow(_ element: AXUIElement) {
         guard let index = windows.firstIndex(where: { $0.ax == element }) else { return }
         let removed = windows.remove(at: index)
