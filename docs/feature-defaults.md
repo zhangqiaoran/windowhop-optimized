@@ -1,12 +1,12 @@
 # User-facing defaults and configurability
 
-## Unreleased frosted-glass calibration
+## my-alt-tab 3.1.0 frosted-glass calibration
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
 | Control Center-style Frosted Glass | 100% | Yes | Keeps the existing 0–100 persistence key, but 100% now means the clearest **frosted** state rather than zero material body. macOS 26+ uses native `NSGlassEffectView.Style.regular` for both the panel and selected-window lens, with a small baseline neutral density, white tint, and thin highlight border. Lower percentages add thickness without fading previews, icons, or labels. |
 
-## Post-3.0 animation and release refinements
+## my-alt-tab 3.1.0 animation and release refinements
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|

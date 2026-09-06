@@ -13,6 +13,13 @@ Native macOS window switcher maintained by **zhangqiaoran**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
 
+## v3.1.0 — next release
+
+- Control Center-style **Frosted Glass** replaces the clear-plastic look.
+- Window-list shrink now uses one synchronized non-overshooting motion curve instead of mixing AppKit resize timing with a spring.
+- Close dissolution uses GPU `CAEmitterLayer` dust, directional erosion, an illuminated dissolve edge, and soft haze for a much denser drifting effect.
+- The official release workflow is prepared for stable Developer ID signing + notarization so future signed updates can preserve macOS permissions.
+
 ## v3.0.0
 
 - **Fluid list reflow:** when windows disappear from an open switcher, survivors are matched by stable window ID and spring from their current presentation-layer positions while the centered panel shrinks with native AppKit animation.

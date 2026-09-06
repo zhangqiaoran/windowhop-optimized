@@ -2,6 +2,17 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.1.0 — Unreleased — zhangqiaoran
+
+- Recalibrated the switcher glass toward Control Center-style **Frosted Glass**: macOS 26+ uses native `NSGlassEffectView.Style.regular`, with a persistent milky blur body even at 100% transparency.
+- Replaced mixed AppKit-resize + spring motion with one synchronized, non-overshooting cubic timing curve for the panel, surviving tiles, and selection lens, removing the hitch that could look like dropped frames during shrink.
+- Rebuilt close dissolution around a compositor-owned `CAEmitterLayer`: roughly 300–400 micro-particles, soft haze, directional erosion, and a traveling highlight edge now create a denser drifting dust effect based on the supplied reference video.
+- Kept animation work event-driven and GPU-oriented: no display link or per-frame CPU loop.
+- Prepared official releases for one stable Developer ID Application identity, Hardened Runtime, Apple notarization, and stapling so macOS TCC permissions can remain stable across future signed updates.
+- Existing ad-hoc builds may still require one final permission re-authorization when first migrating to the Developer ID-signed release.
+
+Full notes: [`RELEASE_NOTES_v3.1.0.md`](RELEASE_NOTES_v3.1.0.md).
+
 ## 3.0.0 — 2026-09-06 — zhangqiaoran
 
 - Rebuilt close motion into a 56-particle deterministic dusting engine using R2 low-discrepancy surface coverage, a gradient erosion front, and cubic inward/upward wind paths.
