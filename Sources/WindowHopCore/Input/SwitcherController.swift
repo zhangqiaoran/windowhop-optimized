@@ -466,6 +466,14 @@ public final class SwitcherController {
             mouseMonitor = NSEvent.addGlobalMonitorForEvents(
                 matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
                 guard let self else { return }
+
+                // A nonactivating NSPanel must not infer "outside" merely from
+                // this callback firing. Classify the pointer geometrically first:
+                // clicks inside any visible switcher panel belong to that panel's
+                // normal AppKit/root routing and must never cancel the session.
+                let screenPoint = NSEvent.mouseLocation
+                guard !self.panels.containsScreenPoint(screenPoint) else { return }
+
                 self.perform(self.state.outsideClick())
             }
         }
