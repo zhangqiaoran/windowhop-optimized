@@ -3,7 +3,7 @@
 WindowHop Optimized is developed, maintained, and released by **zhangqiaoran**.
 
 - Project owner: **zhangqiaoran**
-- Repository: `zhangqiaoran/windowhop-optimized`
+- Repository: `zhangqiaoran/my-alt-tab`
 - Bundle ID: `com.zhangqiaoran.myalttab`
 - Release line: v1.0.0 onward
 - License: GNU GPL-3.0
