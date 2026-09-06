@@ -2,20 +2,17 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
-## 3.4.1 — 2026-09-06 — zhangqiaoran
+## 3.4.2 — 2026-09-06 — zhangqiaoran
 
-- Rebuilt the macOS 26 Liquid Glass hierarchy around `NSGlassEffectContainerView → NSGlassEffectView → contentView`, keeping switcher chrome inside the native material so AppKit can apply adaptive sampling, reflection, refraction, and legibility coherently.
-- Standardized the large switcher and contextual ellipsis on **Regular Liquid Glass** at alpha 1.0. 100% adds no white tint; lower values add only perceptual milky tint instead of fading the material itself.
-- Removed the custom CALayer white border from native `NSGlassEffectView` so AppKit owns the dynamic Liquid Glass edge/highlight; the pre-macOS-26 fallback keeps its semantic border.
-- Added runtime capability detection for beta `effectIsInteractive`, enabling it only when the running AppKit exposes `setEffectIsInteractive:`.
-- Fixed Close, Settings, and preview-permission clicks by resolving pointer actions at the `SwitcherPanel` boundary from final host-space rectangles. First-mouse handling no longer depends on nested Glass / ScrollView hit-test forwarding.
-- Fixed the session-wide global mouse monitor incorrectly treating clicks inside a nonactivating switcher panel as outside clicks. It now checks `NSEvent.mouseLocation` against every visible panel frame before allowing `outsideClick()` to cancel the session.
-- Increased true thumbnail erosion from 36 to 96 compact grayscale+alpha mask states with linear pacing and off-hot-path prewarming.
-- Pixel erosion now finishes one nominal 60 Hz frame before the existing 80% Stable-ID FLIP hand-off, eliminating the final-mask/reflow overlap while allowing compositor dust and haze to continue naturally.
-- Preserved immediate real-window close, Reduce Motion behavior, Universal 2 packaging, and Sparkle EdDSA update verification.
-- Internal build is 30601 so installations that briefly received higher-numbered builds can still update to marketing version 3.4.1.
+- Restored the interaction-safe switcher topology: native Glass is background-only while all cards and controls are ordinary foreground siblings.
+- Made the borderless nonactivating panel explicitly mouse-owning and key-capable on deliberate clicks, preventing pointer events from falling through to the underlying application window.
+- Extended root-level pointer routing to ordinary window cards in addition to Close, Settings, and preview-permission actions.
+- Returned macOS 26+ to native **Clear Liquid Glass** with no tint and no manual native border.
+- Restored literal transparency by varying only the background Glass surface alpha (about 48% at 100%) plus a separate perceptual milk layer; foreground content never fades.
+- Preserved the 96-state erosion atlas, immediate AX close, 80% visual hand-off, synchronized Stable-ID FLIP reflow, Universal 2 packaging, and Sparkle EdDSA verification.
+- Internal build: **30603**.
 
-Full notes: [`RELEASE_NOTES_v3.4.1.md`](RELEASE_NOTES_v3.4.1.md).
+Full notes: [`RELEASE_NOTES_v3.4.2.md`](RELEASE_NOTES_v3.4.2.md).
 
 ## 3.4.0 — 2026-09-06 — zhangqiaoran
 
