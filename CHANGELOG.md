@@ -4,6 +4,7 @@ All my-alt-tab releases from v1.0.0 onward are authored, maintained, and publish
 
 ## 2.3.0 — 2026-09-06 — zhangqiaoran
 
+- Patch: fixed the selected Glass Focus plate being clipped on the right/bottom document edges.
 - Added dedicated right/bottom comfort spacing and a top chrome strip so the ellipsis no longer overlaps previews.
 - Closing a window now removes it from the open switcher immediately instead of waiting for the AX destroy notification.
 - Increased the close dissolve to a fixed 28-particle deterministic surface distribution with a shorter 0.29s animation.
