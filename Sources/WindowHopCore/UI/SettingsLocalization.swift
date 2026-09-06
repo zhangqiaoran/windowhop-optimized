@@ -6,10 +6,9 @@ import Foundation
 /// and avoids coupling the app's SwiftPM packaging/signing path to resource
 /// bundles. English strings are the stable lookup keys and also the fallback.
 enum SettingsL10n {
-    static func t(_ english: String) -> String {
-        guard Preferences.shared.settingsLanguage == .simplifiedChinese else {
-            return english
-        }
+    static func t(_ english: String, language: SettingsLanguage? = nil) -> String {
+        let language = language ?? Preferences.shared.settingsLanguage
+        guard language == .simplifiedChinese else { return english }
         return zhCN[english] ?? english
     }
 
