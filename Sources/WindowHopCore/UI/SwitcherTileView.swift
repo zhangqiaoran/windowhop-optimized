@@ -694,6 +694,18 @@ final class SwitcherTileView: NSView {
         return closeButton
     }
 
+    /// Captures only this tile for the one-shot close animation. It is never
+    /// cached and is released as soon as the dismissal effect removes itself.
+    func snapshotForDismissalEffect() -> NSImage? {
+        let rect = bounds.integral
+        guard rect.width > 0, rect.height > 0,
+              let rep = bitmapImageRepForCachingDisplay(in: rect) else { return nil }
+        cacheDisplay(in: rect, to: rep)
+        let image = NSImage(size: rect.size)
+        image.addRepresentation(rep)
+        return image
+    }
+
     @objc private func closeClicked() {
         onCloseRequest?()
     }
