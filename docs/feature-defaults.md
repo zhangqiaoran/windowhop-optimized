@@ -6,6 +6,14 @@
 |---|---|---|---|
 | Control Center-style Frosted Glass | 100% | Yes | Keeps the existing 0–100 persistence key, but 100% now means the clearest **frosted** state rather than zero material body. macOS 26+ uses native `NSGlassEffectView.Style.regular` for both the panel and selected-window lens, with a small baseline neutral density, white tint, and thin highlight border. Lower percentages add thickness without fading previews, icons, or labels. |
 
+## Post-3.0 animation and release refinements
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Smooth shrink cadence | Enabled | No | Panel frame motion and stable-ID tile reflow now share the same non-overshooting cubic timing curve and duration. This removes the perceptual hitch caused by combining AppKit's default resize cadence with a spring. Repeated closes still start from presentation-layer positions. |
+| Dense dust erosion | Enabled | No | Replaces the 56 independent particle layers with a compositor-owned `CAEmitterLayer`: three bounded emitter cells produce roughly 300–400 micro-motes during a 0.42 s emission window, while a directional gradient mask erodes the snapshot and a narrow highlight rides the erosion edge. No display link or per-frame CPU loop. |
+| Stable TCC release identity | Required for official releases | No | Official releases must use one Developer ID Application identity, Hardened Runtime, notarization, and stapling before the Sparkle archive is signed. This preserves the code-signing requirement that macOS Accessibility and Screen Recording grants bind to across updates. Legacy ad-hoc → Developer ID migration may require one final re-authorization. |
+
 ## my-alt-tab 3.0.0 motion and update decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
