@@ -1,5 +1,13 @@
 # User-facing defaults and configurability
 
+## my-alt-tab 3.4.4 rapid switching decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Synchronous held-session release | Enabled | No | Releasing Alt/Option returns the event tap from `sessionHeld` to `watching` on the tap thread before the release notification hops to main. |
+| Rapid second-chord recognition | Enabled | No | A second Alt/Option+Tab arriving while main is still finishing the prior session is recognized as a fresh `trigger`, never a stale `step`. |
+| Immediate committed MRU | Enabled | No | The chosen window moves to MRU index 0 as soon as activation is committed, before asynchronous AX focus confirmation, so the next fast toggle sees the correct current/previous pair. |
+
 ## my-alt-tab 3.4.3 bilingual Settings decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
