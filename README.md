@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.5.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.4.0.zip`.
+2. Download `my-alt-tab-3.5.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.5.0
+
+- **Native Liquid Glass hierarchy:** macOS 26+ now places switcher content inside `NSGlassEffectView.contentView` and groups the main surface with the contextual ellipsis using `NSGlassEffectContainerView`.
+- **100% really means maximum Liquid Glass:** the system glass stays alpha 1.0; 100% removes white tint entirely, while lower values progressively add milky white tint without weakening refraction/highlights.
+- **Smoother dissolve tail:** the true erosion atlas increases from 36 to 96 compact mask frames, uses linear frame pacing, and finishes one display frame before the 80% FLIP hand-off.
+- Erosion assets are prewarmed off the close hot path, and grayscale+alpha masks cut per-frame atlas bandwidth in half.
+- Stable-ID unified FLIP, real thumbnail erosion, moving dust front, and the 2 pt system-blue focus ring remain.
 
 ## v3.4.0
 
@@ -101,7 +109,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.0.zip
+artifacts/my-alt-tab-3.5.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

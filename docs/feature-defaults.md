@@ -1,6 +1,6 @@
 # User-facing defaults and configurability
 
-## Unreleased 3.5 native-glass + paced-dissolve decisions
+## my-alt-tab 3.5.0 native-glass + paced-dissolve decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
