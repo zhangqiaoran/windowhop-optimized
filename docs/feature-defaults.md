@@ -1,5 +1,14 @@
 # User-facing defaults and configurability
 
+## Post-3.6 root-level pointer-routing hotfix
+
+| Fix | Decision |
+|---|---|
+| Glass-independent input | Close, settings, and permission pointer actions are resolved in `SwitcherPanel.sendEvent` from final host-space rectangles. The material hierarchy no longer participates in deciding whether controls are clickable. |
+| First click | Global panel buttons use an `NSButton` subclass whose `acceptsFirstMouse` returns true, matching the close control in the nonactivating panel. |
+| Close geometry | Each tile exposes its visible close-control rectangle converted directly into host coordinates; routing no longer depends on nested `hitTest` conversions through Glass / Scroll views. |
+| Settings geometry | The visible settings surface is converted from its actual superview to `hostView`; root routing invokes `onSettingsRequested` directly. |
+
 ## my-alt-tab 3.6.0 interaction + native-edge regression fixes
 
 | Fix | Decision |

@@ -77,6 +77,10 @@ private final class SelectionLensView: NSView {
     }
 }
 
+private final class SwitcherPanelActionButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 private final class SwitcherPanelHostView: NSView {
     var onHoverChanged: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
@@ -160,8 +164,8 @@ public final class SwitcherPanel: NSPanel {
     /// Cached target frames make every selection transition a direct O(1)
     /// indexed lookup. Geometry is rebuilt only when the window list/layout is.
     private var selectionFrames: [NSRect] = []
-    private let settingsButton = NSButton()
-    private let permissionButton = NSButton()
+    private let settingsButton = SwitcherPanelActionButton()
+    private let permissionButton = SwitcherPanelActionButton()
     private let expandedPreviewView = ExpandedPreviewView()
     /// Pooled tiles, reconfigured in place; index i shows item i.
     private var tilePool: [SwitcherTileView] = []
@@ -479,7 +483,7 @@ public final class SwitcherPanel: NSPanel {
 
             if let settingsGlass = settingsGlassView as? NSGlassEffectView {
                 settingsGlass.layer?.borderWidth = 0
-                    settingsGlass.style = .regular
+                settingsGlass.style = .regular
                 Self.enableInteractiveGlassIfAvailable(settingsGlass)
                 settingsGlass.tintColor = nativeTintAlpha <= 0.001
                     ? nil
@@ -545,26 +549,65 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
+    private enum RootPointerAction: Equatable {
+        case close(Int)
+        case settings
+        case permission
+    }
+
+    /// Resolve clicks at the NSPanel boundary. Liquid Glass is visual material,
+    /// not part of the interaction contract.
     public override func sendEvent(_ event: NSEvent) {
-        if event.type == .leftMouseDown,
-           let index = closeTargetIndex(atWindowPoint: event.locationInWindow) {
-            onItemCloseRequested?(index)
-            return
+        if event.type == .leftMouseDown {
+            let hostPoint = hostView.convert(event.locationInWindow, from: nil)
+            if let action = rootPointerAction(atHostPoint: hostPoint) {
+                switch action {
+                case .close(let index):
+                    onItemCloseRequested?(index)
+                case .settings:
+                    onSettingsRequested?()
+                case .permission:
+                    onPreviewPermissionRequested?()
+                }
+                return
+            }
         }
         super.sendEvent(event)
     }
 
-    private func closeTargetIndex(atWindowPoint point: NSPoint) -> Int? {
-        let hostPoint = hostView.convert(point, from: nil)
-        for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
-            let tile = tilePool[index]
-            guard !tile.isHidden else { continue }
-            let tilePoint = tile.convert(hostPoint, from: hostView)
-            if tile.closeControlHitTest(tilePoint) != nil {
-                return index
+    private func rootPointerAction(atHostPoint point: NSPoint) -> RootPointerAction? {
+        if settingsButton.isEnabled,
+           (settingsGlassView ?? settingsButton).alphaValue > 0.01,
+           settingsHitFrameInHost.contains(point) {
+            return .settings
+        }
+
+        if !permissionButton.isHidden,
+           permissionHitFrameInHost.contains(point) {
+            return .permission
+        }
+
+        if visibleTileCount > 0 {
+            for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
+                let tile = tilePool[index]
+                guard !tile.isHidden,
+                      let hitFrame = tile.closeControlFrame(in: hostView),
+                      hitFrame.contains(point) else { continue }
+                return .close(index)
             }
         }
         return nil
+    }
+
+    private var settingsHitFrameInHost: NSRect {
+        let surface = settingsGlassView ?? settingsButton
+        guard let parent = surface.superview else { return .zero }
+        return parent.convert(surface.frame, to: hostView)
+    }
+
+    private var permissionHitFrameInHost: NSRect {
+        guard let parent = permissionButton.superview else { return .zero }
+        return parent.convert(permissionButton.frame, to: hostView)
     }
 
     public func show(items: [SwitcherItem],
@@ -1243,14 +1286,15 @@ public final class SwitcherPanel: NSPanel {
         panelBackgroundView.layer?.borderWidth ?? 0 > 0
     }
     func closeTargetIndexForTesting(atHostPoint point: NSPoint) -> Int? {
-        for index in stride(from: visibleTileCount - 1, through: 0, by: -1) {
-            let tile = tilePool[index]
-            guard !tile.isHidden else { continue }
-            let tilePoint = tile.convert(point, from: hostView)
-            if tile.closeControlHitTest(tilePoint) != nil { return index }
+        guard case .close(let index) = rootPointerAction(atHostPoint: point) else {
+            return nil
         }
-        return nil
+        return index
     }
+    func settingsTargetForTesting(atHostPoint point: NSPoint) -> Bool {
+        rootPointerAction(atHostPoint: point) == .settings
+    }
+    var settingsHitFrameInHostForTesting: NSRect { settingsHitFrameInHost }
     var usesUnifiedReflowForTesting: Bool { true }
     var selectionLensDensityAlphaForTesting: CGFloat {
         selectionLensView.densityAlphaForTesting

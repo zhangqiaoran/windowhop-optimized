@@ -347,6 +347,19 @@ final class SwitcherLayoutTests: XCTestCase {
             0)
     }
 
+    func testSettingsRoutesAtPanelLevelAcrossGlassHierarchy() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.show(items: [item("a")],
+                   selectedIndex: 0,
+                   presentationMode: .persistent)
+        let hitFrame = panel.settingsHitFrameInHostForTesting
+        XCTAssertFalse(hitFrame.isEmpty)
+        XCTAssertTrue(
+            panel.settingsTargetForTesting(
+                atHostPoint: NSPoint(x: hitFrame.midX, y: hitFrame.midY)))
+        panel.orderOut(nil)
+    }
+
     func testNativeGlassKeepsSystemEdgeAndInteractiveBehavior() {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {

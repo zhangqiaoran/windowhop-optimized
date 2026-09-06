@@ -712,6 +712,13 @@ final class SwitcherTileView: NSView {
         return closeButton
     }
 
+    /// Root-level panel routing uses pure geometry rather than depending on
+    /// NSGlassEffectView / NSScrollView hit-test forwarding.
+    func closeControlFrame(in ancestor: NSView) -> NSRect? {
+        guard !closeButton.isHidden else { return nil }
+        return convert(closeButton.frame, to: ancestor)
+    }
+
     /// Captures only this tile for the one-shot close animation. It is never
     /// cached and is released as soon as the dismissal effect removes itself.
     func snapshotForDismissalEffect() -> NSImage? {
