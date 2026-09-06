@@ -128,6 +128,16 @@ final class SwitcherStateTests: XCTestCase {
         XCTAssertEqual(state.phase, .held)
     }
 
+    func testImmediateCloseListShrinkKeepsNearestSelection() {
+        var state = SwitcherState()
+        _ = state.trigger(backward: false, itemCount: 4) // selection 1
+        XCTAssertEqual(state.closeRequested(index: 1), .requestClose(index: 1))
+        XCTAssertEqual(state.listChanged(itemCount: 3, preferredIndex: 1),
+                       .select(index: 1))
+        XCTAssertEqual(state.phase, .held)
+        XCTAssertEqual(state.selectedIndex, 1)
+    }
+
     func testModifierReleaseAfterCloseRequestStillEndsHeldSessionNormally() {
         var state = SwitcherState()
         _ = state.trigger(backward: false, itemCount: 3)
