@@ -368,9 +368,6 @@ public final class SwitcherPanel: NSPanel {
             forTransparencyPercent: percent))
         let densityAlpha = DesignTokens.frostedGlassBaseDensityAlpha
             + density * DesignTokens.frostedGlassVariableDensityAlpha
-        let tintAlpha = DesignTokens.frostedGlassBaseTintAlpha
-            + density * DesignTokens.frostedGlassVariableTintAlpha
-
         liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
             .withAlphaComponent(densityAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
@@ -388,9 +385,7 @@ public final class SwitcherPanel: NSPanel {
             // only around the content area below, so the empty top region does
             // not become a large white slab.
             glass.style = .clear
-            glass.tintColor = tintAlpha == 0
-                ? nil
-                : NSColor.white.withAlphaComponent(tintAlpha)
+            glass.tintColor = nil
             return
         }
         #endif

@@ -78,8 +78,6 @@ enum DesignTokens {
     /// frosting exists at all.
     static let frostedGlassBaseDensityAlpha: CGFloat = 0.16
     static let frostedGlassVariableDensityAlpha: CGFloat = 0.68
-    static let frostedGlassBaseTintAlpha: CGFloat = 0
-    static let frostedGlassVariableTintAlpha: CGFloat = 0.035
     static let frostedGlassBorderWidth: CGFloat = 0.8
     static var frostedGlassBorder: NSColor {
         NSColor.white.withAlphaComponent(0.24)
@@ -87,10 +85,10 @@ enum DesignTokens {
     /// Selection never paints over window content. A semantic system-blue ring
     /// and a small blue glow provide focus without reducing preview clarity.
     static var selectionLensStroke: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.96)
+        NSColor.systemBlue.withAlphaComponent(0.96)
     }
     static var selectionLensGlow: NSColor {
-        NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.30)
+        NSColor.systemBlue.withAlphaComponent(0.30)
     }
     static let selectionLensGlowRadius: CGFloat = 8
     /// The glass lens, its glow, and the compositor-only selected-tile scale all
