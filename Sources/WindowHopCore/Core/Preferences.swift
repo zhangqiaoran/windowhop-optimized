@@ -87,6 +87,8 @@ public final class Preferences: ObservableObject {
         "com.zhangqiaoran.myalttab.windowFiltersDidChange")
     public static let panelAppearanceDidChange = Notification.Name(
         "com.zhangqiaoran.myalttab.panelAppearanceDidChange")
+    public static let settingsLanguageDidChange = Notification.Name(
+        "com.zhangqiaoran.myalttab.settingsLanguageDidChange")
 
     public enum Key: String, CaseIterable {
         case switcherEnabled
@@ -94,6 +96,7 @@ public final class Preferences: ObservableObject {
         case shortcut
         case persistentShortcut
         case appearanceMode
+        case settingsLanguage
         case previewRowAlignment
         case glassTransparencyPercent
         /// Kept only to migrate 1.1.2 dwell presets.
@@ -108,7 +111,6 @@ public final class Preferences: ObservableObject {
         case includeMinimizedWindows
         case includeHiddenApplicationWindows
         case includePictureInPictureWindows
-        case showTabCounts
         case showMenuBarItem
         case showDockIcon
         case automaticUpdateChecks = "SUEnableAutomaticChecks"
@@ -123,6 +125,7 @@ public final class Preferences: ObservableObject {
         public static let shortcut = ShortcutSpec.commandTab
         public static let persistentShortcut: PersistentShortcut? = .optionTab
         public static let appearanceMode = AppearanceMode.appIcons
+        public static let settingsLanguage = SettingsLanguage.english
         public static let previewRowAlignment = PreviewRowAlignment.center
         /// 100 is the clearest Liquid Glass presentation. Lower values add
         /// perceptually stronger native tint without fading switcher content.
@@ -139,7 +142,6 @@ public final class Preferences: ObservableObject {
         public static let includeMinimizedWindows = false
         public static let includeHiddenApplicationWindows = false
         public static let includePictureInPictureWindows = false
-        public static let showTabCounts = false
         public static let showMenuBarItem = false
         public static let showDockIcon = false
         public static let automaticUpdateChecks = true
@@ -155,6 +157,7 @@ public final class Preferences: ObservableObject {
         .shortcut,
         .persistentShortcut,
         .appearanceMode,
+        .settingsLanguage,
         .previewRowAlignment,
         .glassTransparencyPercent,
         .expandedPreviewDelay,
@@ -166,7 +169,6 @@ public final class Preferences: ObservableObject {
         .includeMinimizedWindows,
         .includeHiddenApplicationWindows,
         .includePictureInPictureWindows,
-        .showTabCounts,
         .showMenuBarItem,
         .showDockIcon,
         .automaticUpdateChecks,
@@ -178,6 +180,7 @@ public final class Preferences: ObservableObject {
         Key.shortcut.rawValue: Defaults.shortcut.rawValue,
         Key.persistentShortcut.rawValue: Defaults.persistentShortcut?.encoded ?? "",
         Key.appearanceMode.rawValue: Defaults.appearanceMode.rawValue,
+        Key.settingsLanguage.rawValue: Defaults.settingsLanguage.rawValue,
         Key.previewRowAlignment.rawValue: Defaults.previewRowAlignment.rawValue,
         Key.glassTransparencyPercent.rawValue: Defaults.glassTransparencyPercent,
         Key.expandedPreviewDelay.rawValue: Defaults.expandedPreviewDelay.rawValue,
@@ -191,7 +194,6 @@ public final class Preferences: ObservableObject {
         Key.includeMinimizedWindows.rawValue: Defaults.includeMinimizedWindows,
         Key.includeHiddenApplicationWindows.rawValue: Defaults.includeHiddenApplicationWindows,
         Key.includePictureInPictureWindows.rawValue: Defaults.includePictureInPictureWindows,
-        Key.showTabCounts.rawValue: Defaults.showTabCounts,
         Key.showMenuBarItem.rawValue: Defaults.showMenuBarItem,
         Key.showDockIcon.rawValue: Defaults.showDockIcon,
         Key.automaticUpdateChecks.rawValue: Defaults.automaticUpdateChecks,
@@ -220,6 +222,13 @@ public final class Preferences: ObservableObject {
 
     @Published public var appearanceMode: AppearanceMode {
         didSet { defaults.set(appearanceMode.rawValue, forKey: Key.appearanceMode.rawValue) }
+    }
+
+    @Published public var settingsLanguage: SettingsLanguage {
+        didSet {
+            defaults.set(settingsLanguage.rawValue, forKey: Key.settingsLanguage.rawValue)
+            NotificationCenter.default.post(name: Self.settingsLanguageDidChange, object: self)
+        }
     }
 
     @Published public var previewRowAlignment: PreviewRowAlignment {
@@ -311,9 +320,9 @@ public final class Preferences: ObservableObject {
         }
     }
 
-    @Published public var showTabCounts: Bool {
-        didSet { defaults.set(showTabCounts, forKey: Key.showTabCounts.rawValue) }
-    }
+    /// Retired in 3.4.3. Kept as a read-only compatibility shim while tile
+    /// metrics are simplified in a future cleanup.
+    public var showTabCounts: Bool { false }
 
     @Published public var showMenuBarItem: Bool {
         didSet { defaults.set(showMenuBarItem, forKey: Key.showMenuBarItem.rawValue) }
@@ -352,6 +361,9 @@ public final class Preferences: ObservableObject {
         appearanceMode = AppearanceMode(
             rawValue: Self.string(defaults, .appearanceMode) ?? "")
             ?? Defaults.appearanceMode
+        settingsLanguage = SettingsLanguage(
+            rawValue: Self.string(defaults, .settingsLanguage) ?? "")
+            ?? Defaults.settingsLanguage
         previewRowAlignment = PreviewRowAlignment(
             rawValue: Self.string(defaults, .previewRowAlignment) ?? "")
             ?? Defaults.previewRowAlignment
@@ -380,8 +392,6 @@ public final class Preferences: ObservableObject {
         includePictureInPictureWindows = Self.bool(
             defaults, .includePictureInPictureWindows,
             fallback: Defaults.includePictureInPictureWindows)
-        showTabCounts = Self.bool(
-            defaults, .showTabCounts, fallback: Defaults.showTabCounts)
         showMenuBarItem = Self.bool(
             defaults, .showMenuBarItem, fallback: Defaults.showMenuBarItem)
         showDockIcon = Self.bool(
@@ -497,6 +507,7 @@ public final class Preferences: ObservableObject {
             case .shortcut: shortcut = Defaults.shortcut
             case .persistentShortcut: persistentShortcut = Defaults.persistentShortcut
             case .appearanceMode: appearanceMode = Defaults.appearanceMode
+            case .settingsLanguage: settingsLanguage = Defaults.settingsLanguage
             case .previewRowAlignment:
                 previewRowAlignment = Defaults.previewRowAlignment
             case .glassTransparencyPercent:
@@ -516,7 +527,6 @@ public final class Preferences: ObservableObject {
                 includeHiddenApplicationWindows = Defaults.includeHiddenApplicationWindows
             case .includePictureInPictureWindows:
                 includePictureInPictureWindows = Defaults.includePictureInPictureWindows
-            case .showTabCounts: showTabCounts = Defaults.showTabCounts
             case .showMenuBarItem: showMenuBarItem = Defaults.showMenuBarItem
             case .showDockIcon: showDockIcon = Defaults.showDockIcon
             case .automaticUpdateChecks:
