@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    if: github.repository == 'zhangqiaoran/windowhop-optimized'
+    if: github.repository == 'zhangqiaoran/my-alt-tab'
     runs-on: macos-latest
     steps:
       - name: Checkout
