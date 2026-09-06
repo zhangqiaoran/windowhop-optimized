@@ -726,6 +726,9 @@ public final class SwitcherPanel: NSPanel {
 
     var selectionLensFrameForTesting: NSRect { selectionLensView.frame }
     var selectionLensIsVisibleForTesting: Bool { !selectionLensView.isHidden }
+    var selectionLensUsesGlassMaterialForTesting: Bool {
+        selectionLensView.material == .selection && selectionLensView.state == .active
+    }
     var selectionGeometryCountForTesting: Int { selectionFrames.count }
 
     var settingsButtonFrameForTesting: NSRect { settingsButton.frame }
