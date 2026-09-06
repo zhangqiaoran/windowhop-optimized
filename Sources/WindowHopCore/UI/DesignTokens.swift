@@ -62,26 +62,24 @@ enum DesignTokens {
     static let selectionLensInset: CGFloat = 4
     static let selectionLensCornerRadius: CGFloat = 17
     static let selectionLensBorderWidth: CGFloat = 2.0
-    static let selectedTileScale: CGFloat = 1.018
-    static let selectedTileScaleDuration: TimeInterval = 0.095
+    static let selectedTileScale: CGFloat = 1.0
+    static let selectedTileScaleDuration: TimeInterval = 0
     // MARK: v3 motion
-    /// Stable-id reflow runs only when an open list loses windows. The window
-    /// frame and surviving tile layers deliberately share one non-overshooting
-    /// curve; mixing AppKit's default resize curve with a spring is perceived
-    /// as a hitch even when no frames are actually dropped.
+    /// Stable-id FLIP reflow runs only when an open list loses windows. Window,
+    /// glass, chrome, scroll geometry, live tiles, and the focus ring are all
+    /// driven by one NSAnimationContext so there is one clock and one curve.
     static let panelReflowDuration: CFTimeInterval = 0.42
     static var panelReflowTimingFunction: CAMediaTimingFunction {
         CAMediaTimingFunction(controlPoints: 0.18, 0.78, 0.20, 1.0)
     }
-    /// 3.3 returns to literal transparent glass. At 100% the native glass is
-    /// untouched; even 0% adds only a light neutral density so the panel never
-    /// becomes an opaque white slab.
-    static let glassMaximumDensityAlpha: CGFloat = 0.20
-    static let glassFallbackDensityScale: CGFloat = 0.65
+    /// 3.4 treats the slider as a liquid ↔ milky continuum. The high end is a
+    /// low-alpha native Clear Glass surface with zero milk. The low end restores
+    /// full glass plus a strong but still translucent white body.
+    static let glassMaximumMilkAlpha: CGFloat = 0.72
+    static let glassFallbackMilkScale: CGFloat = 0.86
     static let glassBorderWidth: CGFloat = 0.7
-    static var glassBorder: NSColor {
-        NSColor.white.withAlphaComponent(0.18)
-    }
+    static let glassBorderAlphaLow: CGFloat = 0.11
+    static let glassBorderAlphaHigh: CGFloat = 0.28
     /// Selection never paints over window content. A semantic system-blue ring
     /// and a small blue glow provide focus without reducing preview clarity.
     static var selectionLensStroke: NSColor {

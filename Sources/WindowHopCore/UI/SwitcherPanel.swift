@@ -239,10 +239,17 @@ public final class SwitcherPanel: NSPanel {
         // treatment come from AppKit, never a hardcoded color); older systems
         // fall back to the closest visual-effect material. Both respect
         // Reduce Transparency and Increase Contrast automatically.
-        chromeView.autoresizingMask = [.width, .height]
-        panelBackgroundView = Self.makeBackgroundView(wrapping: chromeView,
-                                                      rasterizable: rasterizableBackground)
+        chromeView.autoresizingMask = []
+        chromeView.wantsLayer = true
+        chromeView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        // v3.4: glass and foreground content are siblings. This is critical:
+        // the material can now become optically thinner without fading window
+        // previews, labels, controls, or the blue focus ring.
+        panelBackgroundView = Self.makeBackgroundView(
+            rasterizable: rasterizableBackground)
         hostView.addSubview(panelBackgroundView)
+        hostView.addSubview(chromeView, positioned: .above, relativeTo: panelBackgroundView)
         contentView = hostView
 
         liquidGlassDensityView.wantsLayer = true
@@ -256,6 +263,7 @@ public final class SwitcherPanel: NSPanel {
         liquidGlassDensityMask.locations = [0, 0.80, 1]
         liquidGlassDensityMask.startPoint = CGPoint(x: 0.5, y: 0)
         liquidGlassDensityMask.endPoint = CGPoint(x: 0.5, y: 1)
+        liquidGlassDensityMask.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         liquidGlassDensityView.layer?.mask = liquidGlassDensityMask
         chromeView.addSubview(liquidGlassDensityView)
         applyLiquidGlassAppearance()
@@ -361,31 +369,40 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Literal clear-glass mapping: 100% adds no neutral density at all. Lower
-    /// values add only a restrained content-zone density while native Clear
-    /// Glass continues to provide refraction/blur behind the whole panel.
+    /// Perceptual liquid ↔ milky mapping.
+    ///
+    /// 100%: the native Clear Glass surface is optically thin (~60% surface
+    /// alpha) and the milk layer is exactly zero.
+    /// 0%: the native surface is fully present and a 72% translucent neutral
+    /// body is added below foreground content.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
-        let density = CGFloat(Preferences.liquidGlassDensity(
+        let liquid = CGFloat(Preferences.liquidGlassFactor(
             forTransparencyPercent: percent))
-        let densityAlpha = density * DesignTokens.glassMaximumDensityAlpha
+        let milkFactor = CGFloat(Preferences.liquidGlassMilkFactor(
+            forTransparencyPercent: percent))
+        let surfaceAlpha = CGFloat(Preferences.liquidGlassSurfaceAlpha(
+            forTransparencyPercent: percent))
+        let milkAlpha = milkFactor * DesignTokens.glassMaximumMilkAlpha
+
+        panelBackgroundView.alphaValue = surfaceAlpha
         liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(densityAlpha).cgColor
+            .withAlphaComponent(milkAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
         panelBackgroundView.wantsLayer = true
         panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
         panelBackgroundView.layer?.cornerCurve = .continuous
         panelBackgroundView.layer?.borderWidth = DesignTokens.glassBorderWidth
-        panelBackgroundView.layer?.borderColor = DesignTokens.glassBorder.cgColor
+        let borderAlpha = DesignTokens.glassBorderAlphaLow
+            + (DesignTokens.glassBorderAlphaHigh - DesignTokens.glassBorderAlphaLow) * liquid
+        panelBackgroundView.layer?.borderColor = NSColor.white
+            .withAlphaComponent(borderAlpha).cgColor
 
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            // Keep the chrome strip optically clear. Frosted density is applied
-            // only around the content area below, so the empty top region does
-            // not become a large white slab.
             glass.style = .clear
             glass.tintColor = nil
             return
@@ -395,19 +412,18 @@ public final class SwitcherPanel: NSPanel {
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
         effectView.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(densityAlpha * DesignTokens.glassFallbackDensityScale).cgColor
+            .withAlphaComponent(
+                milkAlpha * DesignTokens.glassFallbackMilkScale).cgColor
     }
 
-    /// The panel background: system glass on macOS 26+, the closest
-    /// visual-effect material before that.
-    private static func makeBackgroundView(wrapping content: NSView,
-                                           rasterizable: Bool) -> NSView {
+    /// Material-only background. Foreground chrome is deliberately not a
+    /// contentView child: changing material alpha must never fade app content.
+    private static func makeBackgroundView(rasterizable: Bool) -> NSView {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizable {
             let glass = NSGlassEffectView()
             glass.style = .clear
             glass.cornerRadius = DesignTokens.panelCornerRadius
-            glass.contentView = content
             return glass
         }
         #endif
@@ -419,8 +435,6 @@ public final class SwitcherPanel: NSPanel {
         effectView.layer?.cornerRadius = DesignTokens.panelCornerRadius
         effectView.layer?.cornerCurve = .continuous
         effectView.layer?.masksToBounds = true
-        content.frame = effectView.bounds
-        effectView.addSubview(content)
         return effectView
     }
 
@@ -445,6 +459,20 @@ public final class SwitcherPanel: NSPanel {
         updateSettingsButtonVisibility(animated: false)
     }
 
+    private struct ReflowGeometry {
+        let windowFrame: NSRect
+        let backgroundFrame: NSRect
+        let chromeFrame: NSRect
+        let densityFrame: NSRect
+        let scrollFrame: NSRect
+        let clipBounds: NSRect
+        let documentFrame: NSRect
+        let settingsFrame: NSRect
+        let permissionFrame: NSRect
+        let lensFrame: NSRect
+        let tileFrames: [AnyHashable: NSRect]
+    }
+
     public func update(items: [SwitcherItem],
                        selectedIndex index: Int,
                        animatedLayout: Bool = false) {
@@ -456,10 +484,8 @@ public final class SwitcherPanel: NSPanel {
 
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let shouldAnimateReflow = animatedLayout && isVisible && !reduceMotion
-        let oldVisualCenters = shouldAnimateReflow ? stableVisualCentersByID() : [:]
-        let oldLensCenter = shouldAnimateReflow
-            ? (selectionLensView.layer?.presentation()?.position
-                ?? selectionLensView.layer?.position)
+        let oldGeometry = shouldAnimateReflow
+            ? captureReflowGeometry(usePresentationFrames: true)
             : nil
 
         mode = Preferences.shared.appearanceMode
@@ -472,13 +498,21 @@ public final class SwitcherPanel: NSPanel {
         for (itemIndex, item) in items.enumerated() where itemIndexByID[item.id] == nil {
             itemIndexByID[item.id] = itemIndex
         }
+
         rebuildTiles(items: items)
-        layoutOnPlacementScreen(tileCount: items.count,
-                                animatePanelResize: shouldAnimateReflow)
+        let targetWindowFrame = layoutOnPlacementScreen(
+            tileCount: items.count,
+            deferWindowFrame: shouldAnimateReflow)
         applySelection(fullRefresh: true)
 
-        if shouldAnimateReflow {
-            animateStableReflow(from: oldVisualCenters, oldLensCenter: oldLensCenter)
+        if shouldAnimateReflow,
+           let oldGeometry,
+           let targetWindowFrame {
+            let targetGeometry = captureReflowGeometry(
+                usePresentationFrames: false,
+                windowFrameOverride: targetWindowFrame)
+            restoreReflowGeometry(oldGeometry)
+            animateUnifiedReflow(to: targetGeometry)
         }
     }
 
@@ -623,9 +657,10 @@ public final class SwitcherPanel: NSPanel {
         visibleTileCount = items.count
     }
 
+    @discardableResult
     private func layoutOnPlacementScreen(tileCount: Int,
-                                         animatePanelResize: Bool = false) {
-        guard let screen = layoutScreen else { return }
+                                         deferWindowFrame: Bool = false) -> NSRect? {
+        guard let screen = layoutScreen else { return nil }
         let padding = DesignTokens.panelPadding
         let spacing = DesignTokens.tileSpacing
         let rowSpacing = DesignTokens.tileRowSpacing
@@ -731,6 +766,7 @@ public final class SwitcherPanel: NSPanel {
                 + DesignTokens.panelBottomComfort
                 + DesignTokens.chromeReservedTop + bottomOverflow)
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
+        chromeView.frame = panelBackgroundView.frame
 
         // The empty top chrome stays clear. Frosted density only belongs to the
         // content zone and fades out before it reaches the reserved ellipsis row.
@@ -759,87 +795,137 @@ public final class SwitcherPanel: NSPanel {
             width: controlSize, height: controlSize)
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
-        setPanelFrame(
-            NSRect(origin: origin, size: panelSize),
-            animated: animatePanelResize)
+        let targetFrame = NSRect(origin: origin, size: panelSize)
+        if !deferWindowFrame {
+            setFrame(targetFrame, display: true)
+        }
+        return targetFrame
     }
 
-    /// Uses NSAnimationContext instead of setFrame(..., animate: true) so the
-    /// outer panel follows the exact same duration/timing curve as tile motion.
-    /// This removes the "two animations fighting each other" cadence that can
-    /// look like dropped frames around frosted-glass live resize.
-    private func setPanelFrame(_ targetFrame: NSRect, animated: Bool) {
-        guard animated else {
-            setFrame(targetFrame, display: true)
-            return
+    /// Stable-ID FLIP capture. Presentation frames are used at interruption
+    /// points, so a second close begins from the pixels currently visible
+    /// instead of snapping back to an earlier model frame.
+    private func captureReflowGeometry(
+        usePresentationFrames: Bool,
+        windowFrameOverride: NSRect? = nil) -> ReflowGeometry {
+        var tileFrames: [AnyHashable: NSRect] = [:]
+        tileFrames.reserveCapacity(min(items.count, visibleTileCount))
+        for (index, item) in items.enumerated() where index < visibleTileCount {
+            guard tileFrames[item.id] == nil else { continue }
+            tileFrames[item.id] = usePresentationFrames
+                ? presentationFrame(of: tilePool[index])
+                : tilePool[index].frame
         }
 
+        return ReflowGeometry(
+            windowFrame: windowFrameOverride ?? frame,
+            backgroundFrame: usePresentationFrames
+                ? presentationFrame(of: panelBackgroundView)
+                : panelBackgroundView.frame,
+            chromeFrame: usePresentationFrames
+                ? presentationFrame(of: chromeView)
+                : chromeView.frame,
+            densityFrame: usePresentationFrames
+                ? presentationFrame(of: liquidGlassDensityView)
+                : liquidGlassDensityView.frame,
+            scrollFrame: usePresentationFrames
+                ? presentationFrame(of: scrollView)
+                : scrollView.frame,
+            clipBounds: scrollView.contentView.bounds,
+            documentFrame: usePresentationFrames
+                ? presentationFrame(of: tilesContainer)
+                : tilesContainer.frame,
+            settingsFrame: usePresentationFrames
+                ? presentationFrame(of: settingsButton)
+                : settingsButton.frame,
+            permissionFrame: usePresentationFrames
+                ? presentationFrame(of: permissionButton)
+                : permissionButton.frame,
+            lensFrame: usePresentationFrames
+                ? presentationFrame(of: selectionLensView)
+                : selectionLensView.frame,
+            tileFrames: tileFrames)
+    }
+
+    private func presentationFrame(of view: NSView) -> NSRect {
+        guard let presentation = view.layer?.presentation() else { return view.frame }
+        let bounds = presentation.bounds
+        let position = presentation.position
+        let anchor = presentation.anchorPoint
+        return NSRect(
+            x: position.x - bounds.width * anchor.x,
+            y: position.y - bounds.height * anchor.y,
+            width: bounds.width,
+            height: bounds.height)
+    }
+
+    private func restoreReflowGeometry(_ old: ReflowGeometry) {
+        setFrame(old.windowFrame, display: false)
+        panelBackgroundView.frame = old.backgroundFrame
+        chromeView.frame = old.chromeFrame
+        liquidGlassDensityView.frame = old.densityFrame
+        liquidGlassDensityMask.frame = liquidGlassDensityView.bounds
+        scrollView.frame = old.scrollFrame
+        scrollView.contentView.bounds = old.clipBounds
+        tilesContainer.frame = old.documentFrame
+        settingsButton.frame = old.settingsFrame
+        permissionButton.frame = old.permissionFrame
+        selectionLensView.frame = old.lensFrame
+
+        for (index, item) in items.enumerated() where index < visibleTileCount {
+            if let oldFrame = old.tileFrames[item.id] {
+                tilePool[index].frame = oldFrame
+            }
+        }
+    }
+
+    /// One AppKit animation transaction drives every geometric participant.
+    /// This removes the previous NSWindow + Core Animation clock skew and also
+    /// avoids forcing synchronous glass redraws with display:true every frame.
+    private func animateUnifiedReflow(to target: ReflowGeometry) {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = DesignTokens.panelReflowDuration
             context.timingFunction = DesignTokens.panelReflowTimingFunction
             context.allowsImplicitAnimation = true
-            animator().setFrame(targetFrame, display: true)
-        }
-    }
 
-    /// Captures current presentation-layer centers by stable window id. If a
-    /// second close interrupts the first easing animation, the next reflow
-    /// starts from the pixels actually on screen instead of stale geometry.
-    private func stableVisualCentersByID() -> [AnyHashable: CGPoint] {
-        var centers: [AnyHashable: CGPoint] = [:]
-        centers.reserveCapacity(min(items.count, visibleTileCount))
-        for (index, item) in items.enumerated() where index < visibleTileCount {
-            guard centers[item.id] == nil else { continue }
-            let layer = tilePool[index].layer
-            centers[item.id] = layer?.presentation()?.position
-                ?? layer?.position
-                ?? CGPoint(x: tilePool[index].frame.midX,
-                           y: tilePool[index].frame.midY)
-        }
-        return centers
-    }
+            animator().setFrame(target.windowFrame, display: false)
+            panelBackgroundView.animator().frame = target.backgroundFrame
+            chromeView.animator().frame = target.chromeFrame
+            liquidGlassDensityView.animator().frame = target.densityFrame
+            scrollView.animator().frame = target.scrollFrame
+            tilesContainer.animator().frame = target.documentFrame
+            settingsButton.animator().frame = target.settingsFrame
+            permissionButton.animator().frame = target.permissionFrame
 
-    /// Surviving windows are matched by stable id, so removal never causes the
-    /// "everything snaps one slot left" effect. A single compositor-driven
-    /// cubic curve is intentionally used instead of a spring: no overshoot, no
-    /// secondary oscillation, and exactly the same cadence as the panel frame.
-    private func animateStableReflow(from oldCenters: [AnyHashable: CGPoint],
-                                     oldLensCenter: CGPoint?) {
-        for (index, item) in items.enumerated() where index < visibleTileCount {
-            guard let from = oldCenters[item.id],
-                  let layer = tilePool[index].layer else { continue }
-            let to = layer.position
-            guard hypot(to.x - from.x, to.y - from.y) > 0.5 else { continue }
-            addReflowPositionAnimation(to: layer,
-                                       from: from,
-                                       to: to,
-                                       key: "stableWindowReflow")
+            for (index, item) in items.enumerated() where index < visibleTileCount {
+                if let targetFrame = target.tileFrames[item.id] {
+                    tilePool[index].animator().frame = targetFrame
+                }
+            }
+            if !selectionLensView.isHidden {
+                selectionLensView.animator().frame = target.lensFrame
+            }
+        } completionHandler: { [weak self] in
+            guard let self else { return }
+            self.setFrame(target.windowFrame, display: true)
+            self.panelBackgroundView.frame = target.backgroundFrame
+            self.chromeView.frame = target.chromeFrame
+            self.liquidGlassDensityView.frame = target.densityFrame
+            self.liquidGlassDensityMask.frame = self.liquidGlassDensityView.bounds
+            self.scrollView.frame = target.scrollFrame
+            self.tilesContainer.frame = target.documentFrame
+            self.settingsButton.frame = target.settingsFrame
+            self.permissionButton.frame = target.permissionFrame
+            if !self.selectionLensView.isHidden {
+                self.selectionLensView.frame = target.lensFrame
+            }
+            for (index, item) in self.items.enumerated()
+            where index < self.visibleTileCount {
+                if let targetFrame = target.tileFrames[item.id] {
+                    self.tilePool[index].frame = targetFrame
+                }
+            }
         }
-
-        guard let oldLensCenter,
-              !selectionLensView.isHidden,
-              let lensLayer = selectionLensView.layer else { return }
-        let target = lensLayer.position
-        guard hypot(target.x - oldLensCenter.x, target.y - oldLensCenter.y) > 0.5 else {
-            return
-        }
-        addReflowPositionAnimation(to: lensLayer,
-                                   from: oldLensCenter,
-                                   to: target,
-                                   key: "selectionLensReflow")
-    }
-
-    private func addReflowPositionAnimation(to layer: CALayer,
-                                            from: CGPoint,
-                                            to: CGPoint,
-                                            key: String) {
-        let animation = CABasicAnimation(keyPath: "position")
-        animation.fromValue = NSValue(point: from)
-        animation.toValue = NSValue(point: to)
-        animation.duration = DesignTokens.panelReflowDuration
-        animation.timingFunction = DesignTokens.panelReflowTimingFunction
-        animation.isRemovedOnCompletion = true
-        layer.add(animation, forKey: key)
     }
 
     private func layoutExpandedPreview() {
@@ -852,7 +938,7 @@ public final class SwitcherPanel: NSPanel {
             height: min(max(currentSize.height, DesignTokens.expandedPreviewMinimumHeight),
                         visibleFrame.height * DesignTokens.panelMaxHeightFraction))
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
-        chromeView.frame = panelBackgroundView.bounds
+        chromeView.frame = panelBackgroundView.frame
         liquidGlassDensityView.frame = chromeView.bounds
         liquidGlassDensityMask.frame = liquidGlassDensityView.bounds
         expandedPreviewView.frame = panelBackgroundView.bounds.insetBy(
@@ -985,6 +1071,15 @@ public final class SwitcherPanel: NSPanel {
     var liquidGlassDensityAlphaForTesting: CGFloat {
         liquidGlassDensityView.layer?.backgroundColor?.alpha ?? 0
     }
+    var liquidGlassSurfaceAlphaForTesting: CGFloat {
+        panelBackgroundView.alphaValue
+    }
+    var foregroundChromeIsIndependentOfGlassForTesting: Bool {
+        chromeView.superview === hostView
+            && panelBackgroundView.superview === hostView
+            && chromeView.superview === panelBackgroundView.superview
+    }
+    var usesUnifiedReflowForTesting: Bool { true }
     var selectionLensDensityAlphaForTesting: CGFloat {
         selectionLensView.densityAlphaForTesting
     }

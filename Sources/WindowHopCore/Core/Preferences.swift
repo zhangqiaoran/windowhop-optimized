@@ -415,12 +415,32 @@ public final class Preferences: ObservableObject {
         return min(100, max(0, value))
     }
 
-    /// Converts the user-facing 0–100 Liquid Glass transparency into a
-    /// literal material-density fraction. The control is intentionally linear:
-    /// 100% means no added density, 90% means 10% density, and 0% means full
-    /// density. UI layers decide how strongly to render that density.
+    /// 0...1 user-facing liquid factor. 1 is the most transparent / liquid end.
+    public static func liquidGlassFactor(forTransparencyPercent value: Double) -> Double {
+        clampedGlassTransparency(value) / 100
+    }
+
+    /// Perceptual milk curve. A gamma > 1 keeps the high end genuinely liquid:
+    /// 90–100% adds almost no white body, while the lower half gains density
+    /// quickly enough to read as intentionally milky rather than merely dim.
+    public static func liquidGlassMilkFactor(forTransparencyPercent value: Double) -> Double {
+        let liquid = liquidGlassFactor(forTransparencyPercent: value)
+        return pow(1 - liquid, 1.55)
+    }
+
+    /// Controls only the background glass view (foreground content is a sibling).
+    /// High values intentionally reduce the material surface alpha so wallpaper
+    /// color and motion read through the refraction; low values restore the full
+    /// material before the separate milky layer is composited above it.
+    public static func liquidGlassSurfaceAlpha(forTransparencyPercent value: Double) -> Double {
+        let liquid = liquidGlassFactor(forTransparencyPercent: value)
+        return 0.60 + 0.40 * pow(1 - liquid, 0.85)
+    }
+
+    /// Retained as the literal inverse for migrations/tests that need a density
+    /// fraction, but the 3.4 renderer uses the perceptual milk curve above.
     public static func liquidGlassDensity(forTransparencyPercent value: Double) -> Double {
-        1 - clampedGlassTransparency(value) / 100
+        1 - liquidGlassFactor(forTransparencyPercent: value)
     }
 
     /// An empty stored string means "no value", matching how the registration

@@ -196,30 +196,52 @@ final class SwitcherLayoutTests: XCTestCase {
                        "More Options (⌘,)")
     }
 
-    func testLiquidGlassPercentageControlsRestrainedClearGlassDensity() {
+    func testLiquidGlassPercentageMapsLiquidToMilkyPerceptually() {
         let panel = SwitcherPanel(rasterizableBackground: true)
 
         Preferences.shared.glassTransparencyPercent = 100
         XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
+        XCTAssertEqual(
+            panel.liquidGlassSurfaceAlphaForTesting,
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
+            accuracy: 0.001)
 
         Preferences.shared.glassTransparencyPercent = 90
-        XCTAssertEqual(
-            panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.glassMaximumDensityAlpha * 0.10,
-            accuracy: 0.001)
+        let milk90 = panel.liquidGlassDensityAlphaForTesting
 
         Preferences.shared.glassTransparencyPercent = 50
-        XCTAssertEqual(
-            panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.glassMaximumDensityAlpha * 0.50,
-            accuracy: 0.001)
+        let milk50 = panel.liquidGlassDensityAlphaForTesting
+        XCTAssertGreaterThan(milk50, milk90 * 4,
+                             "mid-range should become visibly milkier than 90%")
 
         Preferences.shared.glassTransparencyPercent = 0
         XCTAssertEqual(
             panel.liquidGlassDensityAlphaForTesting,
-            DesignTokens.glassMaximumDensityAlpha,
+            DesignTokens.glassMaximumMilkAlpha,
             accuracy: 0.001)
-        XCTAssertLessThanOrEqual(panel.liquidGlassDensityAlphaForTesting, 0.20)
+        XCTAssertEqual(panel.liquidGlassSurfaceAlphaForTesting, 1, accuracy: 0.001)
+
+        XCTAssertTrue(panel.foregroundChromeIsIndependentOfGlassForTesting)
+    }
+
+    func testLiquidGlassCoreCurveIsMonotonic() {
+        XCTAssertEqual(
+            Preferences.liquidGlassMilkFactor(forTransparencyPercent: 100),
+            0,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            Preferences.liquidGlassMilkFactor(forTransparencyPercent: 0),
+            1,
+            accuracy: 0.0001)
+        XCTAssertLessThan(
+            Preferences.liquidGlassMilkFactor(forTransparencyPercent: 90),
+            Preferences.liquidGlassMilkFactor(forTransparencyPercent: 70))
+        XCTAssertLessThan(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 100),
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50))
+        XCTAssertLessThan(
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 50),
+            Preferences.liquidGlassSurfaceAlpha(forTransparencyPercent: 0))
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {
@@ -299,13 +321,14 @@ final class SwitcherLayoutTests: XCTestCase {
         let first = try XCTUnwrap(panel.tileForTesting(at: 0))
         let second = try XCTUnwrap(panel.tileForTesting(at: 1))
         let third = try XCTUnwrap(panel.tileForTesting(at: 2))
-        XCTAssertEqual(first.selectionScaleForTesting, DesignTokens.selectedTileScale)
+        XCTAssertEqual(first.selectionScaleForTesting, 1)
         XCTAssertEqual(second.selectionScaleForTesting, 1)
         XCTAssertEqual(third.selectionScaleForTesting, 1)
         panel.select(1)
         XCTAssertEqual(first.selectionScaleForTesting, 1)
-        XCTAssertEqual(second.selectionScaleForTesting, DesignTokens.selectedTileScale)
+        XCTAssertEqual(second.selectionScaleForTesting, 1)
         XCTAssertEqual(third.selectionScaleForTesting, 1)
+        XCTAssertTrue(panel.usesUnifiedReflowForTesting)
     }
 
     func testSettingsButtonIsContextualInCyclingAndPersistentModes() {

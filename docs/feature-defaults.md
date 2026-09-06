@@ -1,5 +1,12 @@
 # User-facing defaults and configurability
 
+## Unreleased 3.4 liquid-glass + unified-FLIP decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Liquid ↔ milky glass curve | 100% liquid | Yes | Foreground chrome is now a sibling above the material. 100% sets milk to 0 and native-glass surface alpha to 0.60; lower percentages follow a perceptual `(1-liquid)^1.55` milk curve up to 0.72 while surface alpha rises toward 1.0. Foreground content never fades. |
+| Stable-ID unified FLIP reflow | Enabled | No | Removal captures presentation frames by stable window ID, computes final geometry, restores the visible state, then animates NSWindow, material, chrome, scroll geometry, surviving tiles, and the focus ring in one `NSAnimationContext`. The old independent Core Animation tile clock and selected-tile scale animation are removed. |
+
 ## my-alt-tab 3.3.0 clear-glass + true-dissolve decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |

@@ -417,9 +417,9 @@ struct AppearancePane: View {
                     .accessibilityLabel("Glass transparency")
                     .accessibilityValue("\(Int(preferences.glassTransparencyPercent.rounded())) percent")
             } header: {
-                Text("Clear Glass")
+                Text("Liquid Glass")
             } footer: {
-                Text("100% is the clearest native glass with no added white density. Lower values add only a light neutral glass body while keeping the desktop visibly refracted behind the switcher. Window previews, icons, and text remain at full opacity.")
+                Text("Higher values make the panel more liquid and transparent; lower values progressively add a milky white glass body. 100% keeps zero milk and thins the native Clear Glass surface so wallpaper color shows through strongly. 0% restores full glass plus the strongest translucent milk layer. Window previews, icons, text, and the blue focus ring always stay at full opacity.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
