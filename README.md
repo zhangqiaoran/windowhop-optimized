@@ -15,6 +15,8 @@ Native macOS window switcher maintained by **zhangqiaoran**.
 
 ## v3.4.3
 
+- **Rapid Alt/Option+Tab switching fixed:** releasing the modifier now ends the tap-side held session synchronously, so an immediate second chord starts a fresh session instead of becoming a stale step that is later discarded.
+- A committed target is promoted in MRU order immediately before asynchronous AX focus confirmation, keeping fast 1↔2 toggles deterministic even when focus notifications lag.
 - **Settings now supports English / 中文:** a new Language picker in General switches the entire Settings window live, including toolbar pane names, form labels, buttons, status text, shortcut validation, Updates, and About.
 - The selected Settings language is persisted; **Restore Defaults** returns it to English. Switching languages does not require restarting my-alt-tab.
 - Removed the low-value **Show tab counts** preference from Appearance and retired the persisted option; tab-count metadata now stays off.
