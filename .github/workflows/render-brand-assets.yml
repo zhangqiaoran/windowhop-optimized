@@ -23,11 +23,14 @@ jobs:
           fetch-depth: 0
 
       - name: Install Pillow
-        run: python3 -m pip install --quiet pillow
+        run: |
+          python3 -m venv "$RUNNER_TEMP/brand-venv"
+          "$RUNNER_TEMP/brand-venv/bin/python" -m pip install --quiet --upgrade pip
+          "$RUNNER_TEMP/brand-venv/bin/python" -m pip install --quiet pillow
 
       - name: Render hero, icon and GIF
         run: |
-          python3 scripts/render-brand-assets.py Support/AppIconSource.png
+          "$RUNNER_TEMP/brand-venv/bin/python" scripts/render-brand-assets.py Support/AppIconSource.png
           test -s docs/assets/my-alt-tab-hero.png
           test -s docs/assets/my-alt-tab-demo.gif
           test -s docs/assets/app-icon.png
