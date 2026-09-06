@@ -441,6 +441,8 @@ public final class SwitcherPanel: NSPanel {
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
         panelBackgroundView.wantsLayer = true
+        panelBackgroundView.layer?.cornerRadius = DesignTokens.panelCornerRadius
+        panelBackgroundView.layer?.cornerCurve = .continuous
         panelBackgroundView.layer?.borderWidth = DesignTokens.frostedGlassBorderWidth
         panelBackgroundView.layer?.borderColor = DesignTokens.frostedGlassBorder.cgColor
 
