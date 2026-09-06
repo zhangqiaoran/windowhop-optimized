@@ -187,3 +187,204 @@ frames[0].save(
     disposal=2
 )
 print("rendered docs brand assets")
+
+
+# ---------------------------------------------------------------------------
+# GitHub README hero poster.
+# The raster includes a visual download button under the canonical app icon.
+# README wraps the whole hero in Releases/latest so the CTA is genuinely live.
+# ---------------------------------------------------------------------------
+HW, HH = 1200, 1600
+hero = Image.new("RGBA", (HW, HH), (4, 10, 31, 255))
+hd = ImageDraw.Draw(hero)
+
+# vertical midnight gradient
+for y in range(HH):
+    t = y / HH
+    r = int(4 + 11 * t)
+    g = int(10 + 8 * t)
+    b = int(31 + 35 * t)
+    hd.line((0, y, HW, y), fill=(r, g, b, 255))
+
+# soft atmospheric glows
+hglow = Image.new("RGBA", (HW, HH), (0, 0, 0, 0))
+hgd = ImageDraw.Draw(hglow)
+hgd.ellipse((-250, 40, 520, 760), fill=(20, 145, 255, 62))
+hgd.ellipse((680, -100, 1460, 720), fill=(155, 45, 255, 58))
+hgd.ellipse((180, 890, 1080, 1710), fill=(90, 35, 210, 42))
+hglow = hglow.filter(ImageFilter.GaussianBlur(95))
+hero = Image.alpha_composite(hero, hglow)
+hd = ImageDraw.Draw(hero)
+
+# tiny stars
+rng = random.Random(3444)
+for _ in range(95):
+    x = rng.randrange(35, HW - 35)
+    y = rng.randrange(20, 520)
+    rr = rng.choice([1, 1, 1, 2])
+    a = rng.randrange(65, 180)
+    hd.ellipse((x-rr, y-rr, x+rr, y+rr), fill=(200, 220, 255, a))
+
+# brand header
+hero_icon = master.resize((230, 230), Image.Resampling.LANCZOS)
+hero.alpha_composite(hero_icon, (70, 60))
+F_HERO = get_font(74, True)
+F_SUB = get_font(31, True)
+F_BODY = get_font(24)
+F_SECTION = get_font(46, True)
+F_CARD = get_font(25, True)
+F_TINY = get_font(18)
+
+hd.text((340, 88), "my-alt-tab", font=F_HERO, fill=(244, 249, 255, 255))
+hd.text((344, 180), "Lightweight native macOS window switcher",
+        font=F_SUB, fill=(226, 235, 255, 255))
+hd.text((344, 226), "Switch between windows instantly",
+        font=F_BODY, fill=(155, 184, 230, 255))
+
+# version badge
+hd.rounded_rectangle((865, 238, 1120, 292), 27,
+                     fill=(35, 42, 94, 220), outline=(143, 101, 255, 230), width=2)
+hd.text((912, 251), "Latest v3.4.4", font=F_BODY, fill=(244, 248, 255, 255))
+
+# real-looking CTA directly under icon
+cta = Image.new("RGBA", (310, 72), (0,0,0,0))
+cd = ImageDraw.Draw(cta)
+for x in range(310):
+    tt = x / 309
+    col = (
+        int(32 + 185*tt),
+        int(161 - 60*tt),
+        int(255 - 22*tt),
+        245
+    )
+    cd.line((x, 0, x, 72), fill=col)
+mask = Image.new("L", (310,72), 0)
+md = ImageDraw.Draw(mask)
+md.rounded_rectangle((0,0,309,71), 36, fill=255)
+cta.putalpha(mask)
+cta_glow = Image.new("RGBA", (360,122), (0,0,0,0))
+cta_glow.alpha_composite(cta, (25,25))
+cta_glow = cta_glow.filter(ImageFilter.GaussianBlur(13))
+hero.alpha_composite(cta_glow, (43, 278))
+hero.alpha_composite(cta, (68, 303))
+hd = ImageDraw.Draw(hero)
+hd.text((95, 324), "↓  Download Latest v3.4.4", font=F_CARD, fill=(255,255,255,255))
+
+# feature pills
+features = [
+    ("Lightweight", "Small. Powerful."),
+    ("Universal 2", "Intel & Apple Silicon"),
+    ("macOS 14+", "Sonoma and later"),
+]
+fx = 405
+for label, sub in features:
+    w = 225
+    hd.rounded_rectangle((fx, 320, fx+w, 392), 32,
+                         fill=(19, 33, 72, 205), outline=(83, 132, 223, 180), width=2)
+    hd.text((fx+20, 333), label, font=F_CARD, fill=(236, 243, 255, 255))
+    hd.text((fx+20, 363), sub, font=F_TINY, fill=(150, 181, 225, 255))
+    fx += w + 18
+
+# install panel
+hd.rounded_rectangle((45, 445, 1155, 825), 34,
+                     fill=(11, 23, 55, 220), outline=(91, 121, 225, 175), width=2)
+hd.text((80, 485), "Install in 3 simple steps", font=F_SECTION,
+        fill=(238, 244, 255, 255))
+
+steps = [
+    ("1", "Download 3.4.4", "Get the latest release"),
+    ("2", "Drag to Applications", "Unzip and install"),
+    ("3", "Grant permissions", "Accessibility + previews"),
+]
+sx = 80
+for num, title, sub in steps:
+    sw = 320
+    hd.rounded_rectangle((sx, 565, sx+sw, 740), 28,
+                         fill=(18, 32, 70, 225), outline=(74, 108, 185, 190), width=2)
+    hd.ellipse((sx+22, 588, sx+76, 642), fill=(112, 177, 255, 255))
+    hd.text((sx+40, 598), num, font=F_CARD, fill=(8, 18, 42, 255))
+    hd.text((sx+92, 586), title, font=F_CARD, fill=(244, 248, 255, 255))
+    hd.text((sx+92, 624), sub, font=F_TINY, fill=(155, 184, 225, 255))
+    # simple pictogram
+    if num == "1":
+        hd.line((sx+150, 670, sx+150, 708), fill=(72,190,255,255), width=8)
+        hd.polygon([(sx+133,694),(sx+167,694),(sx+150,716)], fill=(72,190,255,255))
+    elif num == "2":
+        hd.rounded_rectangle((sx+118, 670, sx+206, 720), 10, fill=(67,168,248,255))
+        hd.text((sx+143, 682), "A", font=F_CARD, fill=(215,238,255,255))
+    else:
+        hd.ellipse((sx+130, 666, sx+194, 730), outline=(96,211,168,255), width=7)
+        hd.line((sx+145,700,sx+158,714), fill=(96,211,168,255), width=6)
+        hd.line((sx+158,714,sx+184,684), fill=(96,211,168,255), width=6)
+    sx += 355
+
+hd.text((150, 770), "Accessibility for switching", font=F_TINY, fill=(166,196,235,255))
+hd.text((650, 770), "Screen Recording only for window previews", font=F_TINY,
+        fill=(166,196,235,255))
+
+# product showcase
+hd.text((72, 875), "A faster, lighter way to switch.", font=F_SECTION,
+        fill=(235, 243, 255, 255))
+hd.text((73, 932), "Fast 1↔2 switching  •  Window previews  •  Particle dissolve close",
+        font=F_BODY, fill=(155, 187, 235, 255))
+
+# switcher glass bar
+hd.rounded_rectangle((160, 1025, 1040, 1288), 34,
+                     fill=(35, 42, 82, 210), outline=(112, 162, 255, 210), width=3)
+
+card_xs = [205, 430, 655, 880]
+card_cols = [(30,40,62), (45,75,110), (36,38,62), (54,50,82)]
+for i, cx in enumerate(card_xs):
+    cw, ch = 180, 145
+    hd.rounded_rectangle((cx,1085,cx+cw,1085+ch), 20,
+                         fill=card_cols[i]+(255,), outline=(76,107,170,255), width=2)
+    hd.rounded_rectangle((cx+12,1097,cx+168,1118), 8, fill=(255,255,255,22))
+    for k, col in enumerate([(255,90,90),(255,195,65),(65,210,100)]):
+        hd.ellipse((cx+16+16*k,1103,cx+23+16*k,1110), fill=col+(255,))
+    if i == 1:
+        hd.rounded_rectangle((cx-5,1080,cx+cw+5,1085+ch+5), 24,
+                             outline=(95,190,255,255), width=4)
+        hd.rectangle((cx+20,1130,cx+160,1205), fill=(95,160,220,100))
+    elif i == 0:
+        for line in range(7):
+            yy = 1135 + line*10
+            hd.rectangle((cx+20,yy,cx+120+(line%3)*15,yy+3), fill=(90,160,255,150))
+    elif i == 2:
+        hd.rectangle((cx+25,1138,cx+155,1190), fill=(175,74,215,80))
+        hd.rectangle((cx+25,1200,cx+95,1215), fill=(85,150,230,85))
+    else:
+        hd.rectangle((cx+20,1135,cx+160,1205), fill=(110,165,225,80))
+
+# dissolve last card edge into colorful particles
+prng = random.Random(34444)
+for _ in range(310):
+    x = prng.gauss(1030, 95)
+    y = prng.gauss(1155, 72)
+    if x < 930:
+        continue
+    r = prng.uniform(1.3, 4.6)
+    col = prng.choice([(75,190,255,210),(126,106,255,220),(220,76,255,215),(255,90,180,220)])
+    hd.ellipse((x-r,y-r,x+r,y+r), fill=col)
+
+# compact feature chips
+chips = [("🪶", "Lightweight"), ("⚡", "Fast 1↔2"), ("✨", "Particle dissolve"), ("🌐", "English / 中文")]
+cx = 100
+for icon_char, label in chips:
+    w = 240
+    hd.rounded_rectangle((cx, 1340, cx+w, 1402), 28,
+                         fill=(18,30,66,220), outline=(83,127,215,170), width=2)
+    hd.text((cx+18,1357), f"{icon_char}  {label}", font=F_TINY, fill=(229,238,255,255))
+    cx += 255
+
+# bottom statement
+message = "Designed for people who want a cleaner, lighter Alt+Tab experience on macOS."
+bbox = hd.textbbox((0,0), message, font=F_BODY)
+hd.text(((HW-(bbox[2]-bbox[0]))//2, 1462), message, font=F_BODY, fill=(178,199,232,255))
+
+# bottom CTA echo
+hd.rounded_rectangle((420, 1520, 780, 1582), 31,
+                     fill=(45,116,220,235), outline=(151,111,255,240), width=2)
+hd.text((495, 1537), "Get my-alt-tab  ›", font=F_CARD, fill=(255,255,255,255))
+
+hero.convert("RGB").save(assets / "my-alt-tab-hero.png", quality=95, optimize=True)
+print("rendered docs/assets/my-alt-tab-hero.png")
