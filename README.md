@@ -1,17 +1,46 @@
-# my-alt-tab
+<p align="center">
+  <img src="docs/assets/app-icon.png" width="180" alt="my-alt-tab app icon">
+</p>
 
-Native macOS window switcher maintained by **zhangqiaoran**.
+<h1 align="center">my-alt-tab</h1>
 
-**Current release: v3.4.4** · macOS 14+ · Swift / AppKit · GPL-3.0  
+<p align="center">
+  <strong>Lightweight native macOS window switcher.</strong><br>
+  Fast window switching, real window previews, Clear Glass, and particle-dissolve closing.
+</p>
+
+<p align="center">
+  <strong>v3.4.4</strong> · macOS 14+ · Universal 2 · English / 中文 · GPL-3.0
+</p>
+
+<p align="center">
+  <img src="docs/assets/my-alt-tab-demo.gif" alt="my-alt-tab fast switching and particle dissolve demo">
+</p>
+
+<p align="center">
+  <em>Lightweight. Fast. Native. Close a window and watch it dissolve.</em>
+</p>
+
+## Install in 3 simple steps
+
+| 1 · Download | 2 · Install | 3 · Permissions |
+| --- | --- | --- |
+| Download `my-alt-tab-3.4.4.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
+
+## Why my-alt-tab
+
+| | Feature | What it gives you |
+| --- | --- | --- |
+| 🪶 | **Lightweight** | Native Swift / AppKit, no always-running animation loop. |
+| ⚡ | **Fast 1↔2 switching** | Rapid Alt/Option+Tab toggles stay responsive and deterministic. |
+| 🪟 | **Window previews** | Switch to the exact window, not just the application. |
+| ✨ | **Particle dissolve close** | Closing a window visually dissolves into particles before the list smoothly reflows. |
+| 💎 | **Clear Glass** | Native macOS 26 Clear Glass with fully opaque foreground content. |
+| 🌐 | **English / 中文** | Settings can switch language instantly without restarting. |
+
+> **New icon from v3.4.4:** the neon stacked-window icon shown above is now the canonical app icon used by packaged builds.
+
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
-
-## Install
-
-1. Open **Releases**.
-2. Download `my-alt-tab-3.4.4.zip`.
-3. Unzip it to get **my-alt-tab.app**.
-4. Drag **my-alt-tab.app** into **Applications**.
-5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
 
 ## v3.4.4
 
