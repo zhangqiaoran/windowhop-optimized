@@ -14,6 +14,8 @@ final class WindowDismissalEffectView: NSView {
         CGPoint(x: -56, y: -16), CGPoint(x: 22, y: 28),
     ]
 
+    static var particleCountForTesting: Int { vectors.count }
+
     private let snapshotView = NSImageView()
 
     init(frame frameRect: NSRect, snapshot: NSImage?) {
