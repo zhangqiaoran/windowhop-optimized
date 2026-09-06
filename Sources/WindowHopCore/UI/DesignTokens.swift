@@ -7,6 +7,13 @@ enum DesignTokens {
     // MARK: Panel chrome
     /// Keeps the complete 44×44 close hit target inside the visible panel without shrinking accessibility.
     static let panelPadding: CGFloat = 26
+    /// Extra breathing room is asymmetric on purpose: the grid keeps native
+    /// density on the left while the right/bottom edges get a calmer finish.
+    static let panelTrailingComfort: CGFloat = 24
+    static let panelBottomComfort: CGFloat = 18
+    /// A dedicated top chrome strip keeps global actions physically outside the
+    /// preview grid instead of floating over the rightmost thumbnail.
+    static let chromeReservedTop: CGFloat = 50
     static let panelCornerRadius: CGFloat = 22
     /// The grid may use up to this fraction of the screen's width/height.
     static let panelMaxWidthFraction: CGFloat = 0.90
@@ -15,9 +22,9 @@ enum DesignTokens {
     /// inside the panel while a small named overlap keeps it attached to the
     /// outer top-right corner.
     static let chromeButtonHitSize: CGFloat = 40
-    static let chromeButtonSymbolSize: CGFloat = 22
+    static let chromeButtonSymbolSize: CGFloat = 20
     static let chromeButtonOutsideOverlap: CGFloat = 0
-    static let settingsButtonInset: CGFloat = 8
+    static let settingsButtonInset: CGFloat = 10
 
     // MARK: Settings window
     /// Every pane renders into this one canvas, so selecting a pane never
