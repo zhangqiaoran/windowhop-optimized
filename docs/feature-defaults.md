@@ -7,7 +7,7 @@
 | Close control routing | `OverlayCloseButton` accepts first mouse in the nonactivating panel. `SwitcherPanel.sendEvent` additionally resolves visible close-hit regions before the private Glass hierarchy can consume/reroute the click. |
 | Native Glass interaction | macOS 26+ main/settings `NSGlassEffectView.effectIsInteractive = true`, as recommended for glass containing interactive controls. |
 | Native Glass edge | Remove the custom CALayer white border on real `NSGlassEffectView`; keep that border only on the pre-26 fallback, allowing AppKit's dynamic glass edge/highlight to remain visible. |
-| Style mapping | 55–100% uses `.clear`; below 55% switches to `.regular` while the nonlinear white tint continues to increase. The upper half therefore remains the most liquid, while the lower range intentionally becomes milky. |
+| Glass variant | Use `.regular` at every slider value. The switcher is a large interactive surface with labels/previews, so it benefits from Regular Liquid Glass adaptive background/brightness behavior. The slider changes only white tint: 100% has no tint; lower values become progressively milky. |
 
 ## my-alt-tab 3.5.0 native-glass + paced-dissolve decisions
 

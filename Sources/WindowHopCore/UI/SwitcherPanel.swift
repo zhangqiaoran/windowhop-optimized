@@ -255,7 +255,7 @@ public final class SwitcherPanel: NSPanel {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizableBackground {
             let glass = NSGlassEffectView()
-            glass.style = .clear
+            glass.style = .regular
             glass.cornerRadius = DesignTokens.panelCornerRadius
             glass.effectIsInteractive = true
             glass.contentView = chromeView
@@ -349,7 +349,7 @@ public final class SwitcherPanel: NSPanel {
            usesNativeGlassContainer,
            let group = glassGroupView {
             let settingsGlass = NSGlassEffectView()
-            settingsGlass.style = .clear
+            settingsGlass.style = .regular
             settingsGlass.cornerRadius = DesignTokens.chromeButtonHitSize / 2
             settingsGlass.effectIsInteractive = true
             settingsGlass.contentView = settingsButton
@@ -454,9 +454,11 @@ public final class SwitcherPanel: NSPanel {
             // treatment is part of what makes the material read as refractive.
             glass.layer?.borderWidth = 0
             glass.effectIsInteractive = true
-            glass.style = percent >= DesignTokens.glassClearStyleThreshold
-                ? .clear
-                : .regular
+            // A large switcher with labels/previews needs Regular Liquid Glass:
+            // it retains AppKit's adaptive background/brightness behavior.
+            // Transparency is controlled only through tint, never by changing
+            // the material variant or fading the material itself.
+            glass.style = .regular
             glass.tintColor = nativeTintAlpha <= 0.001
                 ? nil
                 : NSColor.white.withAlphaComponent(nativeTintAlpha)
@@ -465,7 +467,7 @@ public final class SwitcherPanel: NSPanel {
             if let settingsGlass = settingsGlassView as? NSGlassEffectView {
                 settingsGlass.layer?.borderWidth = 0
                 settingsGlass.effectIsInteractive = true
-                settingsGlass.style = glass.style
+                settingsGlass.style = .regular
                 settingsGlass.tintColor = nativeTintAlpha <= 0.001
                     ? nil
                     : NSColor.white.withAlphaComponent(nativeTintAlpha * 0.72)
