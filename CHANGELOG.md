@@ -2,6 +2,18 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.3 — 2026-09-06 — zhangqiaoran
+
+- Added a persisted **Settings language** preference with explicit **English / 中文** choices and immediate runtime switching.
+- Localized every Settings pane toolbar title plus General, Shortcuts, Windows, Appearance, Updates, About, permission status, update status, shortcut-recorder labels, and validation copy.
+- The toolbar and current Settings window title relabel in place when the language changes; no restart is required.
+- Retired the low-value **Show tab counts** preference. Existing stored values are ignored, the setting row is removed, and tab-count metadata remains disabled.
+- Corrected the Liquid Glass explanatory copy in Appearance so it describes the actual v3.4.2 background-only Clear Glass architecture rather than the superseded contentView/Regular Glass model.
+- Added deterministic localization/persistence tests and kept the existing click-through, root routing, clear-glass, dissolve, and reflow regression coverage.
+- Internal build: **30604**.
+
+Full notes: [`RELEASE_NOTES_v3.4.3.md`](RELEASE_NOTES_v3.4.3.md).
+
 ## 3.4.2 — 2026-09-06 — zhangqiaoran
 
 - Restored the interaction-safe switcher topology: native Glass is background-only while all cards and controls are ordinary foreground siblings.
