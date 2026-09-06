@@ -395,7 +395,7 @@ final class SwitcherLayoutTests: XCTestCase {
         if #available(macOS 26.0, *) {
             let panel = SwitcherPanel(rasterizableBackground: false)
             panel.update(items: [item("a")], selectedIndex: 0)
-            XCTAssertTrue(panel.usesNativeGlassContainerForTesting)
+            XCTAssertTrue(panel.usesNativeGlassBackgroundForTesting)
             // This beta selector is SDK/runtime dependent. The production path
             // enables it dynamically when present; release compatibility must
             // not depend on the SDK exposing the Swift property.
