@@ -4,7 +4,7 @@
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.
 
-## Unreleased v2.4 Liquid Glass refinement
+## my-alt-tab 2.4.0 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
 |---|---|---|---|

@@ -2,6 +2,17 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.4.0 — 2026-09-06 — zhangqiaoran
+
+- Rebuilt Liquid Glass transparency around a literal 0–100 contract: higher values are genuinely more transparent.
+- macOS 26+ now uses the native clear `NSGlassEffectView.Style.clear` for the panel and selected-window focus surface.
+- Replaced the previous tint-only approximation with a dedicated background-density layer, so changing transparency affects the glass background without fading window previews, icons, labels, or controls.
+- 100% adds no density, 90% adds 10%, 50% adds 50%, and 0% applies the maximum configured density.
+- The selected window follows the same Liquid Glass level while retaining a restrained native accent tint, soft glow, and clip-safe right/bottom overflow.
+- Preserved signed Sparkle updates, Universal 2 packaging, fast MRU switching, immediate window close, and the fixed-cost dismissal animation.
+
+Full notes: [`RELEASE_NOTES_v2.4.0.md`](RELEASE_NOTES_v2.4.0.md).
+
 ## 2.3.1 — 2026-09-06 — zhangqiaoran
 
 - Renamed the appearance control to **Liquid Glass** and aligned its behavior with that visual model.

@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v2.3.1** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v2.4.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-2.3.1.zip`.
+2. Download `my-alt-tab-2.4.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v2.4.0
+
+- **Liquid Glass now means real transparency:** higher values are more transparent; 100% is the clearest native glass.
+- On macOS 26+, the switcher uses native `NSGlassEffectView.Style.clear` instead of trying to simulate transparency through tint alone.
+- A separate background-density layer provides a smooth literal 0–100 range without fading previews, icons, or text.
+- The selected window follows the same Liquid Glass level with its own native glass focus surface.
+- Signed Sparkle automatic updates remain enabled.
 
 ## v2.3.1
 
@@ -53,7 +61,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.3.1.zip
+artifacts/my-alt-tab-2.4.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

@@ -1,0 +1,7 @@
+my-alt-tab 2.4.0
+author=zhangqiaoran
+validated_build_sha=c3571209e3cd2bd68f4e94598c6c2acf255ccd78
+validated_action_run=34013236536
+build=20400
+patch=clear native Liquid Glass + literal 0-100 transparency + background-only density
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)
