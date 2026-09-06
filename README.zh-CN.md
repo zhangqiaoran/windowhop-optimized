@@ -2,25 +2,24 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.4.1** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.4.2** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.4.1.zip`。
+2. 下载 `my-alt-tab-3.4.2.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
 
-## v3.4.1
+## v3.4.2
 
-- **重新校正原生 Liquid Glass 层级**：macOS 26+ 的缩略图、文字和控件放在 `NSGlassEffectView.contentView` 内，并通过 `NSGlassEffectContainerView` 统一采样，让系统的背景响应、折射和高光成为一个完整效果。
-- **Regular Liquid Glass 始终保持完整强度**：Glass 本身 alpha 固定为 1.0；100% 完全不叠白色 tint，数值降低时只逐步增加乳白 tint，不再通过降低整个 Glass 的透明度来模拟效果。
-- **彻底修复关闭、设置和权限按钮点不动**：点击在 `SwitcherPanel` 根级按最终几何区域直接路由，不再依赖 Glass / ScrollView 内部 hit-test 层级。
-- **修复“点窗口区域整个列表直接消失”**：会话级全局鼠标监听现在先按屏幕坐标判断是否真的点在所有 my-alt-tab Panel 之外；Panel 内点击不会再被误判为 outside-click，而是继续交给关闭按钮、设置按钮或窗口卡片自己的事件链处理。
-- **粒子消散最后几帧更顺滑**：真实缩略图侵蚀提升到 96 个灰度+Alpha Mask 状态，线性节奏、后台预热，并在 80% Stable-ID FLIP 重排前留出一个显示帧的收尾间隔。
-- macOS 26 原生 Glass 交给 AppKit 自己绘制动态边缘，不再覆盖自定义白边；旧系统 fallback 继续保留语义边框。
-- Universal 2、真实窗口立即关闭、GPU 粒子/烟尘尾部、Reduce Motion 和 Sparkle EdDSA 自动更新保持不变。
+- **彻底修复点击穿透**：无边框、非激活的 `NSPanel` 现在明确接管鼠标，并允许在用户主动点击时成为 Key Panel，但不会激活整个应用；点击不会再落到后面的真实窗口上。
+- Panel 根级现在按最终屏幕/Host 几何区域直接识别 **窗口卡片、关闭按钮、设置按钮、权限按钮**，不再把交互正确性寄托在 Glass / ScrollView 内部的 hit-test 层级上。
+- **Liquid Glass 重新变透明**：macOS 26+ 改回系统原生 `NSGlassEffectView.Style.clear`，不再使用 `.regular` 白厚玻璃，也不再叠 white tint。
+- Glass 只作为最底层背景；缩略图、文字、按钮、蓝色选中框全部是它上面的普通 AppKit 前景层，因此调透明度不会让内容或点击区域一起变淡。
+- 100% 时额外乳白层为 0，并把 Glass 背景本体压到约 **48% alpha**；往 0% 调时才逐步恢复 Glass 本体并增加独立乳白层。
+- 保留 96 状态真实侵蚀、真实窗口立即关闭、Stable-ID FLIP 重排、Universal 2、Reduce Motion 和 Sparkle EdDSA 更新。
 
 ## v3.4.0
 
