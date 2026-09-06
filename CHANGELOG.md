@@ -2,6 +2,17 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.4 — 2026-09-06 — zhangqiaoran
+
+- Fixed the rapid Alt/Option+Tab **release/repress race**: modifier release returns the event tap to watching synchronously, before the semantic release reaches the main thread.
+- Removed the controller's redundant show-time tap-mode rewrite so delayed UI work cannot overwrite a newer physical shortcut sequence.
+- Promoted committed activation targets into MRU order immediately before asynchronous AX focus confirmation, making repeated 1↔2 toggling deterministic.
+- Added regression coverage for a second Alt/Option+Tab arriving before the previous release has been processed on main.
+- Retains v3.4.3's bilingual Settings, retired tab-count preference, click ownership, Clear Liquid Glass, dissolve, and Stable-ID FLIP fixes.
+- Internal build: **30606**.
+
+Full notes: [`RELEASE_NOTES_v3.4.4.md`](RELEASE_NOTES_v3.4.4.md).
+
 ## 3.4.3 — 2026-09-06 — zhangqiaoran
 
 - Fixed the rapid Alt/Option+Tab **release/repress race**: the event tap now returns to watching synchronously on modifier release, before the semantic event reaches main.
