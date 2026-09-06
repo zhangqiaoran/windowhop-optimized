@@ -4,6 +4,12 @@
 user-facing key participates in `Preferences.configurableKeys`, and a regression test
 fails when a new configurable key is omitted from Restore Defaults.
 
+## Unreleased v2.4 Liquid Glass refinement
+
+| Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |
+|---|---|---|---|
+| Liquid Glass transparency | 100% | Yes | Keeps the existing `glassTransparencyPercent` key. v2.4 makes the percentage literal and monotonic: 100% adds zero density, 90% adds 10%, and 0% adds full density. On macOS 26+ the underlying panel and selected-window surfaces use native `NSGlassEffectView.Style.clear`; a separate background-only density layer changes opacity without fading previews, icons, or labels. Older macOS versions retain the native visual-effect fallback. Restore Defaults remains 100%. |
+
 ## my-alt-tab 2.3.1 decisions
 
 | Feature | Default | Configurable | Settings / persistence / migration / Restore Defaults |

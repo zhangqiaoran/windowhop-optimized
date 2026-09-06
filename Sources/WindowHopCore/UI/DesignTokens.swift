@@ -67,12 +67,18 @@ enum DesignTokens {
     static let selectionLensBorderWidth: CGFloat = 1.2
     static let selectedTileScale: CGFloat = 1.018
     static let selectedTileScaleDuration: TimeInterval = 0.095
-    /// The selected item is its own Liquid Glass surface. Even at 100% panel
-    /// transparency it keeps a faint accent refraction so selection remains
-    /// visible without turning back into an opaque focus plate.
-    static let selectionLiquidGlassBaseTintAlpha: CGFloat = 0.08
-    static let selectionLiquidGlassDensityTintScale: CGFloat = 0.22
-    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.55
+    /// Liquid Glass v2.4 keeps the native material genuinely clear at 100%.
+    /// Lower values thicken only the background material; foreground labels,
+    /// icons, and previews never have their alpha changed.
+    static let liquidGlassMaximumDensityOverlayAlpha: CGFloat = 0.90
+    static let liquidGlassTintAlphaScale: CGFloat = 0.12
+    /// The selected item remains a separate clear Liquid Glass surface with a
+    /// restrained accent tint; its density follows the panel without hiding
+    /// the selected window's content.
+    static let selectionLiquidGlassBaseTintAlpha: CGFloat = 0.09
+    static let selectionLiquidGlassDensityTintScale: CGFloat = 0.08
+    static let selectionLiquidGlassMaximumDensityOverlayAlpha: CGFloat = 0.42
+    static let selectionLiquidGlassFallbackFillScale: CGFloat = 0.45
     static var selectionLensStroke: NSColor {
         NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.58)
     }

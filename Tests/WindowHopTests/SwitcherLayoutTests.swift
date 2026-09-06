@@ -5,17 +5,21 @@ import XCTest
 final class SwitcherLayoutTests: XCTestCase {
     private var savedAppearanceMode: AppearanceMode!
     private var savedPreviewRowAlignment: PreviewRowAlignment!
+    private var savedGlassTransparencyPercent: Double!
 
     override func setUp() {
         super.setUp()
         savedAppearanceMode = Preferences.shared.appearanceMode
         savedPreviewRowAlignment = Preferences.shared.previewRowAlignment
+        savedGlassTransparencyPercent = Preferences.shared.glassTransparencyPercent
         Preferences.shared.appearanceMode = .windowPreviews
+        Preferences.shared.glassTransparencyPercent = 100
     }
 
     override func tearDown() {
         Preferences.shared.appearanceMode = savedAppearanceMode
         Preferences.shared.previewRowAlignment = savedPreviewRowAlignment
+        Preferences.shared.glassTransparencyPercent = savedGlassTransparencyPercent
         super.tearDown()
     }
 
@@ -190,6 +194,36 @@ final class SwitcherLayoutTests: XCTestCase {
                        "the ellipsis must live in its own top chrome strip")
         XCTAssertEqual(panel.settingsButtonToolTipForTesting,
                        "More Options (⌘,)")
+    }
+
+    func testLiquidGlassPercentageControlsRealBackgroundDensity() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+
+        Preferences.shared.glassTransparencyPercent = 100
+        XCTAssertEqual(panel.liquidGlassDensityAlphaForTesting, 0, accuracy: 0.001)
+        XCTAssertEqual(panel.selectionLensDensityAlphaForTesting, 0, accuracy: 0.001)
+
+        Preferences.shared.glassTransparencyPercent = 90
+        XCTAssertEqual(
+            panel.liquidGlassDensityAlphaForTesting,
+            DesignTokens.liquidGlassMaximumDensityOverlayAlpha * 0.10,
+            accuracy: 0.001)
+        XCTAssertEqual(
+            panel.selectionLensDensityAlphaForTesting,
+            DesignTokens.selectionLiquidGlassMaximumDensityOverlayAlpha * 0.10,
+            accuracy: 0.001)
+
+        Preferences.shared.glassTransparencyPercent = 50
+        XCTAssertEqual(
+            panel.liquidGlassDensityAlphaForTesting,
+            DesignTokens.liquidGlassMaximumDensityOverlayAlpha * 0.50,
+            accuracy: 0.001)
+
+        Preferences.shared.glassTransparencyPercent = 0
+        XCTAssertEqual(
+            panel.liquidGlassDensityAlphaForTesting,
+            DesignTokens.liquidGlassMaximumDensityOverlayAlpha,
+            accuracy: 0.001)
     }
 
     func testSingleSelectionLensTracksSelectedTileWithCachedGeometry() throws {

@@ -271,26 +271,26 @@ final class PreferencesTests: XCTestCase {
         wait(for: [expectation], timeout: 1)
     }
 
-    func testLiquidGlassTransparencyUsesPerceptualDensityNearClearEnd() {
+    func testLiquidGlassTransparencyIsLiteralAndMonotonic() {
         XCTAssertEqual(
-            Preferences.liquidGlassTintAlpha(forTransparencyPercent: 100),
+            Preferences.liquidGlassDensity(forTransparencyPercent: 100),
             0,
             accuracy: 0.0001)
         XCTAssertEqual(
-            Preferences.liquidGlassTintAlpha(forTransparencyPercent: 0),
+            Preferences.liquidGlassDensity(forTransparencyPercent: 90),
+            0.10,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            Preferences.liquidGlassDensity(forTransparencyPercent: 50),
+            0.50,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            Preferences.liquidGlassDensity(forTransparencyPercent: 0),
             1,
             accuracy: 0.0001)
-
-        let ninety = Preferences.liquidGlassTintAlpha(forTransparencyPercent: 90)
-        XCTAssertGreaterThan(ninety, 0.25,
-                             "90% should already look visibly denser than 100%")
-        XCTAssertLessThan(ninety, 0.35)
-        XCTAssertGreaterThan(
-            ninety,
-            Preferences.liquidGlassTintAlpha(forTransparencyPercent: 95))
-        XCTAssertGreaterThan(
-            Preferences.liquidGlassTintAlpha(forTransparencyPercent: 95),
-            Preferences.liquidGlassTintAlpha(forTransparencyPercent: 99))
+        XCTAssertLessThan(
+            Preferences.liquidGlassDensity(forTransparencyPercent: 90),
+            Preferences.liquidGlassDensity(forTransparencyPercent: 80))
     }
 
     func testFocusedMultiDisplayModeForcesCrossDisplayInclusionWithoutLosingStoredChoice() {

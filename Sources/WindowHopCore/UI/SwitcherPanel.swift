@@ -15,11 +15,13 @@ private final class SwitcherTilesContainerView: NSView {
 }
 
 /// A single shared Liquid Glass lens follows the selection. macOS 26+ uses
-/// NSGlassEffectView so the selected item has the same native refraction and
-/// edge treatment as the panel itself; older systems use the closest
-/// NSVisualEffectView fallback. There is still exactly one moving material
-/// surface, so selection cost stays constant regardless of window count.
+/// the clear NSGlassEffectView style so the selected window reads as a second
+/// optical glass surface instead of a tinted plate. A background-only density
+/// layer follows the user's 0–100 setting without fading any tile content.
+/// Older systems keep the closest NSVisualEffectView fallback.
 private final class SelectionLensView: NSView {
+    private let materialContentView = NSView()
+    private let densityView = NSView()
     private var materialView: NSView!
     private var fallbackEffectView: NSVisualEffectView?
     private var usesNativeLiquidGlass = false
@@ -31,7 +33,14 @@ private final class SelectionLensView: NSView {
         layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
         layer?.cornerCurve = .continuous
 
-        materialView = Self.makeMaterialView(rasterizable: rasterizable)
+        densityView.wantsLayer = true
+        densityView.autoresizingMask = [.width, .height]
+        densityView.setAccessibilityElement(false)
+        materialContentView.addSubview(densityView)
+
+        materialView = Self.makeMaterialView(
+            wrapping: materialContentView,
+            rasterizable: rasterizable)
         materialView.frame = bounds
         materialView.autoresizingMask = [.width, .height]
         addSubview(materialView)
@@ -52,6 +61,13 @@ private final class SelectionLensView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
+    override func layout() {
+        super.layout()
+        materialView.frame = bounds
+        materialContentView.frame = materialView.bounds
+        densityView.frame = materialContentView.bounds
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         refreshAppearance()
@@ -62,11 +78,14 @@ private final class SelectionLensView: NSView {
         refreshAppearance()
     }
 
-    private static func makeMaterialView(rasterizable: Bool) -> NSView {
+    private static func makeMaterialView(wrapping content: NSView,
+                                         rasterizable: Bool) -> NSView {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizable {
             let glass = NSGlassEffectView()
+            glass.style = .clear
             glass.cornerRadius = DesignTokens.selectionLensCornerRadius
+            glass.contentView = content
             return glass
         }
         #endif
@@ -80,20 +99,29 @@ private final class SelectionLensView: NSView {
         effect.layer?.cornerRadius = DesignTokens.selectionLensCornerRadius
         effect.layer?.cornerCurve = .continuous
         effect.layer?.masksToBounds = true
+        content.frame = effect.bounds
+        content.autoresizingMask = [.width, .height]
+        effect.addSubview(content)
         return effect
     }
 
     private func refreshAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            let density = CGFloat(Preferences.liquidGlassTintAlpha(
+            let density = CGFloat(Preferences.liquidGlassDensity(
                 forTransparencyPercent: transparencyPercent))
             let tintAlpha = DesignTokens.selectionLiquidGlassBaseTintAlpha
                 + density * DesignTokens.selectionLiquidGlassDensityTintScale
             let accent = NSColor.controlAccentColor.withAlphaComponent(tintAlpha)
+            let densityAlpha = density
+                * DesignTokens.selectionLiquidGlassMaximumDensityOverlayAlpha
+
+            densityView.layer?.backgroundColor = NSColor.windowBackgroundColor
+                .withAlphaComponent(densityAlpha).cgColor
 
             #if compiler(>=6.2)
             if #available(macOS 26.0, *),
                let glass = materialView as? NSGlassEffectView {
+                glass.style = .clear
                 glass.tintColor = accent
             }
             #endif
@@ -119,6 +147,10 @@ private final class SelectionLensView: NSView {
         if usesNativeLiquidGlass { return true }
         return fallbackEffectView?.material == .selection
             && fallbackEffectView?.state == .active
+    }
+
+    var densityAlphaForTesting: CGFloat {
+        densityView.layer?.backgroundColor?.alpha ?? 0
     }
 }
 
@@ -187,6 +219,10 @@ public final class SwitcherPanel: NSPanel {
     /// changing the panel's internal layout.
     private let hostView = SwitcherPanelHostView()
     private var panelBackgroundView: NSView!
+    /// A real background-only density layer. This is separate from the glass
+    /// material so the user's percentage controls transparency rather than
+    /// merely changing NSGlassEffectView.tintColor.
+    private let liquidGlassDensityView = NSView()
     /// Everything inside the visible panel background (the preview grid).
     private let chromeView = NSView()
     private let scrollView = NSScrollView()
@@ -280,6 +316,11 @@ public final class SwitcherPanel: NSPanel {
                                                       rasterizable: rasterizableBackground)
         hostView.addSubview(panelBackgroundView)
         contentView = hostView
+
+        liquidGlassDensityView.wantsLayer = true
+        liquidGlassDensityView.autoresizingMask = [.width, .height]
+        liquidGlassDensityView.setAccessibilityElement(false)
+        chromeView.addSubview(liquidGlassDensityView)
         applyLiquidGlassAppearance()
 
         scrollView.drawsBackground = false
@@ -383,30 +424,39 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// Applies a perceptual Liquid Glass density curve without fading labels,
-    /// previews, or controls. 100% stays maximally clear; values just below it
-    /// become visibly denser instead of changing by an almost invisible linear
-    /// amount. The selected-window lens follows the same user setting.
+    /// The percentage is literal in v2.4: higher means more transparent.
+    /// The native glass stays underneath at every value, while this dedicated
+    /// density layer changes only the background. Foreground labels, previews,
+    /// badges, and controls remain at full opacity.
     private func applyLiquidGlassAppearance() {
         let percent = Preferences.clampedGlassTransparency(
             Preferences.shared.glassTransparencyPercent)
-        let tintAlpha = CGFloat(Preferences.liquidGlassTintAlpha(
+        let density = CGFloat(Preferences.liquidGlassDensity(
             forTransparencyPercent: percent))
-        let tint = NSColor.windowBackgroundColor.withAlphaComponent(tintAlpha)
+        let densityAlpha = density * DesignTokens.liquidGlassMaximumDensityOverlayAlpha
+        let tintAlpha = density * DesignTokens.liquidGlassTintAlphaScale
 
+        liquidGlassDensityView.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(densityAlpha).cgColor
         selectionLensView.applyLiquidGlass(transparencyPercent: percent)
 
         #if compiler(>=6.2)
         if #available(macOS 26.0, *),
            let glass = panelBackgroundView as? NSGlassEffectView {
-            glass.tintColor = tintAlpha == 0 ? nil : tint
+            // .clear is the actual high-transparency Liquid Glass style.
+            // tintColor remains only a restrained adaptive tint; it no longer
+            // pretends to be the transparency control.
+            glass.style = .clear
+            glass.tintColor = tintAlpha == 0
+                ? nil
+                : NSColor.windowBackgroundColor.withAlphaComponent(tintAlpha)
             return
         }
         #endif
 
         guard let effectView = panelBackgroundView as? NSVisualEffectView else { return }
         effectView.wantsLayer = true
-        effectView.layer?.backgroundColor = tint.cgColor
+        effectView.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     /// The panel background: system glass on macOS 26+, the closest
@@ -416,6 +466,7 @@ public final class SwitcherPanel: NSPanel {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !rasterizable {
             let glass = NSGlassEffectView()
+            glass.style = .clear
             glass.cornerRadius = DesignTokens.panelCornerRadius
             glass.contentView = content
             return glass
@@ -707,6 +758,7 @@ public final class SwitcherPanel: NSPanel {
                 + DesignTokens.panelBottomComfort
                 + DesignTokens.chromeReservedTop + bottomOverflow)
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
+        liquidGlassDensityView.frame = chromeView.bounds
 
         // v2.3 gives global controls their own top chrome strip. The ellipsis
         // is still visually attached to the panel, but it never intersects a
@@ -737,6 +789,7 @@ public final class SwitcherPanel: NSPanel {
                         visibleFrame.height * DesignTokens.panelMaxHeightFraction))
         panelBackgroundView.frame = NSRect(origin: .zero, size: panelSize)
         chromeView.frame = panelBackgroundView.bounds
+        liquidGlassDensityView.frame = chromeView.bounds
         expandedPreviewView.frame = panelBackgroundView.bounds.insetBy(
             dx: DesignTokens.expandedPreviewPanelInset,
             dy: DesignTokens.expandedPreviewPanelInset)
@@ -863,6 +916,12 @@ public final class SwitcherPanel: NSPanel {
     var selectionLensIsVisibleForTesting: Bool { !selectionLensView.isHidden }
     var selectionLensUsesGlassMaterialForTesting: Bool {
         selectionLensView.usesLiquidGlassMaterialForTesting
+    }
+    var liquidGlassDensityAlphaForTesting: CGFloat {
+        liquidGlassDensityView.layer?.backgroundColor?.alpha ?? 0
+    }
+    var selectionLensDensityAlphaForTesting: CGFloat {
+        selectionLensView.densityAlphaForTesting
     }
     var selectionGeometryCountForTesting: Int { selectionFrames.count }
 

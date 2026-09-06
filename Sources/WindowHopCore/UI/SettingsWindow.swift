@@ -419,7 +419,7 @@ struct AppearancePane: View {
             } header: {
                 Text("Liquid Glass")
             } footer: {
-                Text("100% is the clearest Liquid Glass. The perceptual curve makes 90% visibly denser instead of nearly identical, while 0% is the most opaque. The selected window uses its own Liquid Glass focus surface; earlier macOS versions use the closest native visual-effect material.")
+                Text("Higher values are more transparent: 100% uses the clearest native Liquid Glass, 90% adds only 10% material density, and 0% is the most opaque. Only the glass background changes — window previews, icons, and text stay at full opacity. The selected window follows the same Liquid Glass level.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

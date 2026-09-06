@@ -415,13 +415,12 @@ public final class Preferences: ObservableObject {
         return min(100, max(0, value))
     }
 
-    /// Converts the user-facing 0–100 Liquid Glass transparency into the tint
-    /// density used by AppKit materials. Human perception is not linear here:
-    /// a 90% setting should already look noticeably denser than the completely
-    /// clear 100% endpoint, while preserving exact 0% and 100% endpoints.
-    public static func liquidGlassTintAlpha(forTransparencyPercent value: Double) -> Double {
-        let transparency = clampedGlassTransparency(value) / 100
-        return pow(1 - transparency, 0.55)
+    /// Converts the user-facing 0–100 Liquid Glass transparency into a
+    /// literal material-density fraction. The control is intentionally linear:
+    /// 100% means no added density, 90% means 10% density, and 0% means full
+    /// density. UI layers decide how strongly to render that density.
+    public static func liquidGlassDensity(forTransparencyPercent value: Double) -> Double {
+        1 - clampedGlassTransparency(value) / 100
     }
 
     /// An empty stored string means "no value", matching how the registration
