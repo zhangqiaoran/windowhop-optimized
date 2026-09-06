@@ -455,10 +455,13 @@ public final class SwitcherPanel: NSPanel {
     public func playDismissalEffect(at index: Int) {
         guard index >= 0, index < visibleTileCount else { return }
         let tile = tilePool[index]
+        // Convert into chrome coordinates before the session model removes the
+        // tile. The overlay then survives grid reflow/shrink independently.
+        let overlayFrame = tile.convert(tile.bounds, to: chromeView)
         let effect = WindowDismissalEffectView(
-            frame: tile.frame,
+            frame: overlayFrame,
             snapshot: tile.snapshotForDismissalEffect())
-        tilesContainer.addSubview(effect, positioned: .above, relativeTo: tile)
+        chromeView.addSubview(effect, positioned: .above, relativeTo: scrollView)
         effect.play()
     }
 
