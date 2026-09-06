@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.4.2** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.4.3** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.4.2.zip`.
+2. Download `my-alt-tab-3.4.3.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.4.3
+
+- **Settings now supports English / 中文:** a new Language picker in General switches the entire Settings window live, including toolbar pane names, form labels, buttons, status text, shortcut validation, Updates, and About.
+- The selected Settings language is persisted; **Restore Defaults** returns it to English. Switching languages does not require restarting my-alt-tab.
+- Removed the low-value **Show tab counts** preference from Appearance and retired the persisted option; tab-count metadata now stays off.
+- Simplified the Appearance pane and corrected its Liquid Glass help text to match the current background-only Clear Glass implementation from v3.4.2.
+- v3.4.2's click-through fix, Clear Liquid Glass, root pointer routing, 96-state dissolve, Stable-ID FLIP reflow, Universal 2 packaging, and Sparkle verification remain intact.
 
 ## v3.4.2
 
@@ -110,7 +118,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.2.zip
+artifacts/my-alt-tab-3.4.3.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.
