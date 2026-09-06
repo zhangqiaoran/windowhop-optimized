@@ -15,6 +15,10 @@ public final class SwitcherController {
     /// server finishes sending its destroy notification. Hash membership keeps
     /// refresh filtering average O(1) per item and avoids the old delayed pop.
     private var pendingCloseIDs = Set<AnyHashable>()
+    /// Windows whose real AX close has already been sent but whose switcher
+    /// card intentionally remains as a visual ghost until dust reaches 80%.
+    private var pendingVisualCloseIDs = Set<AnyHashable>()
+    private var pendingVisualCloseWorkItems: [AnyHashable: DispatchWorkItem] = [:]
     private let panels = SwitcherPanelGroup()
     private var mouseMonitor: Any?
     private var heldModifierGuard: Timer?
@@ -188,7 +192,10 @@ public final class SwitcherController {
             targetExpandedPreview(at: index)
         case .activate(let index):
             cancelExpandedPreviewTimer()
-            let item = index >= 0 && index < items.count ? items[index] : nil
+            let resolvedIndex = activationIndexSkippingVisualCloses(from: index)
+            let item = resolvedIndex.flatMap { resolved in
+                resolved >= 0 && resolved < items.count ? items[resolved] : nil
+            }
             let window = item?.window.flatMap { candidate in
                 WindowStore.shared.windows.contains(where: { $0 === candidate }) ? candidate : nil
             }
@@ -207,37 +214,34 @@ public final class SwitcherController {
                 refreshDuringSession()
                 break
             }
+
+            let closingID = items[index].id
+            guard !pendingVisualCloseIDs.contains(closingID) else { break }
+
             cancelExpandedPreviewTimer()
             expandedPreview.reset()
             panels.hideExpandedPreview()
 
-            let closingID = items[index].id
             pendingCloseIDs.insert(closingID)
+            pendingVisualCloseIDs.insert(closingID)
 
-            // Snapshot first, then remove the tile from the session model in the
-            // same run-loop turn. The overlay keeps animating independently, so
-            // the user sees an immediate dissolve instead of waiting for AX.
+            // Phase 1: capture and begin erosion while the list geometry remains
+            // frozen. The real target window closes immediately; only its
+            // switcher representation is retained as a temporary visual ghost.
             panels.playDismissalEffect(at: index)
-            items.remove(at: index)
+            WindowActions.close(window)
 
-            let nextIndex = items.isEmpty ? nil : min(index, items.count - 1)
-            let listCommand = state.listChanged(
-                itemCount: items.count,
-                preferredIndex: nextIndex)
-
-            if state.isActive {
-                panels.update(items: items,
-                              selectedIndex: state.selectedIndex,
-                              animatedLayout: true)
-                state.updateColumns(panels.columnsPerRow)
+            // If the closing card was selected, move focus to a live neighbour
+            // immediately without changing layout. Releasing the modifier during
+            // the 80% dust phase can therefore never activate the closed ghost.
+            if state.selectedIndex == index,
+               let next = nearestSelectableIndex(around: index) {
+                _ = state.listChanged(itemCount: items.count, preferredIndex: next)
+                panels.select(state.selectedIndex)
                 targetExpandedPreview(at: state.selectedIndex)
-            } else if case .cancel = listCommand {
-                endSession()
             }
 
-            // The actual close request is sent immediately. No animation delay
-            // sits on this hot path; the visual layer is fully decoupled.
-            WindowActions.close(window)
+            scheduleVisualCloseCompletion(id: closingID, originalIndex: index)
         }
     }
 
@@ -293,9 +297,15 @@ public final class SwitcherController {
 
         var preserved = Set<AnyHashable>()
         preserved.reserveCapacity(items.count)
-        for item in items
-        where freshById[item.id] == nil && shouldPreserveAcrossLocationRefresh(item) {
-            preserved.insert(item.id)
+        for item in items {
+            if pendingVisualCloseIDs.contains(item.id) {
+                // The AX window may already be gone, but its switcher card is a
+                // deliberate dust-animation ghost until the 80% hand-off.
+                preserved.insert(item.id)
+            } else if freshById[item.id] == nil
+                        && shouldPreserveAcrossLocationRefresh(item) {
+                preserved.insert(item.id)
+            }
         }
 
         let previousItemCount = items.count
@@ -359,6 +369,96 @@ public final class SwitcherController {
             state, policy: Preferences.shared.effectiveWindowInclusionPolicy)
     }
 
+    // MARK: - Two-phase close choreography
+
+    private func scheduleVisualCloseCompletion(id: AnyHashable, originalIndex: Int) {
+        pendingVisualCloseWorkItems[id]?.cancel()
+
+        let work = DispatchWorkItem { [weak self] in
+            self?.finalizeVisualClose(id: id, originalIndex: originalIndex)
+        }
+        pendingVisualCloseWorkItems[id] = work
+
+        let delay: CFTimeInterval = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            ? 0
+            : WindowDismissalEffectView.listReflowDelay
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    /// Phase 2 begins only after the particle system has reached 80% progress:
+    /// remove the ghost from the logical list, then let the existing synchronized
+    /// 0.42 s panel/tile reflow animate the smaller geometry.
+    private func finalizeVisualClose(id: AnyHashable, originalIndex: Int) {
+        pendingVisualCloseWorkItems[id] = nil
+        guard pendingVisualCloseIDs.remove(id) != nil else { return }
+        pendingCloseIDs.remove(id)
+        guard state.isActive,
+              let removalIndex = items.firstIndex(where: { $0.id == id }) else { return }
+
+        let selectedID = state.selectedIndex >= 0 && state.selectedIndex < items.count
+            ? items[state.selectedIndex].id
+            : nil
+        items.remove(at: removalIndex)
+
+        let preferredIndex: Int?
+        if let selectedID,
+           let retained = items.firstIndex(where: {
+               $0.id == selectedID && !pendingVisualCloseIDs.contains($0.id)
+           }) {
+            preferredIndex = retained
+        } else {
+            preferredIndex = nearestSelectableIndex(
+                around: min(originalIndex, max(0, items.count - 1)))
+                ?? (items.isEmpty ? nil : min(removalIndex, items.count - 1))
+        }
+
+        let command = state.listChanged(
+            itemCount: items.count,
+            preferredIndex: preferredIndex)
+
+        if state.isActive {
+            panels.update(items: items,
+                          selectedIndex: state.selectedIndex,
+                          animatedLayout: true)
+            state.updateColumns(panels.columnsPerRow)
+            targetExpandedPreview(at: state.selectedIndex)
+        }
+        if case .cancel = command {
+            perform(command)
+        }
+    }
+
+    private func nearestSelectableIndex(around index: Int) -> Int? {
+        guard !items.isEmpty else { return nil }
+
+        for distance in 1...items.count {
+            let right = index + distance
+            if right < items.count,
+               !pendingVisualCloseIDs.contains(items[right].id) {
+                return right
+            }
+
+            let left = index - distance
+            if left >= 0,
+               !pendingVisualCloseIDs.contains(items[left].id) {
+                return left
+            }
+        }
+        return nil
+    }
+
+    private func activationIndexSkippingVisualCloses(from index: Int) -> Int? {
+        guard index >= 0, index < items.count else { return nil }
+        if !pendingVisualCloseIDs.contains(items[index].id) { return index }
+        return nearestSelectableIndex(around: index)
+    }
+
+    private func cancelPendingVisualCloses() {
+        for work in pendingVisualCloseWorkItems.values { work.cancel() }
+        pendingVisualCloseWorkItems.removeAll(keepingCapacity: true)
+        pendingVisualCloseIDs.removeAll(keepingCapacity: true)
+    }
+
     // MARK: - Session support
 
     private func startSessionSupports() {
@@ -414,6 +514,7 @@ public final class SwitcherController {
     private func endSession() {
         storeRefreshScheduled = false
         pendingCloseIDs.removeAll(keepingCapacity: true)
+        cancelPendingVisualCloses()
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
         panels.hide()

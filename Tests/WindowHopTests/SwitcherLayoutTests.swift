@@ -274,6 +274,12 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(WindowDismissalEffectView.animationDurationForTesting, 1.10)
         XCTAssertLessThan(WindowDismissalEffectView.emissionWindowForTesting,
                           WindowDismissalEffectView.animationDurationForTesting)
+        XCTAssertEqual(WindowDismissalEffectView.reflowStartFractionForTesting,
+                       0.80,
+                       accuracy: 0.0001)
+        XCTAssertEqual(WindowDismissalEffectView.listReflowDelayForTesting,
+                       WindowDismissalEffectView.animationDurationForTesting * 0.80,
+                       accuracy: 0.0001)
     }
 
     func testPreviewTitleKeepsBottomBreathingRoom() {

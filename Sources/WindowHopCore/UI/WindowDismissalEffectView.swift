@@ -10,11 +10,21 @@ import QuartzCore
 final class WindowDismissalEffectView: NSView {
     private static let duration: CFTimeInterval = 1.02
     private static let emissionWindow: CFTimeInterval = 0.42
+    private static let reflowStartFraction: CFTimeInterval = 0.80
     private static let nominalParticleBirthRate: Float = 885
     private static let emitterCellCount = 4
 
+    /// The window list intentionally stays geometrically frozen until the
+    /// dissolve has completed 80% of its visual lifetime. This lets erosion and
+    /// dust read clearly before the panel begins its graceful reflow.
+    static var listReflowDelay: CFTimeInterval {
+        duration * reflowStartFraction
+    }
+
     static var animationDurationForTesting: CFTimeInterval { duration }
     static var emissionWindowForTesting: CFTimeInterval { emissionWindow }
+    static var reflowStartFractionForTesting: CFTimeInterval { reflowStartFraction }
+    static var listReflowDelayForTesting: CFTimeInterval { listReflowDelay }
     static var nominalParticleBirthRateForTesting: Float { nominalParticleBirthRate }
     static var emitterCellCountForTesting: Int { emitterCellCount }
 
