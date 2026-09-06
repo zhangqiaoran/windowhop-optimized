@@ -1,0 +1,7 @@
+my-alt-tab 3.0.0
+author=zhangqiaoran
+validated_build_sha=28f6db019ebd4471e4fc8d5ba0a9c8a00bc7d066
+validated_action_run=34013885544
+build=30000
+patch=stable-id spring reflow + 56-particle R2 dusting + proactive signed updater
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)
