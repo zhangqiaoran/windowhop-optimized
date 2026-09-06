@@ -69,6 +69,11 @@ enum DesignTokens {
         NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.22)
     }
     static let selectionLensGlowRadius: CGFloat = 10
+    /// The glass lens, its glow, and the compositor-only selected-tile scale all
+    /// extend beyond the tile frame. NSClipView clips at the document-view
+    /// boundary, so the document canvas must reserve this much space on every
+    /// edge that is not already protected by a larger close-control overflow.
+    static let selectionVisualOverflow: CGFloat = 18
 
     /// One horizontal rhythm for every row; tiles never manufacture spacing by
     /// changing their own dimensions.
