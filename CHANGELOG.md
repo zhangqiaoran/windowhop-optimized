@@ -2,6 +2,12 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 2.1.1 — 2026-09-06 — zhangqiaoran
+
+- Fixed local packaging on Macs that do not have the full Xcode/XCBuild stack.
+- `./scripts/package-app.sh` now auto-detects Swift Build support and falls back to the current CPU architecture when needed.
+- Official GitHub releases continue to require and verify Universal 2 (arm64 + x86_64).
+
 ## 2.1.0 — 2026-09-06 — zhangqiaoran
 
 - Added more bottom breathing room for wrapped preview rows.
