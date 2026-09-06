@@ -2,16 +2,24 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.5.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.6.0** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.5.0.zip`.
+2. Download `my-alt-tab-3.6.0.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.6.0
+
+- **Close button restored:** overlay Close accepts first mouse and has a panel-level hit router, so clicks remain reliable through the macOS 26 Glass hierarchy.
+- **Regular Liquid Glass:** the large switcher and contextual glass surfaces use the adaptive Regular material at full alpha. 100% removes white tint; lower values progressively add milk without weakening native refraction/highlights.
+- Native Glass no longer gets a custom CALayer white border; AppKit owns the dynamic edge treatment.
+- Beta `effectIsInteractive` is enabled through runtime selector detection when available, avoiding Xcode SDK compatibility failures.
+- The 96-frame true thumbnail erosion, prewarmed compact mask atlas, smooth 80% FLIP hand-off, blue focus ring, Universal 2 build, and Sparkle updates remain.
 
 ## v3.5.0
 
@@ -109,7 +117,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.5.0.zip
+artifacts/my-alt-tab-3.6.0.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

@@ -1,0 +1,8 @@
+my-alt-tab 3.6.0
+author=zhangqiaoran
+validated_build_sha=5f6f3f9f402d7b91971980e7d25d4ec78c542769
+validated_action_run=34020942803
+build=30600
+patch=close hit routing + regular native Liquid Glass + native edge treatment + runtime beta interaction bridge + 96-frame smooth dissolve
+signing=ad-hoc app + Sparkle EdDSA archive
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)

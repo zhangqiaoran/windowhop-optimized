@@ -2,6 +2,19 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.6.0 — 2026-09-06 — zhangqiaoran
+
+- Fixed the 3.5 close-button regression introduced by the native Glass hierarchy. The overlay close control now explicitly accepts first mouse in the nonactivating panel, and the panel adds a root-level close-hit router so private Glass view wrappers cannot swallow the click.
+- Kept the Apple-recommended `NSGlassEffectView.contentView` + `NSGlassEffectContainerView` hierarchy, but switched the large switcher surface to **Regular Liquid Glass** consistently instead of using Clear Glass as the primary material.
+- Regular Glass remains alpha 1.0 at every slider value. **100% = no white tint, strongest native adaptive/refraction behavior**; lower values progressively add a nonlinear milky-white tint. The material itself is never faded to simulate transparency.
+- Removed the custom CALayer border from native `NSGlassEffectView` so AppKit's own dynamic Liquid Glass edge/highlight remains visible. The manual border is kept only for the pre-macOS-26 fallback.
+- Added runtime capability detection for beta `effectIsInteractive`. Current Apple documentation exposes it, but some Xcode 26 Swift SDK overlays do not; 3.6 probes `setEffectIsInteractive:` dynamically and enables it only when the running AppKit supports the selector, preserving build compatibility.
+- Retained 3.5's 96-frame compact grayscale+alpha erosion atlas, linear ~120 Hz-class mask pacing, prewarmed dissolve resources, one-frame settle gap before the 80% Stable-ID FLIP hand-off, and compositor-driven dust/haze tail.
+- Added regression coverage for close-hit routing across the Glass hierarchy and for native Glass not receiving a custom border.
+- Universal 2 packaging and Sparkle EdDSA updates remain unchanged.
+
+Full notes: [`RELEASE_NOTES_v3.6.0.md`](RELEASE_NOTES_v3.6.0.md).
+
 ## 3.5.0 — 2026-09-06 — zhangqiaoran
 
 - Rebuilt the macOS 26 Liquid Glass hierarchy to follow AppKit's intended structure: switcher chrome is again the `NSGlassEffectView.contentView`, and the panel plus contextual ellipsis surface share one `NSGlassEffectContainerView` sampling group.

@@ -1,6 +1,6 @@
 # User-facing defaults and configurability
 
-## Unreleased 3.5.1 interaction + native-edge regression fixes
+## my-alt-tab 3.6.0 interaction + native-edge regression fixes
 
 | Fix | Decision |
 |---|---|

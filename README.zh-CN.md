@@ -2,15 +2,24 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.5.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.6.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.5.0.zip`。
+2. 下载 `my-alt-tab-3.6.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.6.0
+
+- **修复关闭按钮失效**：关闭按钮显式支持非激活 Panel 的 First Mouse，同时在 SwitcherPanel 根级增加关闭命中路由，不再依赖 NSGlassEffectView 内部私有 View 层级把点击正确传下来。
+- **Liquid Glass 统一使用 Regular**：主切换器和三点按钮都保持原生 Regular Liquid Glass，Glass 本身始终 alpha=1。100% 完全不加白色 tint，保留最完整的自适应亮度、背景响应、折射和高光；数值越低才逐渐增加乳白 tint。
+- macOS 26 原生 Glass 不再覆盖我们自己的 CALayer 白边，让系统自己的动态玻璃边缘和高光完整显示；只有 macOS 14/15 fallback 保留人工边框。
+- Apple 文档中的 `effectIsInteractive` 目前仍是 Beta，而且 GitHub Release 使用的部分 Xcode 26 Swift SDK overlay 没有直接暴露这个属性。3.6 改成运行时检测 `setEffectIsInteractive:`，系统支持才开启，因此不会再因为 Beta API 阻塞编译。
+- 保留 3.5 的 **96 帧真实缩略图侵蚀**、线性 120Hz 级 Mask 节奏、后台预热、80% FLIP 前一个显示帧的收尾间隔、跟随侵蚀边缘的粒子以及 2px 蓝色选中框。
+- Universal 2 和 Sparkle 自动更新保持不变。
 
 ## v3.5.0
 
@@ -101,7 +110,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.5.0.zip
+artifacts/my-alt-tab-3.6.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
