@@ -2,22 +2,22 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v2.2.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v2.3.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-2.2.0.zip`。
+2. 下载 `my-alt-tab-2.3.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
 
-## v2.2
+## v2.3
 
-- 增加右侧留白，最右边缩略图不再显得贴边。
-- 右上角设置入口改成更轻量的 **三点 (…)** 按钮。
-- 删除窗口时的粒子消散更生动，但仍然是固定数量、一次性动画。
-- 保留共享毛玻璃选中态、双窗口快速切换和无空闲轮询的轻量架构。
+- 增加右侧和底部留白，最右侧缩略图不再贴边。
+- 右上角 **三点 (…)** 放进独立的顶部操作区，不再覆盖缩略图。
+- 点击关闭后，窗口会立即从切换列表移除，同时播放更密集的 28 粒子消散动画。
+- 正式发布包继续兼容 Intel + Apple Silicon。
 
 ## 界面
 
@@ -43,7 +43,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-2.2.0.zip
+artifacts/my-alt-tab-2.3.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
