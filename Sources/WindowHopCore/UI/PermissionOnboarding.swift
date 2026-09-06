@@ -85,7 +85,7 @@ struct PermissionOnboardingView: View {
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
             Divider()
-            Text("Enabled it but the toggle doesn't stick? An update can leave a stale entry behind — reset it and grant again:")
+            Text("Enabled it but the toggle doesn't stick? Legacy ad-hoc builds can leave a stale entry behind. Reset only as a troubleshooting step:")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

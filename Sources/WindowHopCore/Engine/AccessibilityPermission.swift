@@ -28,10 +28,9 @@ public enum AccessibilityPermission {
         Bundle.main.bundlePath.contains("/AppTranslocation/")
     }
 
-    /// Clears WindowHop's own (possibly stale) Accessibility entry via Apple's
-    /// tccutil, so the next grant binds to the current binary. An app may reset
-    /// its own bundle id without privileges; this exists because pre-1.0.2
-    /// ad-hoc builds left entries that can never match again.
+    /// Clears my-alt-tab's own stale Accessibility entry via Apple's tccutil.
+    /// Stable Developer-ID releases should preserve TCC trust across updates;
+    /// this remains only for migration/troubleshooting from legacy ad-hoc builds.
     public static func resetStaleGrant() {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
