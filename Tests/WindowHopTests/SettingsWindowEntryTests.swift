@@ -82,4 +82,28 @@ final class SettingsWindowEntryTests: XCTestCase {
         XCTAssertNil(entry.app)
         XCTAssertNotNil(entry.nativeWindow)
     }
+
+    func testCommittedActivationUpdatesMRUImmediatelyForRapidToggle() {
+        let secondWindow = NSWindow(
+            contentRect: NSRect(x: 40, y: 40, width: 400, height: 300),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: true)
+        secondWindow.isReleasedWhenClosed = false
+
+        store.registerOwnWindow(window)
+        store.registerOwnWindow(secondWindow)
+
+        let originallyFront = store.windows[0]
+        let previous = store.windows[1]
+
+        store.noteCommittedActivation(previous)
+        XCTAssertTrue(store.windows[0] === previous)
+        XCTAssertTrue(store.windows[1] === originallyFront,
+                      "the next fast toggle must target the window that was current before the commit")
+
+        store.noteCommittedActivation(originallyFront)
+        XCTAssertTrue(store.windows[0] === originallyFront)
+        XCTAssertTrue(store.windows[1] === previous)
+    }
 }
