@@ -41,19 +41,18 @@ The close effect was reworked after reviewing the supplied reference video.
 - The actual target window still closes immediately; the dissolve is only a non-blocking visual residual.
 - No display link, no repeating particle timer, and no per-frame CPU simulation.
 
-## Permission-preserving release identity
+## Signing and macOS permissions
 
-The project now requires official releases to use a stable **Developer ID Application**
-identity instead of ad-hoc signing.
+This 3.1.0 community release remains **ad-hoc signed**, because no Apple Developer
+Developer ID certificate is configured for the project.
 
-The intended release chain is:
+Sparkle still verifies the downloaded archive with the existing my-alt-tab EdDSA update key,
+so in-app update integrity remains protected. However, macOS privacy permissions such as
+Accessibility and Screen Recording may need to be granted again after replacing an ad-hoc build.
 
-Developer ID signing → Hardened Runtime → Apple notarization → stapling → Sparkle EdDSA signing.
-
-This gives macOS Accessibility and Screen Recording permission records a stable signed application
-identity across future updates. Users migrating from an older ad-hoc build to the first Developer
-ID-signed release may still need to authorize once more; subsequent releases must keep the same
-Bundle ID and Developer ID identity.
+The repository keeps a documented future path for stable Developer ID signing and Apple
+notarization. If that is enabled later, the first migration may require one final authorization;
+subsequent releases can then retain a stable macOS code identity.
 
 ## Build
 

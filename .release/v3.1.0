@@ -1,0 +1,8 @@
+my-alt-tab 3.1.0
+author=zhangqiaoran
+validated_build_sha=8247e588dc7c039485cb761541a3087c5440de37
+validated_action_run=34015087963
+build=30100
+patch=frosted glass + synchronized smooth shrink + GPU dust erosion + proactive updater
+signing=ad-hoc app + Sparkle EdDSA archive
+package=Universal 2 my-alt-tab.app (arm64 + x86_64)

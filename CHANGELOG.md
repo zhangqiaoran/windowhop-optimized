@@ -2,7 +2,7 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
-## 3.1.0 — Unreleased — zhangqiaoran
+## 3.1.0 — 2026-09-06 — zhangqiaoran
 
 - Recalibrated the switcher glass toward Control Center-style **Frosted Glass**: macOS 26+ uses native `NSGlassEffectView.Style.regular`, with a persistent milky blur body even at 100% transparency.
 - Replaced mixed AppKit-resize + spring motion with one synchronized, non-overshooting cubic timing curve for the panel, surviving tiles, and selection lens, removing the hitch that could look like dropped frames during shrink.

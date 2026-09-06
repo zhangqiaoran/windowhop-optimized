@@ -12,7 +12,7 @@
 |---|---|---|---|
 | Smooth shrink cadence | Enabled | No | Panel frame motion and stable-ID tile reflow now share the same non-overshooting cubic timing curve and duration. This removes the perceptual hitch caused by combining AppKit's default resize cadence with a spring. Repeated closes still start from presentation-layer positions. |
 | Dense dust erosion | Enabled | No | Replaces the 56 independent particle layers with a compositor-owned `CAEmitterLayer`: three bounded emitter cells produce roughly 300–400 micro-motes during a 0.42 s emission window, while a directional gradient mask erodes the snapshot and a narrow highlight rides the erosion edge. No display link or per-frame CPU loop. |
-| Stable TCC release identity | Required for official releases | No | Official releases must use one Developer ID Application identity, Hardened Runtime, notarization, and stapling before the Sparkle archive is signed. This preserves the code-signing requirement that macOS Accessibility and Screen Recording grants bind to across updates. Legacy ad-hoc → Developer ID migration may require one final re-authorization. |
+| Stable TCC release identity | Not available in the 3.1.0 community release | No | 3.1.0 remains ad-hoc signed, so Accessibility / Screen Recording may require re-authorization after an update. The repository retains a future Developer ID + notarization path; enabling it later can provide a stable code identity after one migration authorization. |
 
 ## my-alt-tab 3.0.0 motion and update decisions
 

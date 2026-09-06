@@ -20,39 +20,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Import stable Developer ID identity
-        env:
-          DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
-          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        shell: bash
-        run: |
-          test -n "${DEVELOPER_ID_CERT_P12:-}" || { echo "::error::Missing DEVELOPER_ID_CERT_P12"; exit 1; }
-          test -n "${DEVELOPER_ID_CERT_PASSWORD:-}" || { echo "::error::Missing DEVELOPER_ID_CERT_PASSWORD"; exit 1; }
-          test -n "${APPLE_TEAM_ID:-}" || { echo "::error::Missing APPLE_TEAM_ID"; exit 1; }
-
-          CERT_PATH="$RUNNER_TEMP/my-alt-tab-developer-id.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/my-alt-tab-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(uuidgen)"
-
-          printf '%s' "$DEVELOPER_ID_CERT_P12" | base64 -D > "$CERT_PATH"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH"             -k "$KEYCHAIN_PATH"             -P "$DEVELOPER_ID_CERT_PASSWORD"             -T /usr/bin/codesign             -T /usr/bin/security
-          security set-key-partition-list             -S apple-tool:,apple:,codesign:             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH"             | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p'             | head -n 1)"
-          test -n "$IDENTITY" || {
-            echo "::error::Imported P12 does not contain a Developer ID Application identity"
-            exit 1
-          }
-
-          echo "DEVELOPER_ID_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
-          echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
-          echo "SIGNING_KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
-
       - name: Validate version
         id: version
         shell: bash
@@ -71,46 +38,14 @@ jobs:
       - name: Repository validation
         run: scripts/validate.sh
 
-      - name: Package Developer ID signed app
-        env:
-          EXPECTED_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Package ad-hoc signed app
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           chmod +x scripts/package-app.sh
           MY_ALT_TAB_UNIVERSAL=1 ./scripts/package-app.sh "$VERSION"
           codesign --verify --deep --strict --verbose=2 build/my-alt-tab.app
           scripts/verify-release-identity.sh build/my-alt-tab.app
-
-      - name: Notarize and staple app
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-        shell: bash
-        run: |
-          test -n "${APPLE_ID:-}" || { echo "::error::Missing APPLE_ID"; exit 1; }
-          test -n "${APPLE_TEAM_ID:-}" || { echo "::error::Missing APPLE_TEAM_ID"; exit 1; }
-          test -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" || { echo "::error::Missing APPLE_APP_SPECIFIC_PASSWORD"; exit 1; }
-
-          VERSION="${{ steps.version.outputs.version }}"
-          NOTARY_ZIP="$RUNNER_TEMP/my-alt-tab-notary.zip"
-          RELEASE_ZIP="artifacts/my-alt-tab-${VERSION}.zip"
-
-          rm -f "$NOTARY_ZIP"
-          ditto -c -k --keepParent build/my-alt-tab.app "$NOTARY_ZIP"
-
-          xcrun notarytool submit "$NOTARY_ZIP"             --apple-id "$APPLE_ID"             --team-id "$APPLE_TEAM_ID"             --password "$APPLE_APP_SPECIFIC_PASSWORD"             --wait
-
-          xcrun stapler staple build/my-alt-tab.app
-          xcrun stapler validate build/my-alt-tab.app
-          codesign --verify --deep --strict --verbose=2 build/my-alt-tab.app
-          spctl --assess --type execute --verbose=4 build/my-alt-tab.app
-
-          # package-app.sh zipped before notarization; recreate the public
-          # Sparkle archive so it contains the stapled ticket.
-          rm -f "$RELEASE_ZIP"
-          ditto -c -k --keepParent build/my-alt-tab.app "$RELEASE_ZIP"
-          shasum -a 256 "$RELEASE_ZIP" > "$RELEASE_ZIP.sha256"
+          shasum -a 256 "artifacts/my-alt-tab-${VERSION}.zip" > "artifacts/my-alt-tab-${VERSION}.zip.sha256"
 
       - name: Sign Sparkle update
         id: sparkle
@@ -187,11 +122,3 @@ jobs:
           git add appcast.xml
           git commit -m "chore(updates): publish appcast for v$VERSION [skip ci]"
           git push origin HEAD:main
-
-      - name: Remove signing keychain
-        if: always()
-        shell: bash
-        run: |
-          if [ -n "${SIGNING_KEYCHAIN:-}" ] && [ -f "$SIGNING_KEYCHAIN" ]; then
-            security delete-keychain "$SIGNING_KEYCHAIN" || true
-          fi

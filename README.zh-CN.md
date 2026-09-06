@@ -2,17 +2,17 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.0.0** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.1.0** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.0.0.zip`。
+2. 下载 `my-alt-tab-3.1.0.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
 
-## v3.1.0 — 下一版本
+## v3.1.0
 
 - 毛玻璃重新校准为更接近 macOS 控制中心的 **Frosted Glass**，100% 仍保留明显磨砂和景深。
 - 窗口列表缩小时，面板、存活窗口和选中层统一使用同一条无回弹缓动曲线，不再混用系统 resize 与 spring，减少“像掉帧”的速度突变。
@@ -67,7 +67,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.0.0.zip
+artifacts/my-alt-tab-3.1.0.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
