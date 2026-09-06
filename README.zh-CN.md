@@ -17,6 +17,7 @@
 - **重新校正原生 Liquid Glass 层级**：macOS 26+ 的缩略图、文字和控件放在 `NSGlassEffectView.contentView` 内，并通过 `NSGlassEffectContainerView` 统一采样，让系统的背景响应、折射和高光成为一个完整效果。
 - **Regular Liquid Glass 始终保持完整强度**：Glass 本身 alpha 固定为 1.0；100% 完全不叠白色 tint，数值降低时只逐步增加乳白 tint，不再通过降低整个 Glass 的透明度来模拟效果。
 - **彻底修复关闭、设置和权限按钮点不动**：点击在 `SwitcherPanel` 根级按最终几何区域直接路由，不再依赖 Glass / ScrollView 内部 hit-test 层级。
+- **修复“点窗口区域整个列表直接消失”**：会话级全局鼠标监听现在先按屏幕坐标判断是否真的点在所有 my-alt-tab Panel 之外；Panel 内点击不会再被误判为 outside-click，而是继续交给关闭按钮、设置按钮或窗口卡片自己的事件链处理。
 - **粒子消散最后几帧更顺滑**：真实缩略图侵蚀提升到 96 个灰度+Alpha Mask 状态，线性节奏、后台预热，并在 80% Stable-ID FLIP 重排前留出一个显示帧的收尾间隔。
 - macOS 26 原生 Glass 交给 AppKit 自己绘制动态边缘，不再覆盖自定义白边；旧系统 fallback 继续保留语义边框。
 - Universal 2、真实窗口立即关闭、GPU 粒子/烟尘尾部、Reduce Motion 和 Sparkle EdDSA 自动更新保持不变。
