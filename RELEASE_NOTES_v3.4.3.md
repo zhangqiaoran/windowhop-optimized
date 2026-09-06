@@ -2,6 +2,15 @@
 
 **Author / maintainer / release owner: zhangqiaoran**
 
+## Rapid Alt / Option + Tab switching fixed
+
+- Fixed a real input race when repeatedly switching between two windows very quickly.
+- The event tap now ends the held session **synchronously when Alt/Option is released**, instead of waiting for the semantic release to reach the main thread.
+- A new Alt/Option+Tab pressed while the main queue is still finishing the previous switch is therefore recognized as a fresh trigger, not as a stale `step` event that gets discarded after the old session closes.
+- The controller no longer rewrites the tap's held/sticky mode when showing a panel, preventing delayed UI work from resurrecting an already-released session or overwriting a newer one.
+- A committed window activation is promoted in MRU order immediately, before asynchronous AX focus notifications arrive. This makes rapid 1↔2 toggling target the actual previous window instead of occasionally snapshotting stale MRU order.
+- Regression tests reproduce the release/repress sequence without waiting for the main thread and verify the immediate MRU swap.
+
 ## English / 中文 Settings
 
 - Added a new **Language / 语言** picker in General.
@@ -32,4 +41,4 @@
 - Minimum macOS: 14.0.
 - Bundle ID: `com.zhangqiaoran.myalttab`.
 - Marketing version: **3.4.3**.
-- Internal build: **30604**.
+- Internal build: **30605**.
