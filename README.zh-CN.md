@@ -2,15 +2,23 @@
 
 由 **zhangqiaoran** 维护的原生 macOS 窗口切换器。
 
-**当前版本：v3.4.2** · macOS 14+ · Swift / AppKit · GPL-3.0
+**当前版本：v3.4.3** · macOS 14+ · Swift / AppKit · GPL-3.0
 
 ## 安装
 
 1. 打开 GitHub **Releases**。
-2. 下载 `my-alt-tab-3.4.2.zip`。
+2. 下载 `my-alt-tab-3.4.3.zip`。
 3. 解压后得到 **my-alt-tab.app**。
 4. 把 **my-alt-tab.app** 拖进 **应用程序**。
 5. 首次启动授予 **辅助功能** 权限；只有使用窗口缩略图时才需要 **屏幕录制** 权限。
+
+## v3.4.3
+
+- **设置新增 English / 中文 双语切换**：在“通用 / General”中增加“语言 / Language”选项，顶部标签、设置项、按钮、说明文字、快捷键校验、更新页面和关于页面都会即时切换。
+- 语言选择会持久化保存；执行“恢复默认设置”后回到 English。切换语言不需要重启 my-alt-tab。
+- **移除 Show tab counts / 显示标签页数量**：这个设置价值较低且占用一整行外观空间，现在从界面和可配置项中正式退休，标签页数量保持关闭。
+- 精简“外观”页面，并把 Liquid Glass 的说明文字修正为当前 3.4.2 的“背景层 Clear Glass + 前景内容完全不透明”真实实现。
+- 继续保留 3.4.2 的点击防穿透、Clear Liquid Glass、Panel 根级点击路由、96 状态消散、Stable-ID FLIP、Universal 2 和 Sparkle 签名更新。
 
 ## v3.4.2
 
