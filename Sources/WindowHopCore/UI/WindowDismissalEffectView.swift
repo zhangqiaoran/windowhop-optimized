@@ -230,7 +230,8 @@ final class WindowDismissalEffectView: NSView {
 
         let emitter = CAEmitterLayer()
         emitter.frame = bounds.insetBy(dx: -18, dy: -18)
-        emitter.emitterPosition = CGPoint(x: bounds.midX, y: bounds.midY)
+        emitter.emitterPosition = CGPoint(x: emitter.bounds.midX,
+                                          y: emitter.bounds.midY)
         emitter.emitterSize = CGSize(width: bounds.width * 0.92,
                                      height: bounds.height * 0.88)
         emitter.emitterShape = .rectangle
