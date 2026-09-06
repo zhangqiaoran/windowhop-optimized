@@ -2,16 +2,23 @@
 
 Native macOS window switcher maintained by **zhangqiaoran**.
 
-**Current release: v3.4.3** · macOS 14+ · Swift / AppKit · GPL-3.0  
+**Current release: v3.4.4** · macOS 14+ · Swift / AppKit · GPL-3.0  
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
 
 ## Install
 
 1. Open **Releases**.
-2. Download `my-alt-tab-3.4.3.zip`.
+2. Download `my-alt-tab-3.4.4.zip`.
 3. Unzip it to get **my-alt-tab.app**.
 4. Drag **my-alt-tab.app** into **Applications**.
 5. On first launch, grant **Accessibility** permission. Grant **Screen Recording** only if you use window previews.
+
+## v3.4.4
+
+- **Rapid Alt/Option+Tab 1↔2 switching fixed:** modifier release now ends the tap-side held session synchronously, so an immediate second chord starts a fresh session instead of becoming a stale step that is discarded after the previous session closes.
+- A committed target is promoted in MRU order immediately before asynchronous AX focus confirmation, so repeated fast toggles always see the just-activated window as current and the former window as previous.
+- The controller no longer rewrites the event tap's held/sticky mode while showing the panel, preventing delayed main-thread work from overwriting a newer physical shortcut sequence.
+- Keeps v3.4.3's English/中文 Settings, retired tab-count option, click-through fixes, Clear Liquid Glass, 96-state dissolve, Stable-ID FLIP, Universal 2, and Sparkle updates.
 
 ## v3.4.3
 
@@ -120,7 +127,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.3.zip
+artifacts/my-alt-tab-3.4.4.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.
