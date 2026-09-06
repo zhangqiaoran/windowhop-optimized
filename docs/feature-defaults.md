@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Native Liquid Glass hierarchy | Enabled on macOS 26+ | Yes | Foreground chrome lives inside `NSGlassEffectView.contentView`; the main surface and contextual ellipsis share an `NSGlassEffectContainerView`. Native glass alpha remains 1.0, 100% uses no tint, and lower values add perceptual white tint only. |
 | Native system edge | Enabled on macOS 26+ | No | Real `NSGlassEffectView` has no custom CALayer white border, allowing AppKit to render its dynamic edge/highlight. The pre-26 fallback retains its semantic border. |
-| Root-level pointer routing | Enabled | No | Close, Settings, and permission actions are resolved in `SwitcherPanel.sendEvent` from final host-space rectangles. Global panel buttons accept first mouse, so Glass / ScrollView hit-test forwarding cannot make visible controls inert. |
+| Root-level pointer routing | Enabled | No | Close, Settings, and permission actions are resolved in `SwitcherPanel.sendEvent` from final host-space rectangles. Global panel buttons accept first mouse, so Glass / ScrollView hit-test forwarding cannot make visible controls inert. The session-wide global mouse monitor also checks `NSEvent.mouseLocation` against every visible switcher panel before classifying a click as outside. |
 | 96-state erosion pacing | Enabled | No | Compact grayscale+alpha masks use linear temporal spacing and are prewarmed off the close hot path. Pixel erosion finishes one nominal 60 Hz frame before the 80% Stable-ID FLIP hand-off; dust/haze may continue across the hand-off. |
 
 ## my-alt-tab 3.4.0 liquid-glass + unified-FLIP decisions
