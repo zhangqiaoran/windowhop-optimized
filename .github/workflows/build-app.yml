@@ -3,7 +3,7 @@ name: Build my-alt-tab App
 on:
   workflow_dispatch:
   push:
-    branches: [main, v2.1-polish]
+    branches: [main]
     paths:
       - 'Sources/**'
       - 'Tests/**'
