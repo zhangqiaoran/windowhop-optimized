@@ -4,12 +4,14 @@ All my-alt-tab releases from v1.0.0 onward are authored, maintained, and publish
 
 ## 3.4.4 — 2026-09-06 — zhangqiaoran
 
+- Adopted the new **canonical neon stacked-window app icon** for v3.4.4 packaged builds; the README icon, favicon, and generated macOS `.icns` now share one committed source image.
+- Reworked the GitHub README into an image-first introduction with an animated lightweight / rapid-switch / particle-dissolve demo and concise three-step installation guide.
 - Fixed the rapid Alt/Option+Tab **release/repress race**: modifier release returns the event tap to watching synchronously, before the semantic release reaches the main thread.
 - Removed the controller's redundant show-time tap-mode rewrite so delayed UI work cannot overwrite a newer physical shortcut sequence.
 - Promoted committed activation targets into MRU order immediately before asynchronous AX focus confirmation, making repeated 1↔2 toggling deterministic.
 - Added regression coverage for a second Alt/Option+Tab arriving before the previous release has been processed on main.
 - Retains v3.4.3's bilingual Settings, retired tab-count preference, click ownership, Clear Liquid Glass, dissolve, and Stable-ID FLIP fixes.
-- Internal build: **30606**.
+- Internal build: **30607**.
 
 Full notes: [`RELEASE_NOTES_v3.4.4.md`](RELEASE_NOTES_v3.4.4.md).
 
