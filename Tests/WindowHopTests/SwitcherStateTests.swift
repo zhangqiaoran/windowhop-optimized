@@ -21,6 +21,13 @@ final class SwitcherStateTests: XCTestCase {
         XCTAssertEqual(state.trigger(backward: false, itemCount: 5), .show(selectedIndex: 1))
     }
 
+    func testTwoWindowTriggerStartsOnPreviousWindowForInstantToggle() {
+        var state = SwitcherState()
+        XCTAssertEqual(state.trigger(backward: false, itemCount: 2),
+                       .show(selectedIndex: 1))
+        XCTAssertEqual(state.modifierReleased(), .activate(index: 1))
+    }
+
     func testBackwardTriggerSelectsLastWindow() {
         var state = SwitcherState()
         XCTAssertEqual(state.trigger(backward: true, itemCount: 5), .show(selectedIndex: 4))
