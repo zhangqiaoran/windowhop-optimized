@@ -151,6 +151,13 @@ public final class SwitcherPanelGroup {
         panels.forEach { $0.playDismissalEffect(at: index) }
     }
 
+    /// Global mouse monitors are session support only; they must not treat a
+    /// click delivered to one of our nonactivating panels as an outside click.
+    /// NSWindow frames and NSEvent.mouseLocation share AppKit screen coordinates.
+    public func containsScreenPoint(_ point: NSPoint) -> Bool {
+        panels.contains { $0.isVisible && $0.frame.contains(point) }
+    }
+
     /// Hides every panel. Ending a session must leave nothing on any display.
     public func hide() {
         panels.forEach { $0.hide() }
