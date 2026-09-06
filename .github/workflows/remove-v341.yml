@@ -1,0 +1,40 @@
+name: Remove broken v3.4.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.maintenance/remove-v3.4.1'
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    if: github.repository == 'zhangqiaoran/my-alt-tab'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove v3.4.1 release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=v3.4.1
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --cleanup-tag -y
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git push origin ":refs/tags/$TAG"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG still exists"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG still exists"
+            exit 1
+          fi
