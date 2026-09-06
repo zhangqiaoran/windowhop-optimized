@@ -9,6 +9,7 @@ All my-alt-tab releases from v1.0.0 onward are authored, maintained, and publish
 - Removed the custom CALayer white border from native `NSGlassEffectView` so AppKit owns the dynamic Liquid Glass edge/highlight; the pre-macOS-26 fallback keeps its semantic border.
 - Added runtime capability detection for beta `effectIsInteractive`, enabling it only when the running AppKit exposes `setEffectIsInteractive:`.
 - Fixed Close, Settings, and preview-permission clicks by resolving pointer actions at the `SwitcherPanel` boundary from final host-space rectangles. First-mouse handling no longer depends on nested Glass / ScrollView hit-test forwarding.
+- Fixed the session-wide global mouse monitor incorrectly treating clicks inside a nonactivating switcher panel as outside clicks. It now checks `NSEvent.mouseLocation` against every visible panel frame before allowing `outsideClick()` to cancel the session.
 - Increased true thumbnail erosion from 36 to 96 compact grayscale+alpha mask states with linear pacing and off-hot-path prewarming.
 - Pixel erosion now finishes one nominal 60 Hz frame before the existing 80% Stable-ID FLIP hand-off, eliminating the final-mask/reflow overlap while allowing compositor dust and haze to continue naturally.
 - Preserved immediate real-window close, Reduce Motion behavior, Universal 2 packaging, and Sparkle EdDSA update verification.
