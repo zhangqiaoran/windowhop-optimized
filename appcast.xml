@@ -6,14 +6,6 @@
     <description>Signed updates for my-alt-tab</description>
     <language>en</language>
     <item>
-      <title>3.4.3</title>
-      <pubDate>Sun, 06 Sep 2026 09:38:05 +0000</pubDate>
-      <sparkle:version>30604</sparkle:version>
-      <sparkle:shortVersionString>3.4.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/zhangqiaoran/my-alt-tab/releases/download/v3.4.3/my-alt-tab-3.4.3.zip" sparkle:edSignature="70ZmOnshthC6MlLl8va7tAA9m9y+9sIArnfv7emMuZM5dGbyqyMR5dGLT6lkWwxV6QY3HHZNs6/vWeRE6EqGDw==" length="2347638" type="application/octet-stream"/>
-    </item>
-    <item>
       <title>3.4.2</title>
       <pubDate>Sun, 06 Sep 2026 09:08:54 +0000</pubDate>
       <sparkle:version>30603</sparkle:version>
