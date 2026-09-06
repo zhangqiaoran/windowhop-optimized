@@ -28,7 +28,7 @@
 ![my-alt-tab 深色模式](docs/screenshots/switcher-previews-dark.png)
 
 ### 设置
-![my-alt-tab 设置](docs/screenshots/settings-appearance.png)
+![my-alt-tab 设置](docs/screenshots/settings-windows.png)
 
 ## 源码构建
 
