@@ -6,7 +6,7 @@ small and focused are the most welcome.
 ## Build and test
 
 ```sh
-git clone https://github.com/zhangqiaoran/windowhop-optimized.git my-alt-tab && cd my-alt-tab
+git clone https://github.com/zhangqiaoran/my-alt-tab.git my-alt-tab && cd my-alt-tab
 swift build            # debug build
 swift test             # unit tests (must pass)
 scripts/validate.sh    # repository invariants (must pass)
