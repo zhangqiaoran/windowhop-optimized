@@ -1,24 +1,21 @@
 <p align="center">
-  <img src="docs/assets/app-icon.png" width="180" alt="my-alt-tab 应用图标">
-</p>
-
-<h1 align="center">my-alt-tab</h1>
-
-<p align="center">
-  <strong>轻量、原生的 macOS 窗口切换器。</strong><br>
-  快速切换 · 窗口预览 · Clear Glass · 粒子消散关闭
+  <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.4 — 轻量 macOS 窗口切换器">
+  </a>
 </p>
 
 <p align="center">
-  <strong>v3.4.4</strong> · macOS 14+ · Universal 2 · English / 中文 · GPL-3.0
+  <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
+    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.4-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.4">
+  </a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/my-alt-tab-demo.gif" alt="my-alt-tab 快速窗口切换与粒子消散演示">
+  <img src="docs/assets/my-alt-tab-demo.gif" width="100%" alt="my-alt-tab 快速切换、关闭、粒子消散与窗口重排动态演示">
 </p>
 
 <p align="center">
-  <em>轻量、快速、原生。关闭一个窗口，看它化成粒子消散。</em>
+  <strong>轻量 · 快速 1↔2 切换 · 窗口预览 · 粒子消散关闭 · Clear Glass · English / 中文</strong>
 </p>
 
 ## 3 步安装
