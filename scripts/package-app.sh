@@ -26,38 +26,24 @@ BUILD_NUMBER="${2:-$DEFAULT_BUILD}"
 IDENTITY="${DEVELOPER_ID_IDENTITY:--}"
 UNIVERSAL_MODE="${MY_ALT_TAB_UNIVERSAL:-auto}"
 
-DEVELOPER_DIR=$(xcode-select -p 2>/dev/null || true)
-XCODE_CONTENTS=""
-if [[ "$DEVELOPER_DIR" == */Contents/Developer ]]; then
-    XCODE_CONTENTS="${DEVELOPER_DIR%/Developer}"
-fi
-XCBUILD=""
-if [ -n "$XCODE_CONTENTS" ]; then
-    CANDIDATE="$XCODE_CONTENTS/SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild"
-    if [ -x "$CANDIDATE" ]; then
-        XCBUILD="$CANDIDATE"
-    fi
-fi
-
 case "$UNIVERSAL_MODE" in
     1)
-        if [ -z "$XCBUILD" ]; then
-            echo "Universal 2 build requested, but full Xcode/XCBuild is unavailable." >&2
-            echo "Install/select full Xcode, or run:" >&2
-            echo "  MY_ALT_TAB_UNIVERSAL=0 ./scripts/package-app.sh" >&2
-            exit 1
-        fi
+        # Official CI/release builds intentionally fail if SwiftPM cannot use
+        # its Swift Build backend; that keeps Universal 2 a hard release rule.
         UNIVERSAL=1
         ;;
     0)
         UNIVERSAL=0
         ;;
     auto)
-        if [ -n "$XCBUILD" ]; then
+        # Do not guess Xcode's internal XCBuild path: it moves between Xcode /
+        # Command Line Tools layouts. Ask SwiftPM directly. --show-bin-path is
+        # a cheap capability probe and avoids compiling anything twice.
+        if swift build -c release --build-system swiftbuild --show-bin-path >/dev/null 2>&1; then
             UNIVERSAL=1
         else
             UNIVERSAL=0
-            echo "Full Xcode/XCBuild not found; using local native-architecture build."
+            echo "Swift Build/XCBuild is unavailable; using local native-architecture build."
             echo "This still produces build/my-alt-tab.app."
             echo "Official GitHub releases continue to require Universal 2."
         fi
