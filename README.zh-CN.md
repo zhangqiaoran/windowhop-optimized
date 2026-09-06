@@ -106,7 +106,7 @@ my-alt-tab 从 v1.0.0 起由 **zhangqiaoran** 作为当前项目作者、维护�
 ## 构建
 
 ```bash
-git clone https://github.com/zhangqiaoran/windowhop-optimized.git my-alt-tab
+git clone https://github.com/zhangqiaoran/my-alt-tab.git my-alt-tab
 cd my-alt-tab
 chmod +x scripts/package-app.sh
 ./scripts/package-app.sh
@@ -135,5 +135,5 @@ artifacts/my-alt-tab-2.0.0.zip
 - 当前版本：**2.0.0**
 - Build：**20000**
 - Bundle ID：`com.zhangqiaoran.myalttab`
-- GitHub：`zhangqiaoran/windowhop-optimized`
+- GitHub：`zhangqiaoran/my-alt-tab`
 - License：GNU GPL-3.0
