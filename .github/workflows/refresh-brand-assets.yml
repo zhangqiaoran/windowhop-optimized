@@ -1,0 +1,53 @@
+name: Refresh my-alt-tab brand assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.brand/refresh'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.repository == 'zhangqiaoran/my-alt-tab'
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct icon source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Support docs/assets
+          cat .brand/app-icon.part*.b64 | tr -d '\n' | base64 --decode > Support/AppIconSource.png
+          file Support/AppIconSource.png
+
+      - name: Render README assets
+        shell: bash
+        run: |
+          python3 -m pip install --user pillow
+          python3 scripts/render-brand-assets.py Support/AppIconSource.png
+
+      - name: Render macOS app icon
+        shell: bash
+        run: |
+          rm -rf build/brand-icon
+          swift scripts/make-icon.swift build/brand-icon Support/AppIconSource.png
+          iconutil -c icns build/brand-icon/AppIcon.iconset -o Support/AppIcon.icns
+
+      - name: Commit generated brand assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Support/AppIconSource.png Support/AppIcon.icns
+          git add docs/assets/app-icon.png docs/assets/favicon.png docs/assets/my-alt-tab-demo.gif
+          git rm -f .brand/app-icon.part*.b64 .brand/refresh
+          git commit -m "feat(brand): adopt new my-alt-tab icon and README demo [skip ci]"
+          git push origin HEAD:main
