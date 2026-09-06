@@ -451,7 +451,7 @@ public final class SwitcherPanel: NSPanel {
     }
 
     /// Plays one fixed-cost close flourish above the tile. The effect owns only
-    /// a transient snapshot and a fixed 12-particle layer set, then self-removes.
+    /// a transient snapshot and a fixed 28-particle layer set, then self-removes.
     public func playDismissalEffect(at index: Int) {
         guard index >= 0, index < visibleTileCount else { return }
         let tile = tilePool[index]
