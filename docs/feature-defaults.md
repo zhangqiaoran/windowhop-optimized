@@ -4,6 +4,8 @@
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
 |---|---|---|---|
+| Rapid held-session rollover | Enabled | No | Modifier release returns the event tap to watching synchronously. A new Alt/Option+Tab can begin immediately even while main is still finishing the previous session. |
+| Immediate activation MRU commit | Enabled | No | The committed target moves to MRU index 0 before asynchronous AX focus confirmation, so the next rapid toggle sees [new current, previous] immediately. |
 | Settings language | English | Yes | General → Language; choices are English and 中文. The value is typed/persisted in `Preferences`, applies immediately to the open Settings window, and Restore Defaults returns to English. |
 | Live toolbar localization | Enabled | No | Pane labels, hosted pane titles, and the visible Settings window title are relabeled when the language preference changes; no relaunch is required. |
 | Settings copy localization | English + Simplified Chinese | No | General, Shortcuts, Windows, Appearance, Updates, About, permission messages, update states, shortcut recorder text, and validation messages use one bilingual table with English fallback for future unknown strings. |
