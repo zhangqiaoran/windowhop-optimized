@@ -324,7 +324,9 @@ public final class SwitcherController {
         applyVisibleSessionItems(
             preservingSelectedID: selectedID,
             fallbackIndex: 0,
-            animatedLayout: true)
+            animatedLayout: true,
+            preferSearchGeometry: true,
+            contentMayHaveChanged: false)
 
         DebugLog.log("search filtered \(sessionItems.count) -> \(items.count) items "
             + "(previous \(previousCount))")
@@ -333,10 +335,17 @@ public final class SwitcherController {
     private func applyVisibleSessionItems(
         preservingSelectedID selectedID: AnyHashable?,
         fallbackIndex: Int,
-        animatedLayout: Bool
+        animatedLayout: Bool,
+        preferSearchGeometry: Bool,
+        contentMayHaveChanged: Bool
     ) {
-        items = searchIndex.filterNormalized(
+        let previousIDs = items.map(\.id)
+        let nextItems = searchIndex.filterNormalized(
             sessionItems, normalizedQuery: normalizedSearchQuery)
+        let nextIDs = nextItems.map(\.id)
+        let sameStableOrder = previousIDs == nextIDs
+
+        items = nextItems
         panels.setSearchQuery(searchQuery)
 
         if sessionItems.isEmpty {
@@ -369,13 +378,38 @@ public final class SwitcherController {
         expandedPreview.retainAvailable(availableIDs)
 
         guard state.isActive else { return }
+
+        // Most AX title/move/resize notifications do not change the visible
+        // stable-ID order. Updating full layout here used to increment the
+        // reflow generation, snap/commit the NSWindow and interrupt an active
+        // close animation. Keep these refreshes strictly content-only.
+        if sameStableOrder {
+            if contentMayHaveChanged {
+                panels.refreshContent(items: items, selectedIndex: state.selectedIndex)
+            } else if !items.isEmpty {
+                panels.select(state.selectedIndex)
+            }
+            return
+        }
+
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
         PreviewProvider.shared.cancelExpandedPreview()
-        panels.update(
-            items: items,
-            selectedIndex: state.selectedIndex,
-            animatedLayout: animatedLayout)
+
+        if preferSearchGeometry {
+            // Filtering is not a structural window-list resize. Keep the outer
+            // panel, Glass, ScrollView and field editor fixed; only surviving
+            // stable-ID thumbnail layers reflow inside the existing viewport.
+            panels.updateSearchResults(
+                items: items,
+                selectedIndex: state.selectedIndex,
+                animated: animatedLayout)
+        } else {
+            panels.update(
+                items: items,
+                selectedIndex: state.selectedIndex,
+                animatedLayout: animatedLayout)
+        }
         state.updateColumns(panels.columnsPerRow)
         if !items.isEmpty {
             targetExpandedPreview(at: state.selectedIndex)
@@ -479,7 +513,9 @@ public final class SwitcherController {
             preservingSelectedID: selectedId,
             fallbackIndex: state.selectedIndex,
             animatedLayout: sessionItems.count < sessionIds.count
-                || items.count < previousVisibleCount)
+                || items.count < previousVisibleCount,
+            preferSearchGeometry: isSearchEditing || !normalizedSearchQuery.isEmpty,
+            contentMayHaveChanged: true)
     }
 
     /// Frozen-session entries may briefly disappear from location metadata while
@@ -540,7 +576,9 @@ public final class SwitcherController {
         applyVisibleSessionItems(
             preservingSelectedID: selectedID,
             fallbackIndex: min(originalIndex, max(0, removalIndex)),
-            animatedLayout: true)
+            animatedLayout: true,
+            preferSearchGeometry: isSearchEditing || !normalizedSearchQuery.isEmpty,
+            contentMayHaveChanged: true)
     }
 
     private func nearestSelectableIndex(around index: Int) -> Int? {
