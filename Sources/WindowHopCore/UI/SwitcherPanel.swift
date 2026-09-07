@@ -139,7 +139,7 @@ public enum SwitcherPresentationMode: Equatable {
 /// Previews appearance. No search or theme options. System
 /// materials and semantic colors keep it correct in Light/Dark Mode, Increase
 /// Contrast, and Reduce Transparency.
-public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
+public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     public override var canBecomeKey: Bool { true }
     public override var canBecomeMain: Bool { false }
     public var onItemClicked: ((Int) -> Void)?
