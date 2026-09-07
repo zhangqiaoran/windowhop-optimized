@@ -16,6 +16,7 @@ public final class SwitcherController {
     private var sessionItems: [SwitcherItem] = []
     private var searchIndex = SwitcherSearchIndex()
     private var searchQuery = ""
+    private var normalizedSearchQuery = ""
     private var isSearchEditing = false
     /// IDs optimistically removed from the open switcher before the window
     /// server finishes sending its destroy notification. Hash membership keeps
@@ -280,6 +281,7 @@ public final class SwitcherController {
         sessionItems = WindowStore.shared.snapshot()
         searchIndex.rebuild(items: sessionItems)
         searchQuery = ""
+        normalizedSearchQuery = ""
         isSearchEditing = false
         items = sessionItems
         panels.setSearchQuery("")
@@ -313,11 +315,12 @@ public final class SwitcherController {
     private func searchQueryChanged(_ query: String) {
         guard state.isActive else { return }
         let normalized = SwitcherSearchIndex.normalize(query)
-        guard normalized != SwitcherSearchIndex.normalize(searchQuery) else { return }
+        guard normalized != normalizedSearchQuery else { return }
 
         let selectedID = itemID(at: state.selectedIndex)
         let previousCount = items.count
         searchQuery = query
+        normalizedSearchQuery = normalized
         applyVisibleSessionItems(
             preservingSelectedID: selectedID,
             fallbackIndex: 0,
@@ -332,7 +335,8 @@ public final class SwitcherController {
         fallbackIndex: Int,
         animatedLayout: Bool
     ) {
-        items = searchIndex.filter(sessionItems, query: searchQuery)
+        items = searchIndex.filterNormalized(
+            sessionItems, normalizedQuery: normalizedSearchQuery)
         panels.setSearchQuery(searchQuery)
 
         if sessionItems.isEmpty {
@@ -458,9 +462,10 @@ public final class SwitcherController {
         // search misses do not consume screenshot work.
         if !plan.appeared.isEmpty {
             let appeared = plan.appeared.compactMap { freshById[$0] }
-            let visibleAppeared = searchQuery.isEmpty
+            let visibleAppeared = normalizedSearchQuery.isEmpty
                 ? appeared
-                : searchIndex.filter(appeared, query: searchQuery)
+                : searchIndex.filterNormalized(
+                    appeared, normalizedQuery: normalizedSearchQuery)
             if !visibleAppeared.isEmpty {
                 DebugLog.log("session list grew by \(visibleAppeared.count) visible item(s)")
                 PreviewProvider.shared.extendSession(
@@ -473,8 +478,8 @@ public final class SwitcherController {
         applyVisibleSessionItems(
             preservingSelectedID: selectedId,
             fallbackIndex: state.selectedIndex,
-            animatedLayout: searchIndex.filter(sessionItems, query: searchQuery).count
-                < previousVisibleCount)
+            animatedLayout: sessionItems.count < sessionIds.count
+                || items.count < previousVisibleCount)
     }
 
     /// Frozen-session entries may briefly disappear from location metadata while
@@ -653,6 +658,7 @@ public final class SwitcherController {
         items.removeAll(keepingCapacity: true)
         searchIndex.rebuild(items: [])
         searchQuery = ""
+        normalizedSearchQuery = ""
         isSearchEditing = false
         // capture is session-scoped: pending results stop delivering live, but
         // the memory-only cache remains warm for the next instant open
