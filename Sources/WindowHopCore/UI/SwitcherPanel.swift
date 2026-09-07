@@ -805,7 +805,16 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         selectedIndex = items.isEmpty ? 0 : min(max(0, index), items.count - 1)
         rebuildItemIndex()
         rebuildTiles(items: items)
-        applySelection(fullRefresh: true)
+
+        // Content-only refreshes must not touch selection geometry either.
+        // During a structural FLIP, selectionFrames already describe the target
+        // layout while the lens may still be presenting at an interpolated old
+        // position. Re-running applySelection here would snap that lens to the
+        // target and visually "kick" the panel even though IDs did not change.
+        for (tileIndex, tile) in tilePool.prefix(visibleTileCount).enumerated() {
+            tile.isSelected = tileIndex == selectedIndex
+        }
+        appliedSelectedIndex = selectedIndex
     }
 
     /// Search reflow is intentionally tile-only.
@@ -826,6 +835,8 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             scrollView.isHidden = false
         }
 
+        let oldLensFrame = presentationFrame(of: selectionLensView)
+        let oldLensWasHidden = selectionLensView.isHidden
         var oldFrames: [AnyHashable: NSRect] = [:]
         oldFrames.reserveCapacity(min(self.items.count, visibleTileCount))
         for (oldIndex, oldItem) in self.items.enumerated()
@@ -867,6 +878,9 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             }
         }
         let targetLens = selectionLensView.frame
+        if !selectionLensView.isHidden && !oldLensWasHidden {
+            selectionLensView.frame = oldLensFrame
+        }
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = min(0.24, DesignTokens.panelReflowDuration)
