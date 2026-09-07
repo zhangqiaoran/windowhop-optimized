@@ -2,6 +2,19 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.5 — 2026-09-07 — zhangqiaoran
+
+- Fixed Window Preview geometry on external/extended displays by deriving tile aspect ratio from the panel's actual placement screen instead of `NSScreen.main`.
+- Capture sizing now follows the live target display set, including mixed backing scales and 1x external monitors.
+- Removed the hard-coded 2x Retina assumption from captured `NSImage` sizing so 1x displays no longer upscale correctly captured thumbnails.
+- Refined Stable-ID list reflow to a 0.52 s non-bouncy ease-out so surviving thumbnails visibly glide forward instead of appearing to jump.
+- Made reflow completions generation-safe: any newer layout invalidates older completion handlers, preventing interrupted/repeated removals from snapping geometry back to stale targets.
+- Added regression coverage for explicit ultrawide preview aspect, 1x target capture geometry, and the smoother reflow cadence.
+- Retains v3.4.4's rapid Alt/Option+Tab race fix, canonical neon icon, bilingual Settings, Clear Glass, 96-state particle dissolve, Universal 2 packaging, and Sparkle verification.
+- Internal build: **30608**.
+
+Full notes: [`RELEASE_NOTES_v3.4.5.md`](RELEASE_NOTES_v3.4.5.md).
+
 ## 3.4.4 — 2026-09-06 — zhangqiaoran
 
 - Adopted the new **canonical neon stacked-window app icon** for v3.4.4 packaged builds; the README icon, favicon, and generated macOS `.icns` now share one committed source image.
