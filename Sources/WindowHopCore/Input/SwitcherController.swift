@@ -336,7 +336,7 @@ public final class SwitcherController {
             DebugLog.log("session list grew by \(plan.appeared.count): now \(items.count) items")
             PreviewProvider.shared.extendSession(
                 items: plan.appeared.compactMap { freshById[$0] },
-                targetSize: SwitcherPanel.previewContentSize,
+                targetSize: panels.previewTargetSize,
                 scale: panels.captureScale)
         }
         var availableIDs = Set<AnyHashable>()
