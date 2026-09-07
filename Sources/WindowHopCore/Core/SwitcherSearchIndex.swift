@@ -17,7 +17,13 @@ struct SwitcherSearchIndex {
     }
 
     func filter(_ items: [SwitcherItem], query: String) -> [SwitcherItem] {
-        let needle = Self.normalize(query)
+        filterNormalized(items, normalizedQuery: Self.normalize(query))
+    }
+
+    /// Hot path used while typing: caller normalizes the query once per change,
+    /// then reuse it across filtering, refresh and capture planning.
+    func filterNormalized(_ items: [SwitcherItem],
+                          normalizedQuery needle: String) -> [SwitcherItem] {
         guard !needle.isEmpty else { return items }
         var result: [SwitcherItem] = []
         result.reserveCapacity(min(items.count, 16))
