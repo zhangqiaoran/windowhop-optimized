@@ -121,4 +121,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
           git commit -m "chore(updates): publish appcast for v$VERSION [skip ci]"
-          git push origin HEAD:main
+
+          # README/brand automation may commit to main while a release is
+          # packaging. Rebase and retry instead of failing a fully built release
+          # on a harmless concurrent documentation update.
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "appcast push raced main; retrying ($attempt/4)"
+            sleep 2
+          done
+          echo "::error::Unable to publish appcast after retries"
+          exit 1
