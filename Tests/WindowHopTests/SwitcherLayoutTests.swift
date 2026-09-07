@@ -69,6 +69,30 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(DesignTokens.panelReflowDuration, 0.60)
     }
 
+    func testShrinkingReflowKeepsRealWindowStationaryDuringTileMotion() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        let beforeItems = [item("a"), item("b"), item("c"), item("d")]
+        panel.show(items: beforeItems,
+                   selectedIndex: 0,
+                   presentationMode: .persistent)
+        let oldWindowFrame = panel.frame
+
+        panel.update(items: Array(beforeItems.dropFirst()),
+                     selectedIndex: 0,
+                     animatedLayout: true)
+
+        // The visible Glass/chrome/tiles animate inside this stationary host.
+        // WindowServer must not independently animate the outer NSWindow while
+        // layer-backed thumbnails are also moving.
+        XCTAssertEqual(panel.frame, oldWindowFrame)
+
+        RunLoop.current.run(
+            until: Date().addingTimeInterval(DesignTokens.panelReflowDuration + 0.12))
+        XCTAssertLessThan(panel.frame.width, oldWindowFrame.width,
+                          "the real window frame is committed only after the compositor reflow")
+        panel.orderOut(nil)
+    }
+
     func testOverlaysStayCanvasAlignedAcrossSourceAspectRatios() {
         let wide = configuredTile(imageSize: NSSize(width: 400, height: 100))
         let tall = configuredTile(imageSize: NSSize(width: 100, height: 400))
