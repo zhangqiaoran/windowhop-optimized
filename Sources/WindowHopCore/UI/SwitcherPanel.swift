@@ -139,7 +139,7 @@ public enum SwitcherPresentationMode: Equatable {
 /// Previews appearance. No search or theme options. System
 /// materials and semantic colors keep it correct in Light/Dark Mode, Increase
 /// Contrast, and Reduce Transparency.
-public final class SwitcherPanel: NSPanel {
+public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     public override var canBecomeKey: Bool { true }
     public override var canBecomeMain: Bool { false }
     public var onItemClicked: ((Int) -> Void)?
@@ -362,6 +362,51 @@ public final class SwitcherPanel: NSPanel {
 
         expandedPreviewView.isHidden = true
         chromeView.addSubview(expandedPreviewView)
+
+        // Contextual pin control. It is a one-way session action: once pinned,
+        // modifier release is no longer an activation signal for this session.
+        pinButton.image = NSImage(systemSymbolName: "pin",
+                                  accessibilityDescription: "Keep switcher open")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: DesignTokens.chromeButtonSymbolSize * 0.92,
+                weight: .semibold))
+        pinButton.contentTintColor = .labelColor
+        pinButton.isBordered = false
+        pinButton.imagePosition = .imageOnly
+        pinButton.wantsLayer = true
+        pinButton.layer?.cornerRadius = DesignTokens.chromeButtonHitSize / 2
+        pinButton.layer?.cornerCurve = .continuous
+        pinButton.layer?.backgroundColor = usesNativeGlassBackground
+            ? NSColor.clear.cgColor
+            : NSColor.controlBackgroundColor.withAlphaComponent(0.42).cgColor
+        pinButton.target = self
+        pinButton.action = #selector(pinClicked)
+        pinButton.toolTip = "Keep switcher open"
+        pinButton.setAccessibilityLabel("Keep switcher open")
+        pinButton.alphaValue = 0
+        pinButton.isEnabled = false
+        pinButton.setAccessibilityHidden(true)
+        hostView.addSubview(pinButton)
+
+        // Search stays out of the grid and performs no capture work. The
+        // controller searches a pre-normalized session index; every keystroke is
+        // one linear scan over small cached strings, with no timers/polling.
+        searchField.placeholderString = "Search windows…"
+        searchField.delegate = self
+        searchField.sendsSearchStringImmediately = true
+        searchField.sendsWholeSearchString = false
+        searchField.focusRingType = .none
+        searchField.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        searchField.wantsLayer = true
+        searchField.layer?.cornerRadius = 9
+        searchField.layer?.cornerCurve = .continuous
+        searchField.layer?.backgroundColor = NSColor.controlBackgroundColor
+            .withAlphaComponent(usesNativeGlassBackground ? 0.18 : 0.46).cgColor
+        searchField.alphaValue = 0
+        searchField.isEnabled = false
+        searchField.setAccessibilityHidden(true)
+        searchField.setAccessibilityLabel("Search windows")
+        hostView.addSubview(searchField)
 
         // Global panel action: contextual during held cycling, persistent for
         // Open my-alt-tab sessions, and never measured as part of the grid.
