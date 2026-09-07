@@ -188,7 +188,7 @@ public final class SwitcherController {
             PreviewProvider.shared.beginSession(
                 items: items,
                 selectedID: itemID(at: selectedIndex),
-                targetSize: SwitcherPanel.previewContentSize,
+                targetSize: panels.previewTargetSize,
                 scale: panels.captureScale)
             // a missed destroy notification once produced a duplicate entry;
             // validate the visible windows in the background and prune the dead
@@ -519,10 +519,27 @@ public final class SwitcherController {
             available: connected.map(\.descriptor),
             pointerDisplayID: pointer?.descriptor.id).map(\.id))
         let targets = connected.filter { targetIDs.contains($0.descriptor.id) }
-        let metrics = SwitcherTileView.Metrics.metrics(
+        // Preview height depends on the display aspect ratio. For mirrored
+        // multi-display sessions use the tallest target-aware tile when deriving
+        // shared row limits; each panel still lays itself out against its own screen.
+        let targetTileSizes = targets.map { target -> NSSize in
+            let frame = target.screen.frame
+            let aspect = frame.height > 0
+                ? frame.width / frame.height
+                : SwitcherTileView.Metrics.mainDisplayAspect
+            return SwitcherTileView.Metrics.metrics(
+                for: Preferences.shared.appearanceMode,
+                showTabCounts: Preferences.shared.showTabCounts,
+                displayAspect: aspect).tileSize
+        }
+        let fallbackMetrics = SwitcherTileView.Metrics.metrics(
             for: Preferences.shared.appearanceMode,
             showTabCounts: Preferences.shared.showTabCounts)
-        panels.prepare(for: targets, tileCount: tileCount, tileSize: metrics.tileSize)
+        let sharedTileSize = targetTileSizes.reduce(fallbackMetrics.tileSize) { current, next in
+            NSSize(width: max(current.width, next.width),
+                   height: max(current.height, next.height))
+        }
+        panels.prepare(for: targets, tileCount: tileCount, tileSize: sharedTileSize)
         DebugLog.log("panels prepared: \(targets.count) display(s), focused multi-display "
             + "\(focusedMode ? "on" : "off")")
     }
