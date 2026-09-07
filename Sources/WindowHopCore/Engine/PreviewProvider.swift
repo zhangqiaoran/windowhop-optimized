@@ -393,9 +393,14 @@ public final class PreviewProvider {
         let filter = SCContentFilter(desktopIndependentWindow: scWindow)
         guard let cgImage = try? await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: configuration) else { return nil }
+        // Preserve pixel-native logical dimensions instead of assuming every
+        // target display is 2x Retina. The previous hard-coded /2 made a 1x
+        // external display treat a correctly sized capture as half-size and
+        // then upscale it inside the preview canvas, which looked soft/broken.
+        // NSImageView will downscale these pixels to the target canvas as needed.
         let image = NSImage(cgImage: cgImage,
-                            size: NSSize(width: CGFloat(cgImage.width) / 2,
-                                         height: CGFloat(cgImage.height) / 2))
+                            size: NSSize(width: CGFloat(cgImage.width),
+                                         height: CGFloat(cgImage.height)))
         // bytesPerRow includes row padding and therefore gives a safer memory
         // estimate than width * height * 4. The cache cap remains conservative.
         let byteCost = max(1, cgImage.bytesPerRow * cgImage.height)
