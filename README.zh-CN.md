@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.4 — 轻量 macOS 窗口切换器">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.5 — 轻量 macOS 窗口切换器">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.4-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.4">
+    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.5-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.5">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · 下载 | 2 · 安装 | 3 · 授权 |
 | --- | --- | --- |
-| 在 **Releases** 下载 `my-alt-tab-3.4.4.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
+| 在 **Releases** 下载 `my-alt-tab-3.4.5.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
 
 ## 为什么选择 my-alt-tab
 
@@ -36,6 +36,14 @@
 | 🌐 | **English / 中文** | 设置界面可即时切换中英文，无需重启。 |
 
 > **从 v3.4.4 开始使用新图标：** 上方这张霓虹叠层窗口图标现在就是正式 App 图标，打包时也会从同一源图自动生成。
+
+## v3.4.5
+
+- **修复拓展屏 / 外接屏缩略图异常**：窗口预览卡片现在严格按照切换器实际所在屏幕的宽高比计算，不再继承主屏幕比例。
+- 缩略图抓取尺寸会跟随本次真实目标显示器及其缩放倍率；同时移除原先固定按 2x Retina 解释截图的逻辑，1x 外接显示器不再被错误放大。
+- **窗口移除后的前移重排更丝滑**：前面的缩略图消失后，后面的卡片改为更长、更自然、无回弹的 ease-out 滑动，不再像掉帧一样瞬移。
+- 重排动画现在支持真正的中断续接：新的布局会让旧动画完成回调失效，连续关闭窗口时不会被旧目标位置突然拉回。
+- 继续保留 3.4.4 的快速 Alt/Option+Tab 修复、新霓虹图标、中英文设置、Clear Glass、粒子消散、Universal 2 与 Sparkle 自动更新。
 
 ## v3.4.4
 
