@@ -26,6 +26,11 @@ public final class SwitcherPanelGroup {
     /// The scale a capture must satisfy to look sharp on every target display.
     public private(set) var captureScale: CGFloat = 2
 
+    /// Point-space preview target sized for the actual session displays.
+    /// One captured image feeds every mirrored panel, so use the tallest
+    /// display-aware preview canvas among the targets.
+    public private(set) var previewTargetSize: NSSize = SwitcherPanel.previewContentSize
+
     public init() {}
 
     /// Rebuilds the panel set for the displays this session targets.
@@ -38,6 +43,20 @@ public final class SwitcherPanelGroup {
                         tileSize: NSSize) {
         let descriptors = targets.map(\.descriptor)
         captureScale = SwitcherGridCapacity.captureScale(descriptors, fallback: 2)
+
+        let previewSizes = descriptors.compactMap { descriptor -> NSSize? in
+            let frame = descriptor.visibleFrame
+            guard frame.height > 0 else { return nil }
+            return SwitcherPanel.previewContentSize(displayAspect: frame.width / frame.height)
+        }
+        if let first = previewSizes.first {
+            previewTargetSize = previewSizes.dropFirst().reduce(first) { current, next in
+                NSSize(width: max(current.width, next.width),
+                       height: max(current.height, next.height))
+            }
+        } else {
+            previewTargetSize = SwitcherPanel.previewContentSize
+        }
 
         let limits = sharedLimits(for: descriptors, tileCount: tileCount, tileSize: tileSize)
         resizePool(to: targets.count)
