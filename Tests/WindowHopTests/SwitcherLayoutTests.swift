@@ -44,6 +44,31 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThan(centerX, rightX)
     }
 
+    func testPreviewMetricsFollowExplicitPlacementDisplayAspect() {
+        let laptop = SwitcherTileView.Metrics.metrics(
+            for: .windowPreviews,
+            showTabCounts: false,
+            displayAspect: 16.0 / 10.0)
+        let ultrawide = SwitcherTileView.Metrics.metrics(
+            for: .windowPreviews,
+            showTabCounts: false,
+            displayAspect: 32.0 / 9.0)
+
+        XCTAssertEqual(laptop.tileSize.width, ultrawide.tileSize.width)
+        XCTAssertGreaterThan(laptop.contentHeight, ultrawide.contentHeight,
+                             "an ultrawide external display must not inherit the primary display's taller preview canvas")
+        XCTAssertEqual(
+            ultrawide.contentHeight,
+            DesignTokens.previewContentHeight(
+                width: DesignTokens.previewsTileWidth - DesignTokens.tileLabelInset * 2,
+                displayAspect: 32.0 / 9.0))
+    }
+
+    func testReflowMotionUsesLongerNonBouncyEaseOut() {
+        XCTAssertGreaterThanOrEqual(DesignTokens.panelReflowDuration, 0.50)
+        XCTAssertLessThanOrEqual(DesignTokens.panelReflowDuration, 0.60)
+    }
+
     func testOverlaysStayCanvasAlignedAcrossSourceAspectRatios() {
         let wide = configuredTile(imageSize: NSSize(width: 400, height: 100))
         let tall = configuredTile(imageSize: NSSize(width: 100, height: 400))
