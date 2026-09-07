@@ -199,6 +199,10 @@ public final class SwitcherPanel: NSPanel {
     private var panelAppearanceObserver: NSObjectProtocol?
     /// Grid geometry of the current layout, for 2D arrow-key navigation.
     public private(set) var columnsPerRow = 1
+    /// Monotonic token for interruptible list reflows. Any newer layout update
+    /// invalidates an older animation completion so a stale completion can
+    /// never snap tiles/window geometry back to an obsolete target.
+    private var reflowGeneration: UInt64 = 0
 
     /// The display this panel draws on. `SwitcherPanelGroup` sets it for every
     /// session; nil falls back to the first screen, which is what the offscreen
@@ -215,13 +219,28 @@ public final class SwitcherPanel: NSPanel {
 
     private var layoutScreen: NSScreen? { placementScreen ?? NSScreen.screens.first }
 
+    /// Preview geometry must follow the display the panel is actually drawn on.
+    /// Using NSScreen.main here made wide/1x external displays inherit the
+    /// primary display's preview aspect, producing visibly wrong canvases.
+    private var placementDisplayAspect: CGFloat {
+        guard let frame = layoutScreen?.frame, frame.height > 0 else {
+            return SwitcherTileView.Metrics.mainDisplayAspect
+        }
+        return frame.width / frame.height
+    }
+
     /// The preview area a tile offers in Window Previews mode, for capture sizing.
-    public static var previewContentSize: NSSize {
+    public static func previewContentSize(displayAspect: CGFloat) -> NSSize {
         let metrics = SwitcherTileView.Metrics.metrics(
             for: .windowPreviews,
-            showTabCounts: Preferences.shared.showTabCounts)
+            showTabCounts: Preferences.shared.showTabCounts,
+            displayAspect: displayAspect)
         return NSSize(width: metrics.tileSize.width - DesignTokens.tileLabelInset * 2,
                       height: metrics.contentHeight)
+    }
+
+    public static var previewContentSize: NSSize {
+        previewContentSize(displayAspect: SwitcherTileView.Metrics.mainDisplayAspect)
     }
 
     public static var expandedPreviewContentSize: NSSize {
@@ -631,6 +650,9 @@ public final class SwitcherPanel: NSPanel {
     public func update(items: [SwitcherItem],
                        selectedIndex index: Int,
                        animatedLayout: Bool = false) {
+        reflowGeneration &+= 1
+        let updateReflowGeneration = reflowGeneration
+
         if expandedPreviewID != nil {
             expandedPreviewID = nil
             expandedPreviewView.isHidden = true
@@ -667,7 +689,8 @@ public final class SwitcherPanel: NSPanel {
                 usePresentationFrames: false,
                 windowFrameOverride: targetWindowFrame)
             restoreReflowGeometry(oldGeometry)
-            animateUnifiedReflow(to: targetGeometry)
+            animateUnifiedReflow(to: targetGeometry,
+                                 generation: updateReflowGeneration)
         }
     }
 
@@ -744,6 +767,7 @@ public final class SwitcherPanel: NSPanel {
     }
 
     public func hide() {
+        reflowGeneration &+= 1
         hostView.setPointerInside(false)
         selectionLensView.layer?.removeAnimation(forKey: "selectionLensMove")
         selectionLensView.isHidden = true
@@ -796,7 +820,8 @@ public final class SwitcherPanel: NSPanel {
                 tile.configure(item: item,
                                mode: mode,
                                showTabCounts: Preferences.shared.showTabCounts,
-                               preview: PreviewProvider.shared.cachedPreview(for: item.id))
+                               preview: PreviewProvider.shared.cachedPreview(for: item.id),
+                               displayAspect: placementDisplayAspect)
                 tile.onClick = { [weak self] in self?.onItemClicked?(index) }
                 tile.onCloseRequest = { [weak self] in self?.onItemCloseRequested?(index) }
                 tile.resetHoverState()
@@ -822,7 +847,8 @@ public final class SwitcherPanel: NSPanel {
         let selectionOverflow = DesignTokens.selectionVisualOverflow
         let tileSize = SwitcherTileView.Metrics.metrics(
             for: mode,
-            showTabCounts: Preferences.shared.showTabCounts).tileSize
+            showTabCounts: Preferences.shared.showTabCounts,
+            displayAspect: placementDisplayAspect).tileSize
         let visibleFrame = screen.visibleFrame
 
         // tiles wrap into rows instead of scrolling horizontally (the AltTab
@@ -1049,7 +1075,8 @@ public final class SwitcherPanel: NSPanel {
     /// One AppKit animation transaction drives every geometric participant.
     /// This removes the previous NSWindow + Core Animation clock skew and also
     /// avoids forcing synchronous glass redraws with display:true every frame.
-    private func animateUnifiedReflow(to target: ReflowGeometry) {
+    private func animateUnifiedReflow(to target: ReflowGeometry,
+                                      generation: UInt64) {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = DesignTokens.panelReflowDuration
             context.timingFunction = DesignTokens.panelReflowTimingFunction
@@ -1079,7 +1106,8 @@ public final class SwitcherPanel: NSPanel {
                 selectionLensView.animator().frame = target.lensFrame
             }
         } completionHandler: { [weak self] in
-            guard let self else { return }
+            guard let self,
+                  self.reflowGeneration == generation else { return }
             self.setFrame(target.windowFrame, display: true)
             self.glassRootView.frame = target.glassRootFrame
             if let group = self.glassGroupView, let frame = target.glassGroupFrame {
