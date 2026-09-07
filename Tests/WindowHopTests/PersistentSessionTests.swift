@@ -85,4 +85,23 @@ final class PersistentSessionTests: XCTestCase {
         XCTAssertEqual(state.deleteKey(), .requestClose(index: 1))
         XCTAssertEqual(state.phase, .sticky)
     }
+
+    func testPinConvertsHeldSessionToSticky() {
+        var state = SwitcherState()
+        _ = state.trigger(backward: false, itemCount: 3)
+        XCTAssertTrue(state.pinPersistent())
+        XCTAssertEqual(state.phase, .sticky)
+        XCTAssertEqual(state.modifierReleased(), .none)
+        XCTAssertEqual(state.phase, .sticky)
+    }
+
+    func testFilteredListMayHaveZeroVisibleMatchesWithoutEndingSession() {
+        var state = SwitcherState()
+        _ = state.openPersistent(itemCount: 3)
+        XCTAssertEqual(state.filteredListChanged(itemCount: 0, preferredIndex: nil), .none)
+        XCTAssertEqual(state.phase, .sticky)
+        XCTAssertEqual(state.itemCount, 0)
+        XCTAssertEqual(state.returnKey(), .activate(index: 0),
+                       "persistent return remains a semantic activation command; controller avoids targeting when no item exists")
+    }
 }
