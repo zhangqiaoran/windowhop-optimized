@@ -692,6 +692,7 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
                      selectedIndex: Int,
                      presentationMode: SwitcherPresentationMode) {
         self.presentationMode = presentationMode
+        setPinned(presentationMode == .persistent)
         hostView.setPointerInside(false)
         update(items: items, selectedIndex: selectedIndex)
         orderFrontRegardless()
@@ -704,6 +705,7 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     /// Re-presents the panel after another modal UI temporarily hid it.
     public func presentAgain(presentationMode: SwitcherPresentationMode) {
         self.presentationMode = presentationMode
+        setPinned(presentationMode == .persistent)
         orderFrontRegardless()
         hostView.refreshPointerLocation()
         updateSettingsButtonVisibility(animated: false)
@@ -1593,23 +1595,86 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     }
 
     private func updateSettingsButtonVisibility(animated: Bool) {
-        let visible = presentationMode == .persistent || hostView.isPointerInside
-        settingsButton.isEnabled = visible
-        settingsButton.setAccessibilityHidden(!visible)
+        // v3.4.6 contextual chrome: default is visually clean. Pin, Search and
+        // More Options appear only when the pointer is inside the switcher.
+        // Search remains visible while its editor owns first responder so text
+        // does not disappear from under an active typing session.
+        let visible = hostView.isPointerInside || isSearchEditing
         let target: CGFloat = visible ? 1 : 0
-        let visibilitySurface = settingsGlassView ?? settingsButton
-        guard visibilitySurface.alphaValue != target else { return }
+        let settingsSurface = settingsGlassView ?? settingsButton
+
+        pinButton.isEnabled = visible && !isPinned
+        searchField.isEnabled = visible
+        settingsButton.isEnabled = visible
+        pinButton.setAccessibilityHidden(!visible)
+        searchField.setAccessibilityHidden(!visible)
+        settingsButton.setAccessibilityHidden(!visible)
+
+        let surfaces: [NSView] = [pinButton, searchField, settingsSurface]
+        let needsUpdate = surfaces.contains { abs($0.alphaValue - target) > 0.001 }
+        guard needsUpdate else { return }
+
         let shouldAnimate = animated
             && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         guard shouldAnimate else {
-            visibilitySurface.alphaValue = target
+            surfaces.forEach { $0.alphaValue = target }
             return
         }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = DesignTokens.settingsVisibilityFadeDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            visibilitySurface.animator().alphaValue = target
+            for surface in surfaces {
+                surface.animator().alphaValue = target
+            }
         }
+    }
+
+    /// Converts the visual session into pinned/sticky presentation without
+    /// changing grid geometry or rebuilding tiles.
+    public func setPinned(_ value: Bool) {
+        guard isPinned != value else { return }
+        isPinned = value
+        presentationMode = value ? .persistent : presentationMode
+        let symbol = value ? "pin.fill" : "pin"
+        pinButton.image = NSImage(systemSymbolName: symbol,
+                                  accessibilityDescription: "Keep switcher open")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: DesignTokens.chromeButtonSymbolSize * 0.92,
+                weight: .semibold))
+        pinButton.contentTintColor = value ? .controlAccentColor : .labelColor
+        pinButton.toolTip = value ? "Switcher is pinned" : "Keep switcher open"
+        pinButton.setAccessibilityLabel(value ? "Switcher pinned" : "Keep switcher open")
+        updateSettingsButtonVisibility(animated: false)
+    }
+
+    /// Mirrors a controller-owned query without invoking the search callback.
+    public func setSearchQuery(_ query: String) {
+        guard searchField.stringValue != query else { return }
+        searchField.stringValue = query
+    }
+
+    public func controlTextDidBeginEditing(_ obj: Notification) {
+        guard obj.object as? NSSearchField === searchField else { return }
+        isSearchEditing = true
+        updateSettingsButtonVisibility(animated: false)
+        onSearchEditingChanged?(true)
+    }
+
+    public func controlTextDidChange(_ obj: Notification) {
+        guard obj.object as? NSSearchField === searchField else { return }
+        onSearchQueryChanged?(searchField.stringValue)
+    }
+
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        guard obj.object as? NSSearchField === searchField else { return }
+        isSearchEditing = false
+        onSearchEditingChanged?(false)
+        updateSettingsButtonVisibility(animated: true)
+    }
+
+    @objc private func pinClicked() {
+        guard !isPinned else { return }
+        onPinRequested?()
     }
 
     @objc private func settingsClicked() {
