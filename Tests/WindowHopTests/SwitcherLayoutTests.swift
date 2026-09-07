@@ -474,24 +474,48 @@ final class SwitcherLayoutTests: XCTestCase {
         #endif
     }
 
-    func testSettingsButtonIsContextualInCyclingAndPersistentModes() {
+    func testContextualChromeIsHoverOnlyInCyclingAndPersistentModes() {
         let panel = SwitcherPanel(rasterizableBackground: true)
         let items = [item("a")]
 
-        panel.show(items: items, selectedIndex: 0, presentationMode: .cycling)
-        // showing seeds hover from the real pointer, which on a machine in use can
-        // already sit over the panel; the contextual rule is what is under test
-        panel.setPanelHoverForTesting(false)
-        XCTAssertFalse(panel.settingsButtonIsVisibleForTesting)
-        panel.setPanelHoverForTesting(true)
-        XCTAssertTrue(panel.settingsButtonIsVisibleForTesting)
-        panel.setPanelHoverForTesting(false)
-        XCTAssertFalse(panel.settingsButtonIsVisibleForTesting)
+        for mode in [SwitcherPresentationMode.cycling, .persistent] {
+            panel.show(items: items, selectedIndex: 0, presentationMode: mode)
+            panel.setPanelHoverForTesting(false)
+            XCTAssertFalse(panel.settingsButtonIsVisibleForTesting)
+            XCTAssertFalse(panel.pinButtonIsVisibleForTesting)
+            XCTAssertFalse(panel.searchFieldIsVisibleForTesting)
 
-        panel.show(items: items, selectedIndex: 0, presentationMode: .persistent)
-        XCTAssertTrue(panel.settingsButtonIsVisibleForTesting)
+            panel.setPanelHoverForTesting(true)
+            XCTAssertTrue(panel.settingsButtonIsVisibleForTesting)
+            XCTAssertTrue(panel.pinButtonIsVisibleForTesting)
+            XCTAssertTrue(panel.searchFieldIsVisibleForTesting)
+
+            panel.setPanelHoverForTesting(false)
+            XCTAssertFalse(panel.settingsButtonIsVisibleForTesting)
+            XCTAssertFalse(panel.pinButtonIsVisibleForTesting)
+            XCTAssertFalse(panel.searchFieldIsVisibleForTesting)
+        }
+    }
+
+    func testPinnedVisualStateDoesNotForceChromeVisible() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.show(items: [item("a")], selectedIndex: 0, presentationMode: .cycling)
+        panel.setPinned(true)
+        XCTAssertTrue(panel.isPinnedForTesting)
         panel.setPanelHoverForTesting(false)
-        XCTAssertTrue(panel.settingsButtonIsVisibleForTesting)
+        XCTAssertFalse(panel.pinButtonIsVisibleForTesting)
+        XCTAssertFalse(panel.searchFieldIsVisibleForTesting)
+        XCTAssertFalse(panel.settingsButtonIsVisibleForTesting)
+    }
+
+    func testPinRoutesAtPanelLevelWhenContextualChromeIsVisible() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        panel.show(items: [item("a")], selectedIndex: 0, presentationMode: .cycling)
+        panel.setPanelHoverForTesting(true)
+        let hit = panel.pinHitFrameInHostForTesting
+        XCTAssertFalse(hit.isEmpty)
+        XCTAssertTrue(panel.pinTargetForTesting(
+            atHostPoint: NSPoint(x: hit.midX, y: hit.midY)))
     }
 
     func testRetiredTabMetadataStaysHidden() throws {
