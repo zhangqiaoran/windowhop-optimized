@@ -70,6 +70,9 @@ final class SwitcherLayoutTests: XCTestCase {
     }
 
     func testShrinkingReflowKeepsRealWindowStationaryDuringTileMotion() throws {
+        try XCTSkipIf(
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+            "Reduce Motion intentionally commits reflow geometry immediately")
         let panel = SwitcherPanel(rasterizableBackground: true)
         let beforeItems = [item("a"), item("b"), item("c"), item("d")]
         panel.show(items: beforeItems,
