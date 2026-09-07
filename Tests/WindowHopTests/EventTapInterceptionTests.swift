@@ -130,6 +130,13 @@ final class EventTapInterceptionTests: XCTestCase {
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.leftArrow, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.returnKey, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .flagsChanged, keyCode: 58, flags: []), .pass)
+
+        XCTAssertEqual(
+            state.decide(type: .keyDown, keyCode: KeyCode.tab, flags: .maskAlternate),
+            EventTapDecision(disposition: .consume, input: .step(backward: false)))
+        XCTAssertEqual(
+            state.decide(type: .keyUp, keyCode: KeyCode.tab, flags: .maskAlternate),
+            .consume)
     }
 
     func testStoppingResetsSuppressedReleasesAndInterception() {
