@@ -441,6 +441,7 @@ final class SwitcherLayoutTests: XCTestCase {
         panel.show(items: [item("a")],
                    selectedIndex: 0,
                    presentationMode: .persistent)
+        panel.setPanelHoverForTesting(true)
         let hitFrame = panel.settingsHitFrameInHostForTesting
         XCTAssertFalse(hitFrame.isEmpty)
         XCTAssertTrue(
