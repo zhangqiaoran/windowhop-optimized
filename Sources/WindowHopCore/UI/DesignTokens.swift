@@ -68,9 +68,9 @@ enum DesignTokens {
     /// Stable-id FLIP reflow runs only when an open list loses windows. Window,
     /// glass, chrome, scroll geometry, live tiles, and the focus ring are all
     /// driven by one NSAnimationContext so there is one clock and one curve.
-    static let panelReflowDuration: CFTimeInterval = 0.42
+    static let panelReflowDuration: CFTimeInterval = 0.52
     static var panelReflowTimingFunction: CAMediaTimingFunction {
-        CAMediaTimingFunction(controlPoints: 0.18, 0.78, 0.20, 1.0)
+        CAMediaTimingFunction(controlPoints: 0.22, 1.00, 0.36, 1.0)
     }
     /// v3.5 keeps native Clear Glass at full strength. Higher values remove
     /// tint and expose the material's full refraction; lower values add a
