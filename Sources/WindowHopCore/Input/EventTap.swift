@@ -138,7 +138,24 @@ struct EventTapInterceptionState {
         }
 
         switch mode {
-        case .off, .sessionSearch:
+        case .off:
+            return .pass
+        case .sessionSearch:
+            // Text editing owns ordinary keys, but the configured switcher
+            // chord must remain ours or macOS's native app switcher can leak
+            // through while the pinned search field is focused.
+            guard type == .keyDown else { return .pass }
+            if isSwitcherTrigger(keyCode: keyCode, flags: flags) {
+                suppressKeyUp(keyCode)
+                return EventTapDecision(
+                    disposition: .consume,
+                    input: .step(backward: flags.contains(.maskShift)))
+            }
+            if let persistentShortcut,
+               persistentShortcut.matches(keyCode: keyCode, flags: flags) {
+                suppressKeyUp(keyCode)
+                return .consume
+            }
             return .pass
         case .watching:
             guard type == .keyDown else { return .pass }
