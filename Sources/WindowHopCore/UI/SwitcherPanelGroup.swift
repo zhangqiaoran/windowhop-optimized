@@ -15,6 +15,9 @@ public final class SwitcherPanelGroup {
     public var onItemClicked: ((Int) -> Void)?
     public var onItemCloseRequested: ((Int) -> Void)?
     public var onSettingsRequested: (() -> Void)?
+    public var onPinRequested: (() -> Void)?
+    public var onSearchQueryChanged: ((String) -> Void)?
+    public var onSearchEditingChanged: ((Bool) -> Void)?
     public var onPreviewPermissionRequested: (() -> Void)?
 
     private var panels: [SwitcherPanel] = []
@@ -108,6 +111,13 @@ public final class SwitcherPanelGroup {
         panel.onItemClicked = { [weak self] index in self?.onItemClicked?(index) }
         panel.onItemCloseRequested = { [weak self] index in self?.onItemCloseRequested?(index) }
         panel.onSettingsRequested = { [weak self] in self?.onSettingsRequested?() }
+        panel.onPinRequested = { [weak self] in self?.onPinRequested?() }
+        panel.onSearchQueryChanged = { [weak self] query in
+            self?.onSearchQueryChanged?(query)
+        }
+        panel.onSearchEditingChanged = { [weak self] editing in
+            self?.onSearchEditingChanged?(editing)
+        }
         panel.onPreviewPermissionRequested = { [weak self] in
             self?.onPreviewPermissionRequested?()
         }
@@ -140,6 +150,14 @@ public final class SwitcherPanelGroup {
 
     public func select(_ index: Int) {
         panels.forEach { $0.select(index) }
+    }
+
+    public func setPinned(_ pinned: Bool) {
+        panels.forEach { $0.setPinned(pinned) }
+    }
+
+    public func setSearchQuery(_ query: String) {
+        panels.forEach { $0.setSearchQuery(query) }
     }
 
     public func updatePreview(id: AnyHashable, image: NSImage) {
