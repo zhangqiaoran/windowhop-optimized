@@ -1072,30 +1072,70 @@ public final class SwitcherPanel: NSPanel {
         }
     }
 
-    /// One AppKit animation transaction drives every geometric participant.
-    /// This removes the previous NSWindow + Core Animation clock skew and also
-    /// avoids forcing synchronous glass redraws with display:true every frame.
+    /// Reflow runs entirely inside one stationary NSWindow compositor space.
+    ///
+    /// NSWindow frame animation is owned by WindowServer while layer-backed
+    /// NSViews animate through Core Animation. Driving both at once with the
+    /// same duration/timing function does NOT put them on one render clock:
+    /// child positions are relative to a parent window that is itself moving,
+    /// so one pipeline arriving a frame earlier looks like a tile teleport.
+    ///
+    /// Keep the real window at the old frame during motion. Direct host children
+    /// (Glass/chrome/global controls) animate toward the target window's
+    /// screen-space offset inside that stationary host, while nested content
+    /// (scroll/document/tiles/focus lens) uses its normal target-local frames.
+    /// At completion the real NSWindow is atomically committed to the target
+    /// frame and the host children are normalized back to local coordinates.
+    /// The pixels therefore do not move at that hand-off.
     private func animateUnifiedReflow(to target: ReflowGeometry,
                                       generation: UInt64) {
+        let animationWindowFrame = frame
+        let hostDelta = NSPoint(
+            x: target.windowFrame.minX - animationWindowFrame.minX,
+            y: target.windowFrame.minY - animationWindowFrame.minY)
+
+        @inline(__always)
+        func visualTargetFrame(_ targetFrame: NSRect, for view: NSView) -> NSRect {
+            guard view.superview === hostView else { return targetFrame }
+            return targetFrame.offsetBy(dx: hostDelta.x, dy: hostDelta.y)
+        }
+
+        let settingsSurface = settingsGlassView ?? settingsButton
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = DesignTokens.panelReflowDuration
             context.timingFunction = DesignTokens.panelReflowTimingFunction
             context.allowsImplicitAnimation = true
 
-            animator().setFrame(target.windowFrame, display: false)
-            glassRootView.animator().frame = target.glassRootFrame
-            if let group = glassGroupView, let frame = target.glassGroupFrame {
-                group.animator().frame = frame
+            // Deliberately DO NOT animate the NSWindow. Everything the user can
+            // see moves on the same layer-backed AppKit/Core Animation clock.
+            glassRootView.animator().frame =
+                visualTargetFrame(target.glassRootFrame, for: glassRootView)
+            if let group = glassGroupView, let groupFrame = target.glassGroupFrame {
+                group.animator().frame =
+                    visualTargetFrame(groupFrame, for: group)
             }
-            panelBackgroundView.animator().frame = target.backgroundFrame
-            // Foreground chrome is always a sibling above Glass in v3.4.2,
-            // so it must always participate in the unified reflow transaction.
-            chromeView.animator().frame = target.chromeFrame
+            // glassRootView and panelBackgroundView are normally the same view.
+            // Avoid scheduling the same animatable property twice.
+            if panelBackgroundView !== glassRootView {
+                panelBackgroundView.animator().frame =
+                    visualTargetFrame(target.backgroundFrame, for: panelBackgroundView)
+            }
+            chromeView.animator().frame =
+                visualTargetFrame(target.chromeFrame, for: chromeView)
             liquidGlassDensityView.animator().frame = target.densityFrame
             scrollView.animator().frame = target.scrollFrame
+
+            // Scrolling geometry is part of the same motion. 3.4.5 restored the
+            // old clip bounds before FLIP but never animated/committed the target
+            // bounds, which could make multi-row lists visibly jump.
+            scrollView.contentView.animator().bounds = target.clipBounds
             tilesContainer.animator().frame = target.documentFrame
-            (settingsGlassView ?? settingsButton).animator().frame = target.settingsFrame
-            permissionButton.animator().frame = target.permissionFrame
+
+            settingsSurface.animator().frame =
+                visualTargetFrame(target.settingsFrame, for: settingsSurface)
+            permissionButton.animator().frame =
+                visualTargetFrame(target.permissionFrame, for: permissionButton)
 
             for (index, item) in items.enumerated() where index < visibleTileCount {
                 if let targetFrame = target.tileFrames[item.id] {
@@ -1108,16 +1148,28 @@ public final class SwitcherPanel: NSPanel {
         } completionHandler: { [weak self] in
             guard let self,
                   self.reflowGeneration == generation else { return }
-            self.setFrame(target.windowFrame, display: true)
+
+            // display:false lets AppKit coalesce the window hand-off with the
+            // local-frame normalization below. Before the hand-off the visible
+            // top-level frame is targetLocal + hostDelta; afterwards the window
+            // origin contributes that same delta and the local frame is targetLocal.
+            // Screen-space pixels therefore remain continuous.
+            self.setFrame(target.windowFrame, display: false)
+
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             self.glassRootView.frame = target.glassRootFrame
-            if let group = self.glassGroupView, let frame = target.glassGroupFrame {
-                group.frame = frame
+            if let group = self.glassGroupView, let groupFrame = target.glassGroupFrame {
+                group.frame = groupFrame
             }
-            self.panelBackgroundView.frame = target.backgroundFrame
+            if self.panelBackgroundView !== self.glassRootView {
+                self.panelBackgroundView.frame = target.backgroundFrame
+            }
             self.chromeView.frame = target.chromeFrame
             self.liquidGlassDensityView.frame = target.densityFrame
             self.liquidGlassDensityMask.frame = self.liquidGlassDensityView.bounds
             self.scrollView.frame = target.scrollFrame
+            self.scrollView.contentView.bounds = target.clipBounds
             self.tilesContainer.frame = target.documentFrame
             self.setSettingsControlFrame(target.settingsFrame)
             self.permissionButton.frame = target.permissionFrame
@@ -1130,6 +1182,9 @@ public final class SwitcherPanel: NSPanel {
                     self.tilePool[index].frame = targetFrame
                 }
             }
+            CATransaction.commit()
+
+            self.displayIfNeeded()
         }
     }
 
