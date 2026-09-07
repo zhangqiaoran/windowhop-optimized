@@ -110,6 +110,36 @@ final class SwitcherPanelGroupTests: XCTestCase {
         group.hide()
     }
 
+    func testPreviewCaptureTargetUsesActualExternalDisplayAspect() throws {
+        guard let screen = NSScreen.screens.first else {
+            throw XCTSkip("needs a display")
+        }
+        let targets: [(descriptor: DisplayDescriptor, screen: NSScreen)] = [
+            (
+                DisplayDescriptor(
+                    id: "ultrawide",
+                    name: "Ultrawide",
+                    visibleFrame: CGRect(x: 0, y: 0, width: 3440, height: 1440),
+                    backingScale: 1),
+                screen
+            ),
+        ]
+
+        group.prepare(
+            for: targets,
+            tileCount: 4,
+            tileSize: SwitcherTileView.Metrics.metrics(
+                for: .windowPreviews,
+                showTabCounts: false,
+                displayAspect: 3440.0 / 1440.0).tileSize)
+
+        let expected = SwitcherPanel.previewContentSize(displayAspect: 3440.0 / 1440.0)
+        XCTAssertEqual(group.previewTargetSize.width, expected.width)
+        XCTAssertEqual(group.previewTargetSize.height, expected.height)
+        XCTAssertEqual(group.captureScale, 1,
+                       "a 1x external display must not be forced through a hard-coded Retina assumption")
+    }
+
     func testCaptureScaleFollowsTheSharpestTargetDisplay() throws {
         try XCTSkipIf(NSScreen.screens.isEmpty, "needs a display")
         var mixed = targets(1, scale: 1)
