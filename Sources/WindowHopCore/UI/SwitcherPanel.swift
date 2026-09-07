@@ -811,9 +811,58 @@ public final class SwitcherPanel: NSPanel {
     private func rebuildTiles(items: [SwitcherItem]) {
         while tilePool.count < items.count {
             let tile = SwitcherTileView()
+            tile.isHidden = true
             tilesContainer.addSubview(tile)
             tilePool.append(tile)
         }
+
+        // Preserve physical NSView/layer identity by stable window ID.
+        //
+        // The old index-based pool shifted B into A's view, C into B's view,
+        // etc. whenever an early item disappeared. That forced every trailing
+        // card to rebind text/icon/preview state immediately before FLIP, which
+        // could stall the main thread and visually turn the first reflow frames
+        // into a jump. Surviving windows now keep their original view/layer;
+        // reflow only changes their geometry.
+        let nextIDs = Set(items.map(\.id))
+        var stableViews: [AnyHashable: SwitcherTileView] = [:]
+        stableViews.reserveCapacity(min(visibleTileCount, items.count))
+        var reusableViews: [SwitcherTileView] = []
+        reusableViews.reserveCapacity(tilePool.count)
+
+        for (index, tile) in tilePool.enumerated() {
+            if index < visibleTileCount,
+               let id = tile.representedIDForReuse,
+               nextIDs.contains(id),
+               stableViews[id] == nil {
+                stableViews[id] = tile
+            } else {
+                reusableViews.append(tile)
+            }
+        }
+
+        var orderedVisible: [SwitcherTileView] = []
+        orderedVisible.reserveCapacity(items.count)
+        for item in items {
+            if let stable = stableViews.removeValue(forKey: item.id) {
+                orderedVisible.append(stable)
+            } else if let reusable = reusableViews.popLast() {
+                orderedVisible.append(reusable)
+            } else {
+                // Defensive only: the pool is grown above, so this path should
+                // never execute unless duplicate/invalid identities exhaust it.
+                let tile = SwitcherTileView()
+                tilesContainer.addSubview(tile)
+                orderedVisible.append(tile)
+            }
+        }
+
+        // Any unmatched stable view is no longer visible. Append every spare
+        // after the live prefix so the rest of the panel can continue treating
+        // tilePool[index] as the current logical item at index.
+        reusableViews.append(contentsOf: stableViews.values)
+        tilePool = orderedVisible + reusableViews
+
         for (index, tile) in tilePool.enumerated() {
             if index < items.count {
                 let item = items[index]
