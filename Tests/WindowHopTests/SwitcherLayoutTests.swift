@@ -86,6 +86,78 @@ final class SwitcherLayoutTests: XCTestCase {
                       "surviving thumbnails should move their existing layers, not be rebound into earlier pooled views")
     }
 
+    func testSearchFilteringKeepsOuterGeometryFixedAndReusesStableTile() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        let before = [item("a"), item("b"), item("c"), item("d")]
+        panel.show(items: before, selectedIndex: 0, presentationMode: .persistent)
+        panel.setPanelHoverForTesting(true)
+
+        let windowFrame = panel.frame
+        let backgroundFrame = panel.panelBackgroundFrameForTesting
+        let gridFrame = panel.gridFrameForTesting
+        let searchFrame = panel.searchFieldFrameForTesting
+        let bView = try XCTUnwrap(panel.tileForTesting(at: 1))
+
+        panel.setSearchQuery("Window b")
+        panel.updateSearchResults(items: [before[1]], selectedIndex: 0, animated: false)
+
+        XCTAssertEqual(panel.frame, windowFrame)
+        XCTAssertEqual(panel.panelBackgroundFrameForTesting, backgroundFrame)
+        XCTAssertEqual(panel.gridFrameForTesting, gridFrame)
+        XCTAssertEqual(panel.searchFieldFrameForTesting, searchFrame)
+        XCTAssertEqual(panel.visibleTileCountForTesting, 1)
+        XCTAssertTrue(panel.tileForTesting(at: 0) === bView)
+        XCTAssertFalse(panel.emptySearchIsVisibleForTesting)
+        panel.orderOut(nil)
+    }
+
+    func testSearchWithZeroMatchesKeepsPanelFixedAndShowsOneEmptyState() {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        let before = [item("a"), item("b"), item("c")]
+        panel.show(items: before, selectedIndex: 0, presentationMode: .persistent)
+        panel.setPanelHoverForTesting(true)
+
+        let windowFrame = panel.frame
+        let backgroundFrame = panel.panelBackgroundFrameForTesting
+        let gridFrame = panel.gridFrameForTesting
+        let searchFrame = panel.searchFieldFrameForTesting
+
+        panel.setSearchQuery("definitely-no-match")
+        panel.updateSearchResults(items: [], selectedIndex: 0, animated: false)
+
+        XCTAssertEqual(panel.frame, windowFrame)
+        XCTAssertEqual(panel.panelBackgroundFrameForTesting, backgroundFrame)
+        XCTAssertEqual(panel.gridFrameForTesting, gridFrame)
+        XCTAssertEqual(panel.searchFieldFrameForTesting, searchFrame)
+        XCTAssertEqual(panel.visibleTileCountForTesting, 0)
+        XCTAssertTrue(panel.emptySearchIsVisibleForTesting)
+        XCTAssertFalse(panel.selectionLensIsVisibleForTesting)
+        panel.orderOut(nil)
+    }
+
+    func testContentOnlyAXRefreshDoesNotInterruptStructuralReflow() throws {
+        try XCTSkipIf(
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+            "Reduce Motion intentionally commits reflow geometry immediately")
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        let before = [item("a"), item("b"), item("c"), item("d")]
+        let after = Array(before.dropFirst())
+        panel.show(items: before, selectedIndex: 0, presentationMode: .persistent)
+        let oldWindowFrame = panel.frame
+
+        panel.update(items: after, selectedIndex: 0, animatedLayout: true)
+        panel.refreshContent(items: after, selectedIndex: 0)
+
+        XCTAssertEqual(panel.frame, oldWindowFrame,
+                       "metadata-only AX refresh must not force-commit the outer window mid-reflow")
+
+        RunLoop.current.run(
+            until: Date().addingTimeInterval(DesignTokens.panelReflowDuration + 0.12))
+        XCTAssertLessThan(panel.frame.width, oldWindowFrame.width,
+                          "the original structural reflow must still own the final frame commit")
+        panel.orderOut(nil)
+    }
+
     func testShrinkingReflowKeepsRealWindowStationaryDuringTileMotion() throws {
         try XCTSkipIf(
             NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
