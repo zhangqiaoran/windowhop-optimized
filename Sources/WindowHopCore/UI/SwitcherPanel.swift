@@ -719,6 +719,9 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
         let scrollFrame: NSRect
         let clipBounds: NSRect
         let documentFrame: NSRect
+        let pinFrame: NSRect
+        let searchFrame: NSRect
+        let emptySearchFrame: NSRect
         let settingsFrame: NSRect
         let permissionFrame: NSRect
         let lensFrame: NSRect
@@ -997,8 +1000,12 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
         columnsPerRow = columns
 
         let visibleColumns = min(tileCount, columns)
-        let contentGridWidth = CGFloat(visibleColumns) * tileSize.width
+        let naturalGridWidth = CGFloat(visibleColumns) * tileSize.width
             + CGFloat(max(0, visibleColumns - 1)) * spacing
+        let searchingWithNoMatches = tileCount == 0 && !searchField.stringValue.isEmpty
+        let contentGridWidth = searchingWithNoMatches
+            ? max(naturalGridWidth, 420)
+            : naturalGridWidth
         let contentGridHeight = CGFloat(rows) * tileSize.height
             + CGFloat(max(0, rows - 1)) * rowSpacing
         // NSClipView clips strictly to the document view. The selected tile
@@ -1087,19 +1094,41 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
             height: densityHeight)
         liquidGlassDensityMask.frame = liquidGlassDensityView.bounds
 
-        // v2.3 gives global controls their own top chrome strip. The ellipsis
-        // is still visually attached to the panel, but it never intersects a
-        // thumbnail or selection lens.
+        // Contextual chrome stays in one reserved top strip. Pin lives at the
+        // left, search is centered, and ellipsis/permission stay right-aligned.
+        // None of these controls participate in the grid's sizing.
         let controlSize = DesignTokens.chromeButtonHitSize
         let controlInset = DesignTokens.settingsButtonInset
+        let controlY = panelSize.height - controlSize - controlInset
+        pinButton.frame = NSRect(
+            x: controlInset,
+            y: controlY,
+            width: controlSize, height: controlSize)
+
+        let reservedSide = controlSize * 2 + controlInset * 2 + 24
+        let searchWidth = max(180, min(360, panelSize.width - reservedSide * 2))
+        let searchHeight: CGFloat = 30
+        searchField.frame = NSRect(
+            x: (panelSize.width - searchWidth) / 2,
+            y: controlY + (controlSize - searchHeight) / 2,
+            width: searchWidth,
+            height: searchHeight)
+
         setSettingsControlFrame(NSRect(
             x: panelSize.width - controlSize - controlInset,
-            y: panelSize.height - controlSize - controlInset,
+            y: controlY,
             width: controlSize, height: controlSize))
         permissionButton.frame = NSRect(
             x: panelSize.width - controlSize * 2 - controlInset - 6,
-            y: panelSize.height - controlSize - controlInset,
+            y: controlY,
             width: controlSize, height: controlSize)
+
+        emptySearchLabel.frame = NSRect(
+            x: padding,
+            y: scrollView.frame.midY - 14,
+            width: max(0, panelSize.width - padding * 2),
+            height: 28)
+        emptySearchLabel.isHidden = !searchingWithNoMatches
         let origin = NSPoint(x: visibleFrame.midX - panelSize.width / 2,
                              y: visibleFrame.midY - panelSize.height / 2)
         let targetFrame = NSRect(origin: origin, size: panelSize)
@@ -1148,6 +1177,15 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
             documentFrame: usePresentationFrames
                 ? presentationFrame(of: tilesContainer)
                 : tilesContainer.frame,
+            pinFrame: usePresentationFrames
+                ? presentationFrame(of: pinButton)
+                : pinButton.frame,
+            searchFrame: usePresentationFrames
+                ? presentationFrame(of: searchField)
+                : searchField.frame,
+            emptySearchFrame: usePresentationFrames
+                ? presentationFrame(of: emptySearchLabel)
+                : emptySearchLabel.frame,
             settingsFrame: {
                 let settingsSurface = settingsGlassView ?? settingsButton
                 return usePresentationFrames
@@ -1188,6 +1226,9 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
         scrollView.frame = old.scrollFrame
         scrollView.contentView.bounds = old.clipBounds
         tilesContainer.frame = old.documentFrame
+        pinButton.frame = old.pinFrame
+        searchField.frame = old.searchFrame
+        emptySearchLabel.frame = old.emptySearchFrame
         setSettingsControlFrame(old.settingsFrame)
         permissionButton.frame = old.permissionFrame
         selectionLensView.frame = old.lensFrame
@@ -1259,6 +1300,12 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
             scrollView.contentView.animator().bounds = target.clipBounds
             tilesContainer.animator().frame = target.documentFrame
 
+            pinButton.animator().frame =
+                visualTargetFrame(target.pinFrame, for: pinButton)
+            searchField.animator().frame =
+                visualTargetFrame(target.searchFrame, for: searchField)
+            emptySearchLabel.animator().frame = target.emptySearchFrame
+
             settingsSurface.animator().frame =
                 visualTargetFrame(target.settingsFrame, for: settingsSurface)
             permissionButton.animator().frame =
@@ -1298,6 +1345,9 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
             self.scrollView.frame = target.scrollFrame
             self.scrollView.contentView.bounds = target.clipBounds
             self.tilesContainer.frame = target.documentFrame
+            self.pinButton.frame = target.pinFrame
+            self.searchField.frame = target.searchFrame
+            self.emptySearchLabel.frame = target.emptySearchFrame
             self.setSettingsControlFrame(target.settingsFrame)
             self.permissionButton.frame = target.permissionFrame
             if !self.selectionLensView.isHidden {
