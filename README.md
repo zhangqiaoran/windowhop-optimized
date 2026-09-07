@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.4 — lightweight macOS window switcher">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.5 — lightweight macOS window switcher">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.4-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.4">
+    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.5-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.5">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · Download | 2 · Install | 3 · Permissions |
 | --- | --- | --- |
-| Download `my-alt-tab-3.4.4.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
+| Download `my-alt-tab-3.4.5.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
 
 ## Why my-alt-tab
 
@@ -38,6 +38,14 @@
 > **New icon from v3.4.4:** the neon stacked-window icon shown above is now the canonical app icon used by packaged builds.
 
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
+
+## v3.4.5
+
+- **External-display previews fixed:** Window Preview tile geometry now follows the screen where the switcher is actually presented instead of inheriting the primary display's aspect ratio.
+- Preview capture sizing now follows the live target display set, including 1x external monitors; the old hard-coded 2x Retina image-size assumption is removed.
+- **Smoother list reflow:** when a thumbnail disappears, surviving cards now glide into place with a longer non-bouncy ease-out instead of feeling like an instant jump.
+- Reflow animations are now interruption-safe: a newer layout invalidates older animation completions so rapid removals cannot snap the panel or tiles back to stale geometry.
+- Keeps v3.4.4's rapid Alt/Option+Tab fix, canonical neon icon, bilingual Settings, Clear Glass, particle dissolve, Universal 2, and Sparkle updates.
 
 ## v3.4.4
 
