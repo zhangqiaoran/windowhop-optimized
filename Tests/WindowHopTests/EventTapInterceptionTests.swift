@@ -127,6 +127,9 @@ final class EventTapInterceptionTests: XCTestCase {
 
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: 0, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.delete, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyUp, keyCode: KeyCode.delete, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.forwardDelete, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyUp, keyCode: KeyCode.forwardDelete, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.leftArrow, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.returnKey, flags: []), .pass)
         XCTAssertEqual(state.decide(type: .flagsChanged, keyCode: 58, flags: []), .pass)
