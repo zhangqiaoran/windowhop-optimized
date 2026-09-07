@@ -207,6 +207,12 @@ final class SwitcherTileView: NSView {
     }
     private var renderSignature: RenderSignature?
 
+    /// Stable identity currently rendered by this pooled view. SwitcherPanel
+    /// uses it to keep the same physical NSView/layer attached to a surviving
+    /// window across list removals, so reflow changes geometry rather than
+    /// rebinding every trailing thumbnail.
+    var representedIDForReuse: AnyHashable? { renderSignature?.id }
+
     var isSelected = false {
         didSet {
             guard oldValue != isSelected else { return }
