@@ -119,6 +119,19 @@ final class EventTapInterceptionTests: XCTestCase {
         }
     }
 
+    func testSearchEditingModePassesTypingAndNavigationThrough() {
+        var state = EventTapInterceptionState(
+            mode: .sessionSearch,
+            holdModifier: .maskAlternate,
+            persistentShortcut: .optionTab)
+
+        XCTAssertEqual(state.decide(type: .keyDown, keyCode: 0, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.delete, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.leftArrow, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .keyDown, keyCode: KeyCode.returnKey, flags: []), .pass)
+        XCTAssertEqual(state.decide(type: .flagsChanged, keyCode: 58, flags: []), .pass)
+    }
+
     func testStoppingResetsSuppressedReleasesAndInterception() {
         var state = EventTapInterceptionState(
             mode: .watching,
