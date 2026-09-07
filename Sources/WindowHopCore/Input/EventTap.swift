@@ -27,6 +27,9 @@ public enum TapMode: Equatable {
     /// persistent session: like sessionHeld, but modifier release is meaningless
     /// and Space also activates
     case sessionSticky
+    /// Search field is first responder. Keyboard input belongs to AppKit text
+    /// editing, so the global tap must stay transparent until editing ends.
+    case sessionSearch
 }
 
 enum EventTapDisposition: Equatable {
@@ -135,7 +138,7 @@ struct EventTapInterceptionState {
         }
 
         switch mode {
-        case .off:
+        case .off, .sessionSearch:
             return .pass
         case .watching:
             guard type == .keyDown else { return .pass }
