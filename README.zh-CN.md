@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.5 — 轻量 macOS 窗口切换器">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.6 — 轻量 macOS 窗口切换器">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.5-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.5">
+    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.6-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.6">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · 下载 | 2 · 安装 | 3 · 授权 |
 | --- | --- | --- |
-| 在 **Releases** 下载 `my-alt-tab-3.4.5.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
+| 在 **Releases** 下载 `my-alt-tab-3.4.6.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
 
 ## 为什么选择 my-alt-tab
 
@@ -30,12 +30,24 @@
 | --- | --- | --- |
 | 🪶 | **轻量** | 原生 Swift / AppKit，没有常驻逐帧动画循环。 |
 | ⚡ | **快速 1↔2 切换** | Alt/Option+Tab 连续快速来回切换依然稳定响应。 |
+| 📌 | **固定与搜索** | 鼠标移入切换器后可固定面板，并按应用名/窗口标题快速搜索。 |
 | 🪟 | **窗口预览** | 直接看到并切到具体窗口，而不只是应用。 |
 | ✨ | **粒子消散关闭** | 关闭窗口时缩略图化为粒子消散，随后列表平滑收拢。 |
 | 💎 | **Clear Glass** | macOS 26 使用原生 Clear Glass，前景内容始终清晰。 |
 | 🌐 | **English / 中文** | 设置界面可即时切换中英文，无需重启。 |
 
 > **从 v3.4.4 开始使用新图标：** 上方这张霓虹叠层窗口图标现在就是正式 App 图标，打包时也会从同一源图自动生成。
+
+## v3.4.6
+
+- **新增固定 Pin：** 鼠标移入切换器后，左上角出现固定按钮。点击后当前 held 会话立即转成 persistent，会继续停留在屏幕上，松开 Alt/Option 不再消失或误激活窗口。
+- **新增窗口搜索：** 顶部中间加入搜索框，支持按应用名称 + 窗口标题过滤；大小写、全角/半角、重音字符会统一归一化，过滤后仍保持原有 MRU / 会话顺序。
+- **Pin、搜索、右上角 ... 默认全部隐藏：** 无论普通切换还是固定模式，只有鼠标进入缩略图大框后才一起淡入；鼠标离开后一起淡出。正在输入搜索时搜索框保持可见，避免输入过程中突然消失。
+- **彻底重做缩略图前移同步动画：** 动画期间真实 NSWindow 不再与缩略图同时走两套渲染时钟；Glass、大框视觉层、ScrollView、缩略图、蓝色选中框、Pin/Search/… 全部在同一个 compositor transaction 中同步移动，结束时再无缝提交真实窗口 frame。
+- **真正 Stable-ID View 复用：** 删除 A 后，B/C/D 继续使用原来的 B/C/D NSView + CALayer，只改变位置，不再先把 B 重绑进 A 的 View、C 重绑进 B 的 View，因此动画启动前少掉一整串图片/文字/UI 状态重绑工作。
+- **补齐 ClipView 动画：** 多行/滚动列表的 clip bounds 与 document/tile 几何一起动画并一起提交，避免列表在重排中突然跳一下。
+- **搜索性能走低开销路径：** 会话列表变化时才预计算一次归一化字符串；每次输入只归一化一次 query，然后做连续数组线性扫描。没有常驻轮询、DisplayLink、高频 Timer 或后台搜索循环。
+- 保留 3.4.5 的拓展屏缩略图修复、3.4.4 的快速 1↔2 修复、Clear Glass、粒子消散、中英文设置、Universal 2 与 Sparkle 更新。
 
 ## v3.4.5
 
@@ -151,7 +163,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.5.zip
+artifacts/my-alt-tab-3.4.6.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。

@@ -89,7 +89,7 @@ for fi in range(FRAME_COUNT):
     d.text((196, 56), "my-alt-tab", font=F_BIG, fill=(245,249,255,255))
     d.text((198, 121), "Lightweight native macOS window switcher", font=F_SMALL, fill=(176,199,236,255))
     d.rounded_rectangle((870,68,1085,118), 24, fill=(40,58,120,190), outline=(110,170,255,220), width=2)
-    d.text((918,80), "v3.4.5", font=F_MED, fill=(245,249,255,255))
+    d.text((918,80), "v3.4.6", font=F_MED, fill=(245,249,255,255))
 
     chips = [("Lightweight",190), ("Fast 1↔2 switching",240), ("Particle dissolve close",270)]
     x = 65
@@ -244,7 +244,7 @@ hd.text((344, 226), "Switch between windows instantly",
 # version badge
 hd.rounded_rectangle((865, 238, 1120, 292), 27,
                      fill=(35, 42, 94, 220), outline=(143, 101, 255, 230), width=2)
-hd.text((912, 251), "Latest v3.4.5", font=F_BODY, fill=(244, 248, 255, 255))
+hd.text((912, 251), "Latest v3.4.6", font=F_BODY, fill=(244, 248, 255, 255))
 
 # real-looking CTA directly under icon
 cta = Image.new("RGBA", (310, 72), (0,0,0,0))
@@ -268,7 +268,7 @@ cta_glow = cta_glow.filter(ImageFilter.GaussianBlur(13))
 hero.alpha_composite(cta_glow, (43, 278))
 hero.alpha_composite(cta, (68, 303))
 hd = ImageDraw.Draw(hero)
-hd.text((95, 324), "↓  Download Latest v3.4.5", font=F_CARD, fill=(255,255,255,255))
+hd.text((95, 324), "↓  Download Latest v3.4.6", font=F_CARD, fill=(255,255,255,255))
 
 # feature pills
 features = [
@@ -292,7 +292,7 @@ hd.text((80, 485), "Install in 3 simple steps", font=F_SECTION,
         fill=(238, 244, 255, 255))
 
 steps = [
-    ("1", "Download 3.4.5", "Get the latest release"),
+    ("1", "Download 3.4.6", "Get the latest release"),
     ("2", "Drag to Applications", "Unzip and install"),
     ("3", "Grant permissions", "Accessibility + previews"),
 ]

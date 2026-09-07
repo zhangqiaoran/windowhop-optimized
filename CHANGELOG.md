@@ -2,6 +2,21 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.6 — 2026-09-07 — zhangqiaoran
+
+- Added a hover-only **Pin** control that converts the active held session to sticky/persistent mode without rebuilding the grid; modifier release becomes inert immediately.
+- Added a hover-only **window search field** filtering app name + title while preserving session order. Search editing temporarily yields ordinary keyboard input to AppKit while still owning the configured Alt/Tab trigger chord.
+- Pin, Search and More Options now share one contextual visibility rule: hidden by default, shown on switcher hover, with search kept visible while its field editor is active.
+- Re-architected shrink/reflow around one stationary NSWindow compositor space: Glass, chrome, scroll/document geometry, stable thumbnail layers, focus ring and global controls animate on one Core Animation clock, then the real window frame is atomically committed.
+- Added the missing clip-view bounds animation/commit, eliminating multi-row scroll geometry jumps.
+- Preserved physical SwitcherTileView/CALayer identity by stable window ID across removals so trailing cards move existing layers instead of rebinding every card before FLIP.
+- Added a pre-normalized, array-aligned search index. No idle polling/display link was introduced; the query is normalized once per edit and the hot path is linear in the visible session list.
+- Kept the v3.4.5 placement-display preview aspect, target backing-scale capture sizing and 1x external-display fixes.
+- Added regression coverage for pinning, zero-result search, search-mode event interception, normalized matching, hover-only chrome, stable tile identity and synchronized stationary-window reflow.
+- Internal build: **30609**.
+
+Full notes: [`RELEASE_NOTES_v3.4.6.md`](RELEASE_NOTES_v3.4.6.md).
+
 ## 3.4.5 — 2026-09-07 — zhangqiaoran
 
 - Fixed Window Preview geometry on external/extended displays by deriving tile aspect ratio from the panel's actual placement screen instead of `NSScreen.main`.

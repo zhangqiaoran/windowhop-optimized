@@ -1,5 +1,17 @@
 # User-facing defaults and configurability
 
+## my-alt-tab 3.4.6 pin + search + single-clock reflow decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Hover-only Pin | Hidden until hover | No | Clicking Pin converts the current held session to sticky/persistent in O(1); no preference or relaunch. Modifier release is ignored after the transition. |
+| Hover-only Search | Hidden until hover | No | Search appears with contextual chrome. While editing it remains visible and the event tap yields ordinary keys to AppKit; the configured switcher chord remains owned by my-alt-tab. |
+| Search index | Enabled | No | App name + title are normalized only when the session source changes. Each query is normalized once and scanned against the array-aligned normalized strings; no timer/polling/background loop. |
+| Contextual chrome | Pin + Search + … hidden | No | The three controls fade in together only while the pointer is inside the switcher; persistent mode alone does not force chrome visible. |
+| Stationary-window compositor reflow | Enabled | No | During a shrink, the real NSWindow remains at the old frame. Glass/chrome/scroll/tiles/focus/controls animate in one layer-backed coordinate space; the NSWindow frame is committed only after the visual transaction completes. |
+| Stable physical tile identity | Enabled | No | Surviving stable IDs retain their existing SwitcherTileView/CALayer. List removal changes geometry rather than rebinding every trailing thumbnail into an earlier pooled view. |
+| Animated clip bounds | Enabled | No | NSClipView bounds participate in the same FLIP transaction and are committed with document/tile geometry, preventing multi-row jumps. |
+
 ## my-alt-tab 3.4.5 external-display + reflow decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |

@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.5 — lightweight macOS window switcher">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.6 — lightweight macOS window switcher">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.5-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.5">
+    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.6-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.6">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · Download | 2 · Install | 3 · Permissions |
 | --- | --- | --- |
-| Download `my-alt-tab-3.4.5.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
+| Download `my-alt-tab-3.4.6.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
 
 ## Why my-alt-tab
 
@@ -30,6 +30,7 @@
 | --- | --- | --- |
 | 🪶 | **Lightweight** | Native Swift / AppKit, no always-running animation loop. |
 | ⚡ | **Fast 1↔2 switching** | Rapid Alt/Option+Tab toggles stay responsive and deterministic. |
+| 📌 | **Pin & search** | Hover the switcher to pin it open or search windows by app/title without releasing it. |
 | 🪟 | **Window previews** | Switch to the exact window, not just the application. |
 | ✨ | **Particle dissolve close** | Closing a window visually dissolves into particles before the list smoothly reflows. |
 | 💎 | **Clear Glass** | Native macOS 26 Clear Glass with fully opaque foreground content. |
@@ -38,6 +39,17 @@
 > **New icon from v3.4.4:** the neon stacked-window icon shown above is now the canonical app icon used by packaged builds.
 
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
+
+## v3.4.6
+
+- **Pin the switcher:** hover the panel and click the new top-left pin control to convert the current held Alt/Option+Tab session into persistent mode; releasing the modifier no longer dismisses or activates it.
+- **Search windows:** a centered search field appears only while hovering the switcher chrome. Search matches app name + window title with case/width/diacritic folding and keeps session/MRU order intact.
+- **Clean hover-only chrome:** Pin, Search, and the top-right ellipsis are hidden by default in both cycling and persistent sessions and fade in together only when the pointer enters the switcher. Search remains visible while actively editing.
+- **True synchronized reflow:** the real NSWindow stays stationary while Glass, chrome, scroll geometry, surviving thumbnails, focus ring, Pin/Search and controls animate on one layer-backed compositor clock. The final NSWindow frame is committed only after motion completes, eliminating the WindowServer-vs-Core-Animation one-frame skew.
+- **Stable physical thumbnail views:** surviving windows keep the same NSView/CALayer by stable ID after earlier cards disappear. B/C/D now move their existing layers forward instead of being rebound into A/B/C pooled views before the animation starts.
+- **Scroll geometry is part of FLIP:** clip-view bounds now animate/commit with the document and tiles, removing multi-row list jumps.
+- **Low-overhead search path:** normalized app/title strings are built only when the session source list changes; typing normalizes the query once and uses a cache-friendly linear scan with no polling, display link, or background search timer.
+- Retains v3.4.5 external-display capture fixes, v3.4.4 rapid 1↔2 input fix, Clear Glass, particle dissolve, bilingual Settings, Universal 2, and Sparkle updates.
 
 ## v3.4.5
 
@@ -161,7 +173,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.5.zip
+artifacts/my-alt-tab-3.4.6.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.
