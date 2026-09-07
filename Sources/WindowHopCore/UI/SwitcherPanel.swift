@@ -1546,6 +1546,10 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     func settingsTargetForTesting(atHostPoint point: NSPoint) -> Bool {
         rootPointerAction(atHostPoint: point) == .settings
     }
+    func pinTargetForTesting(atHostPoint point: NSPoint) -> Bool {
+        rootPointerAction(atHostPoint: point) == .pin
+    }
+    var pinHitFrameInHostForTesting: NSRect { pinHitFrameInHost }
     var settingsHitFrameInHostForTesting: NSRect { settingsHitFrameInHost }
     var usesUnifiedReflowForTesting: Bool { true }
     var selectionLensDensityAlphaForTesting: CGFloat {
@@ -1569,6 +1573,14 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
         let surface = settingsGlassView ?? settingsButton
         return settingsButton.isEnabled && surface.alphaValue > 0
     }
+    var pinButtonIsVisibleForTesting: Bool {
+        pinButton.alphaValue > 0.01
+    }
+    var searchFieldIsVisibleForTesting: Bool {
+        searchField.alphaValue > 0.01
+    }
+    var searchQueryForTesting: String { searchField.stringValue }
+    var isPinnedForTesting: Bool { isPinned }
     var settingsButtonToolTipForTesting: String? { settingsButton.toolTip }
     var gridFrameForTesting: NSRect { scrollView.frame }
     var documentFrameForTesting: NSRect { tilesContainer.frame }
