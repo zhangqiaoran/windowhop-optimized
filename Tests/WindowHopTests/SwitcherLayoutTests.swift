@@ -69,6 +69,23 @@ final class SwitcherLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(DesignTokens.panelReflowDuration, 0.60)
     }
 
+    func testListRemovalPreservesPhysicalTileViewsByStableID() throws {
+        let panel = SwitcherPanel(rasterizableBackground: true)
+        let before = [item("a"), item("b"), item("c"), item("d")]
+        panel.update(items: before, selectedIndex: 0)
+
+        let bView = try XCTUnwrap(panel.tileForTesting(at: 1))
+        let cView = try XCTUnwrap(panel.tileForTesting(at: 2))
+        let dView = try XCTUnwrap(panel.tileForTesting(at: 3))
+
+        panel.update(items: Array(before.dropFirst()), selectedIndex: 0)
+
+        XCTAssertTrue(panel.tileForTesting(at: 0) === bView)
+        XCTAssertTrue(panel.tileForTesting(at: 1) === cView)
+        XCTAssertTrue(panel.tileForTesting(at: 2) === dView,
+                      "surviving thumbnails should move their existing layers, not be rebound into earlier pooled views")
+    }
+
     func testShrinkingReflowKeepsRealWindowStationaryDuringTileMotion() throws {
         try XCTSkipIf(
             NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
