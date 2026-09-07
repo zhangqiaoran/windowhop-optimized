@@ -148,6 +148,22 @@ public final class SwitcherPanelGroup {
         }
     }
 
+    public func refreshContent(items: [SwitcherItem], selectedIndex: Int) {
+        panels.forEach {
+            $0.refreshContent(items: items, selectedIndex: selectedIndex)
+        }
+    }
+
+    public func updateSearchResults(items: [SwitcherItem],
+                                    selectedIndex: Int,
+                                    animated: Bool = true) {
+        panels.forEach {
+            $0.updateSearchResults(items: items,
+                                   selectedIndex: selectedIndex,
+                                   animated: animated)
+        }
+    }
+
     public func select(_ index: Int) {
         panels.forEach { $0.select(index) }
     }
