@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.6 — lightweight macOS window switcher">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.7 — lightweight macOS window switcher">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.6-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.6">
+    <img src="https://img.shields.io/badge/Download%20Latest-v3.4.7-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="Download latest my-alt-tab v3.4.7">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · Download | 2 · Install | 3 · Permissions |
 | --- | --- | --- |
-| Download `my-alt-tab-3.4.6.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
+| Download `my-alt-tab-3.4.7.zip` from **Releases**. | Unzip it and drag **my-alt-tab.app** into **Applications**. | Grant **Accessibility** for switching. Grant **Screen Recording** only for window previews. |
 
 ## Why my-alt-tab
 
@@ -39,6 +39,18 @@
 > **New icon from v3.4.4:** the neon stacked-window icon shown above is now the canonical app icon used by packaged builds.
 
 中文说明：[`README.zh-CN.md`](README.zh-CN.md)
+
+## v3.4.7
+
+- **Outer-panel shake removed:** AX/WindowStore metadata notifications whose stable window-ID order did not change now take a content-only refresh path. They no longer increment the structural reflow generation, relayout the panel, or force-commit the NSWindow while a close animation is still running.
+- **Search is now thumbnail-only:** filtering never resizes or recenters the NSWindow, Glass surface, ScrollView viewport, search field, Pin, or ellipsis. Only surviving stable-ID thumbnail layers move inside the already-open panel.
+- **Zero-result search fixed:** no matches now keeps the original panel geometry, hides all thumbnail views cleanly, hides the selection lens, and presents a single centered “No matching windows” state instead of collapsing cards into a narrow strip.
+- **Backspace / Delete fixed in Search:** clicking the search field pre-arms text-editing mode before the next key event can reach the global switcher map. Backspace and Forward Delete stay with AppKit's field editor instead of becoming the switcher's window-close command.
+- **Search field focus stays stable:** filtering no longer moves/resizes the field editor, so typing and deleting do not lose first responder after the first result update.
+- **Independent search motion generation:** search-only tile motion no longer cancels or commits a structural close reflow. Structural panel motion and search filtering have separate interruption tokens.
+- **Less hot-path work:** unchanged search result sets perform no switcher UI update; same-ID AX refreshes avoid layout entirely; temporary ID arrays and redundant availability work were removed.
+- Added regression tests covering fixed outer geometry during search, zero-match layout, Backspace/Forward Delete routing, stable tile reuse, and metadata refreshes arriving during an active structural reflow.
+- Retains v3.4.6 Pin/Search, Stable-ID physical view reuse, external-display preview fixes, Clear Glass, particle dissolve, Universal 2, and signed Sparkle updates.
 
 ## v3.4.6
 
@@ -173,7 +185,7 @@ Output:
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.6.zip
+artifacts/my-alt-tab-3.4.7.zip
 ```
 
 Official GitHub releases are verified as **Universal 2** builds for both **Intel (x86_64)** and **Apple Silicon (arm64)**.

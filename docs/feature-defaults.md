@@ -1,5 +1,16 @@
 # User-facing defaults and configurability
 
+## my-alt-tab 3.4.7 search-geometry + reflow-isolation decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Search panel geometry | Locked to open session | No | Search never changes the NSWindow/Glass/chrome/ScrollView/search-field frames. Only stable-ID tiles and the selection lens may move. Clearing search restores tiles inside the same fixed viewport. |
+| Zero-result search | Stable empty state | No | No matching windows is a valid filtered state. The panel remains open at its prior size, all tile views are hidden, the lens is hidden, and one centered empty label is shown. |
+| Search keyboard ownership | AppKit field editor | No | Search mouseDown pre-arms `sessionSearch`; ordinary typing, Backspace, Forward Delete and text-navigation keys pass through. Only the configured switcher trigger remains globally consumed. |
+| Same-ID AX refresh | Content-only | No | If visible stable-ID order is unchanged, titles/icons/preview state refresh without layout, reflow generation changes, NSWindow commits or lens geometry writes. |
+| Search motion generation | Separate | No | Search tile animations have an independent interruption token from structural close/panel reflow so the two paths cannot cancel each other's completion. |
+| Unchanged search results | Zero switcher UI work | No | If a query edit produces the same stable-ID order, the search field already owns the changed text and no panel/tile selection/layout update is issued. |
+
 ## my-alt-tab 3.4.6 pin + search + single-clock reflow decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |

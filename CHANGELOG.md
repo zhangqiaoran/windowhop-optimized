@@ -2,6 +2,19 @@
 
 All my-alt-tab releases from v1.0.0 onward are authored, maintained, and published by **zhangqiaoran**.
 
+## 3.4.7 — 2026-09-07 — zhangqiaoran
+
+- Removed outer-panel shake caused by redundant AX/WindowStore refreshes interrupting an in-flight structural FLIP. Same stable-ID order now uses a geometry-free content refresh.
+- Split search filtering from structural window-list layout. Search changes only thumbnail/lens layers inside the existing viewport and never changes NSWindow, Glass, chrome, ScrollView, or search-field geometry.
+- Fixed zero-result search so the existing panel remains stable, all tiles are hidden, the selection lens disappears, and one centered empty state is shown.
+- Pre-arms search editing on mouseDown and keeps EventTap in search mode before subsequent keyboard events, ensuring Backspace and Forward Delete remain normal field-editor commands.
+- Added a separate search reflow generation so query edits cannot cancel/commit structural close motion.
+- Removed redundant per-query temporary ID arrays, availability sets, selection announcements and UI work when the stable result order is unchanged.
+- Added regression coverage for search geometry lock, empty search, delete routing, and content-only refreshes during active structural reflow.
+- Internal build: **30610**.
+
+Full notes: [`RELEASE_NOTES_v3.4.7.md`](RELEASE_NOTES_v3.4.7.md).
+
 ## 3.4.6 — 2026-09-07 — zhangqiaoran
 
 - Added a hover-only **Pin** control that converts the active held session to sticky/persistent mode without rebuilding the grid; modifier release becomes inert immediately.

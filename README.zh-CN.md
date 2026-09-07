@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.6 — 轻量 macOS 窗口切换器">
+    <img src="docs/assets/my-alt-tab-hero.png" width="100%" alt="my-alt-tab v3.4.7 — 轻量 macOS 窗口切换器">
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhangqiaoran/my-alt-tab/releases/latest">
-    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.6-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.6">
+    <img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88-v3.4.7-6E5BFF?style=for-the-badge&logo=github&logoColor=white" alt="下载最新 my-alt-tab v3.4.7">
   </a>
 </p>
 
@@ -22,7 +22,7 @@
 
 | 1 · 下载 | 2 · 安装 | 3 · 授权 |
 | --- | --- | --- |
-| 在 **Releases** 下载 `my-alt-tab-3.4.6.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
+| 在 **Releases** 下载 `my-alt-tab-3.4.7.zip`。 | 解压后把 **my-alt-tab.app** 拖进 **应用程序**。 | 授予 **辅助功能** 用于窗口切换；只有窗口预览需要 **屏幕录制**。 |
 
 ## 为什么选择 my-alt-tab
 
@@ -37,6 +37,18 @@
 | 🌐 | **English / 中文** | 设置界面可即时切换中英文，无需重启。 |
 
 > **从 v3.4.4 开始使用新图标：** 上方这张霓虹叠层窗口图标现在就是正式 App 图标，打包时也会从同一源图自动生成。
+
+## v3.4.7
+
+- **彻底处理关闭后大框抖动：** AX / WindowStore 经常会在真实窗口关闭后继续送标题、位置、销毁等通知。现在只要稳定窗口 ID 的顺序没变，就走 content-only 更新，不再重新 layout、不再增加结构动画 generation，也不会在正在滑动时强行提交 NSWindow frame。
+- **搜索只过滤缩略图：** 输入内容后，外层窗口、Liquid Glass、大框尺寸、ScrollView 可视区域、搜索框、Pin 和右上角 … 全部保持原位；只有命中的 Stable-ID 缩略图在固定区域里重新排列。
+- **修复查不到内容时界面挤成一团：** 0 个匹配项时不再重新计算一个极窄布局；保持搜索前的大框尺寸，所有旧缩略图彻底隐藏，蓝色选中框隐藏，只显示一个居中的“没有匹配窗口”状态。
+- **修复搜索框 Backspace / Delete：** 点击搜索框的 mouseDown 阶段就提前切换 EventTap 到搜索编辑状态，下一次按键到来前已经完成所有权切换；Backspace 和 Forward Delete 交给 AppKit field editor，不会再被解释成“关闭窗口”。
+- **搜索输入不再丢焦点：** 搜索过滤不会再移动或缩放搜索框，因此输入第一个字符后 field editor 不会因为布局变化结束编辑，连续输入、删除都保持正常。
+- **搜索动画与关闭结构动画彻底分离：** 两条动画使用独立 generation；搜索缩略图移动不会取消正在进行的关闭/大框 reflow，AX 内容刷新也不会打断结构动画。
+- **继续降低热路径开销：** 搜索结果 ID 顺序完全没变时不做任何 switcher UI 更新；同 ID 的 AX 刷新只更新内容；移除每次搜索创建临时 ID 数组和无意义的可用集合计算。
+- 新增回归测试：搜索时外框尺寸固定、0 匹配状态、Backspace/Forward Delete、Stable-ID View 复用，以及结构动画过程中插入同 ID AX 刷新也不能打断最终 frame 提交。
+- 保留 3.4.6 的 Pin / Search、Stable-ID 物理 View 复用、拓展屏预览修复、Clear Glass、粒子消散、Universal 2 和 Sparkle 签名更新。
 
 ## v3.4.6
 
@@ -163,7 +175,7 @@ chmod +x scripts/package-app.sh
 
 ```text
 build/my-alt-tab.app
-artifacts/my-alt-tab-3.4.6.zip
+artifacts/my-alt-tab-3.4.7.zip
 ```
 
 GitHub 正式发布包会验证为 **Universal 2**，同时兼容 **Intel（x86_64）** 和 **Apple Silicon（arm64 / M 系列）**。
