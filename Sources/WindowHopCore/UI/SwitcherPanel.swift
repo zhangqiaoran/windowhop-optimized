@@ -147,6 +147,14 @@ public final class SwitcherPanel: NSPanel {
     public var onItemCloseRequested: ((Int) -> Void)?
     /// The panel-chrome gear control (and ⌘, while a session is open).
     public var onSettingsRequested: (() -> Void)?
+    /// Pins the current held session into persistent mode.
+    public var onPinRequested: (() -> Void)?
+    /// Search text changed. The controller owns filtering so keyboard/mouse
+    /// indices remain consistent with the visible list.
+    public var onSearchQueryChanged: ((String) -> Void)?
+    /// While the search editor is active, global key interception yields to
+    /// AppKit so normal text editing is zero-friction.
+    public var onSearchEditingChanged: ((Bool) -> Void)?
     /// One panel-level action when all preview capture is permission-blocked.
     public var onPreviewPermissionRequested: (() -> Void)?
 
@@ -173,6 +181,8 @@ public final class SwitcherPanel: NSPanel {
     /// Cached target frames make every selection transition a direct O(1)
     /// indexed lookup. Geometry is rebuilt only when the window list/layout is.
     private var selectionFrames: [NSRect] = []
+    private let pinButton = SwitcherPanelActionButton()
+    private let searchField = NSSearchField()
     private let settingsButton = SwitcherPanelActionButton()
     private let permissionButton = SwitcherPanelActionButton()
     private let expandedPreviewView = ExpandedPreviewView()
@@ -195,6 +205,8 @@ public final class SwitcherPanel: NSPanel {
     private var itemIndexByID: [AnyHashable: Int] = [:]
     private var expandedPreviewID: AnyHashable?
     private var presentationMode = SwitcherPresentationMode.cycling
+    private var isPinned = false
+    private var isSearchEditing = false
     private var accessibilityDisplayObserver: NSObjectProtocol?
     private var panelAppearanceObserver: NSObjectProtocol?
     /// Grid geometry of the current layout, for 2D arrow-key navigation.
