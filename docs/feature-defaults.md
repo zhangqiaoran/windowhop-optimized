@@ -1,5 +1,15 @@
 # User-facing defaults and configurability
 
+## my-alt-tab 3.4.5 external-display + reflow decisions
+
+| Feature | Default | Configurable | Settings / persistence / behavior |
+|---|---|---|---|
+| Placement-screen preview aspect | Enabled | No | Window Preview cards derive their canvas height from the actual `SwitcherPanel.placementScreen` aspect ratio. External/ultrawide displays never inherit `NSScreen.main` preview geometry. |
+| Target-display capture size | Enabled | No | One session capture target is derived from the live target display descriptors; mirrored sessions use the tallest required preview canvas and the sharpest backing scale. |
+| Pixel-native screenshot image size | Enabled | No | ScreenCaptureKit results keep their pixel-native `NSImage` logical size instead of being divided by a hard-coded 2x Retina factor, preventing 1x external displays from upscaling captures. |
+| Smooth Stable-ID reflow | Enabled | No | Surviving cards, panel, glass, chrome, scroll geometry, controls and focus ring use one 0.52 s non-bouncy ease-out transaction after the 80% dissolve hand-off. |
+| Interrupt-safe reflow completion | Enabled | No | Every layout update increments a generation token. An older animation completion may not commit geometry once a newer update has started, eliminating stale-target snaps during rapid removals. |
+
 ## my-alt-tab 3.4.4 rapid switching decisions
 
 | Feature | Default | Configurable | Settings / persistence / behavior |
