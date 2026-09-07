@@ -62,6 +62,37 @@ public struct SwitcherState {
         return .show(selectedIndex: selectedIndex)
     }
 
+    /// Pins an already-open held session so releasing the original modifier no
+    /// longer activates/closes it. This is a one-way transition for the current
+    /// session; Escape/Return/outside click still finish normally.
+    @discardableResult
+    public mutating func pinPersistent() -> Bool {
+        switch phase {
+        case .held:
+            phase = .sticky
+            return true
+        case .sticky:
+            return true
+        case .inactive:
+            return false
+        }
+    }
+
+    /// Search changes the visible subset without ending the underlying session.
+    /// Unlike `listChanged`, zero visible matches are valid and leave a sticky
+    /// search UI open so the user can edit/clear the query.
+    public mutating func filteredListChanged(itemCount count: Int,
+                                             preferredIndex: Int?) -> Command {
+        guard isActive else { return .none }
+        itemCount = max(0, count)
+        if count == 0 {
+            selectedIndex = 0
+            return .none
+        }
+        selectedIndex = max(0, min(preferredIndex ?? selectedIndex, count - 1))
+        return .select(index: selectedIndex)
+    }
+
     /// Space activates the selection, but only in a persistent session; during a
     /// held session Space is not a WindowHop key (⌘Space must stay Spotlight's).
     public mutating func spaceKey() -> Command {
