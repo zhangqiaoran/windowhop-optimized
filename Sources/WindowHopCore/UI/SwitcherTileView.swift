@@ -153,10 +153,11 @@ final class SwitcherTileView: NSView {
         }
 
         static func metrics(for mode: AppearanceMode,
-                            showTabCounts: Bool) -> Metrics {
+                            showTabCounts: Bool,
+                            displayAspect: CGFloat? = nil) -> Metrics {
             mode == .appIcons
                 ? .appIcons(showTabCounts: showTabCounts)
-                : .windowPreviews(displayAspect: mainDisplayAspect,
+                : .windowPreviews(displayAspect: displayAspect ?? mainDisplayAspect,
                                   showTabCounts: showTabCounts)
         }
 
@@ -346,7 +347,8 @@ final class SwitcherTileView: NSView {
     func configure(item: SwitcherItem,
                    mode: AppearanceMode,
                    showTabCounts: Bool,
-                   preview: NSImage?) {
+                   preview: NSImage?,
+                   displayAspect: CGFloat? = nil) {
         let nextSignature = RenderSignature(
             id: item.id, title: item.title, appName: item.appName,
             tabCount: item.tabCount, mode: mode, showTabCounts: showTabCounts)
@@ -355,7 +357,10 @@ final class SwitcherTileView: NSView {
 
         self.mode = mode
         self.showTabCounts = showTabCounts
-        metrics = Metrics.metrics(for: mode, showTabCounts: showTabCounts)
+        metrics = Metrics.metrics(
+            for: mode,
+            showTabCounts: showTabCounts,
+            displayAspect: displayAspect)
 
         if contentChanged {
             let tabsText = item.tabCount.map { "\($0) tabs" } ?? ""
