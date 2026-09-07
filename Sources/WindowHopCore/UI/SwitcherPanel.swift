@@ -183,6 +183,7 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     private var selectionFrames: [NSRect] = []
     private let pinButton = SwitcherPanelActionButton()
     private let searchField = NSSearchField()
+    private let emptySearchLabel = NSTextField(labelWithString: "No matching windows")
     private let settingsButton = SwitcherPanelActionButton()
     private let permissionButton = SwitcherPanelActionButton()
     private let expandedPreviewView = ExpandedPreviewView()
@@ -407,6 +408,13 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
         searchField.setAccessibilityHidden(true)
         searchField.setAccessibilityLabel("Search windows")
         hostView.addSubview(searchField)
+
+        emptySearchLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        emptySearchLabel.textColor = .secondaryLabelColor
+        emptySearchLabel.alignment = .center
+        emptySearchLabel.isHidden = true
+        emptySearchLabel.setAccessibilityElement(false)
+        chromeView.addSubview(emptySearchLabel)
 
         // Global panel action: contextual during held cycling, persistent for
         // Open my-alt-tab sessions, and never measured as part of the grid.
