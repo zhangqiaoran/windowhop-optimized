@@ -51,8 +51,16 @@ jobs:
           git add docs/assets/my-alt-tab-hero.png docs/assets/my-alt-tab-demo.gif docs/assets/app-icon.png docs/assets/favicon.png
           git commit -m "docs(brand): publish hero and animated README demo [skip ci]"
 
-          # README/script commits may land immediately before this job starts.
-          # Rebase once before pushing so the generated binary-assets commit
-          # stays on top of the latest main instead of racing concurrent docs work.
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # README/script commits may land while rendering. Retry the
+          # rebase/push hand-off so generated binary assets never lose a race
+          # against nearby documentation/version commits.
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push raced main; retrying ($attempt/4)"
+            sleep 2
+          done
+          echo "::error::Unable to publish generated README assets after retries"
+          exit 1
