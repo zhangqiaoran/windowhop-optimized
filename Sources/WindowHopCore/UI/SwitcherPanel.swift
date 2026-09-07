@@ -216,6 +216,10 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     /// invalidates an older animation completion so a stale completion can
     /// never snap tiles/window geometry back to an obsolete target.
     private var reflowGeneration: UInt64 = 0
+    /// Search-only tile motion is deliberately independent from structural
+    /// panel reflow. Typing must never cancel/commit an in-flight outer-frame
+    /// animation, and structural AX refreshes must not disturb text editing.
+    private var searchReflowGeneration: UInt64 = 0
 
     /// The display this panel draws on. `SwitcherPanelGroup` sets it for every
     /// session; nil falls back to the first screen, which is what the offscreen
@@ -618,6 +622,19 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     public override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown {
             let hostPoint = hostView.convert(event.locationInWindow, from: nil)
+
+            // Arm search editing before AppKit dispatches the click to the field
+            // editor. This closes the tiny race where a Backspace immediately
+            // after the first click could still be interpreted by the global
+            // switcher key map as "close window".
+            if searchField.isEnabled,
+               searchField.alphaValue > 0.01,
+               searchHitFrameInHost.contains(hostPoint) {
+                beginSearchEditingIfNeeded()
+                super.sendEvent(event)
+                return
+            }
+
             if let action = rootPointerAction(atHostPoint: hostPoint) {
                 switch action {
                 case .close(let index):
@@ -670,6 +687,11 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             }
         }
         return nil
+    }
+
+    private var searchHitFrameInHost: NSRect {
+        guard let parent = searchField.superview else { return .zero }
+        return parent.convert(searchField.frame, to: hostView)
     }
 
     private var pinHitFrameInHost: NSRect {
@@ -753,11 +775,7 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let liveIDs = Set(items.map(\.id))
         dismissalGhostIDs.formIntersection(liveIDs)
         selectedIndex = index
-        itemIndexByID.removeAll(keepingCapacity: true)
-        itemIndexByID.reserveCapacity(items.count)
-        for (itemIndex, item) in items.enumerated() where itemIndexByID[item.id] == nil {
-            itemIndexByID[item.id] = itemIndex
-        }
+        rebuildItemIndex()
 
         rebuildTiles(items: items)
         let targetWindowFrame = layoutOnPlacementScreen(
@@ -774,6 +792,165 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             restoreReflowGeometry(oldGeometry)
             animateUnifiedReflow(to: targetGeometry,
                                  generation: updateReflowGeneration)
+        }
+    }
+
+    /// Refreshes titles/icons/preview state for an unchanged stable-ID order.
+    /// No geometry, NSWindow frame, clip bounds or animation generation changes.
+    /// This is the path for AX metadata refreshes that previously interrupted a
+    /// structural close reflow and made the outer panel visibly shake.
+    public func refreshContent(items: [SwitcherItem], selectedIndex index: Int) {
+        mode = Preferences.shared.appearanceMode
+        self.items = items
+        selectedIndex = items.isEmpty ? 0 : min(max(0, index), items.count - 1)
+        rebuildItemIndex()
+        rebuildTiles(items: items)
+        applySelection(fullRefresh: true)
+    }
+
+    /// Search reflow is intentionally tile-only.
+    ///
+    /// The panel/window, Glass, chrome, search field and scroll viewport keep
+    /// exactly the same frames captured when the session opened. Filtered
+    /// survivors move their existing stable-ID layers inside that fixed canvas.
+    /// Zero matches hides every tile and shows one centered empty-state label.
+    public func updateSearchResults(items: [SwitcherItem],
+                                    selectedIndex index: Int,
+                                    animated: Bool = true) {
+        searchReflowGeneration &+= 1
+        let generation = searchReflowGeneration
+
+        if expandedPreviewID != nil {
+            expandedPreviewID = nil
+            expandedPreviewView.isHidden = true
+            scrollView.isHidden = false
+        }
+
+        var oldFrames: [AnyHashable: NSRect] = [:]
+        oldFrames.reserveCapacity(min(self.items.count, visibleTileCount))
+        for (oldIndex, oldItem) in self.items.enumerated()
+        where oldIndex < visibleTileCount && oldFrames[oldItem.id] == nil {
+            oldFrames[oldItem.id] = presentationFrame(of: tilePool[oldIndex])
+        }
+
+        mode = Preferences.shared.appearanceMode
+        self.items = items
+        selectedIndex = items.isEmpty ? 0 : min(max(0, index), items.count - 1)
+        let liveIDs = Set(items.map(\.id))
+        dismissalGhostIDs.formIntersection(liveIDs)
+        rebuildItemIndex()
+        rebuildTiles(items: items)
+
+        // Compute only tile/lens frames inside the already-visible viewport.
+        // None of the outer layout functions run on this path.
+        layoutSearchTilesInFixedViewport(tileCount: items.count)
+        applySelection(fullRefresh: true)
+
+        emptySearchLabel.isHidden = !(items.isEmpty && !searchField.stringValue.isEmpty)
+        if !emptySearchLabel.isHidden {
+            emptySearchLabel.frame = NSRect(
+                x: scrollView.frame.minX,
+                y: scrollView.frame.midY - 14,
+                width: scrollView.frame.width,
+                height: 28)
+        }
+
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        guard animated, isVisible, !reduceMotion, !items.isEmpty else { return }
+
+        var targetFrames: [AnyHashable: NSRect] = [:]
+        targetFrames.reserveCapacity(items.count)
+        for (newIndex, item) in items.enumerated() where newIndex < visibleTileCount {
+            targetFrames[item.id] = tilePool[newIndex].frame
+            if let old = oldFrames[item.id] {
+                tilePool[newIndex].frame = old
+            }
+        }
+        let targetLens = selectionLensView.frame
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = min(0.24, DesignTokens.panelReflowDuration)
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.82, 0.20, 1.0)
+            context.allowsImplicitAnimation = true
+
+            for (newIndex, item) in items.enumerated() where newIndex < self.visibleTileCount {
+                if let target = targetFrames[item.id] {
+                    self.tilePool[newIndex].animator().frame = target
+                }
+            }
+            if !self.selectionLensView.isHidden {
+                self.selectionLensView.animator().frame = targetLens
+            }
+        } completionHandler: { [weak self] in
+            guard let self, self.searchReflowGeneration == generation else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for (newIndex, item) in self.items.enumerated()
+            where newIndex < self.visibleTileCount {
+                if let target = targetFrames[item.id] {
+                    self.tilePool[newIndex].frame = target
+                }
+            }
+            if !self.selectionLensView.isHidden {
+                self.selectionLensView.frame = targetLens
+            }
+            CATransaction.commit()
+        }
+    }
+
+    private func rebuildItemIndex() {
+        itemIndexByID.removeAll(keepingCapacity: true)
+        itemIndexByID.reserveCapacity(items.count)
+        for (index, item) in items.enumerated() where itemIndexByID[item.id] == nil {
+            itemIndexByID[item.id] = index
+        }
+    }
+
+    /// Packs filtered results into the existing session grid without resizing
+    /// any ancestor. The first result row stays at the top of the current
+    /// document canvas, so zero/few results never collapse into a tiny strip.
+    private func layoutSearchTilesInFixedViewport(tileCount: Int) {
+        let tileSize = SwitcherTileView.Metrics.metrics(
+            for: mode,
+            showTabCounts: Preferences.shared.showTabCounts,
+            displayAspect: placementDisplayAspect).tileSize
+        let spacing = DesignTokens.tileSpacing
+        let rowSpacing = DesignTokens.tileRowSpacing
+        let selectionOverflow = DesignTokens.selectionVisualOverflow
+        let leadingOverflow = max(
+            DesignTokens.closeButtonLeadingOverflow, selectionOverflow)
+        let trailingOverflow = selectionOverflow
+        let topOverflow = max(
+            DesignTokens.closeButtonTopOverflow, selectionOverflow)
+
+        let gridWidth = max(
+            tileSize.width,
+            tilesContainer.bounds.width - leadingOverflow - trailingOverflow)
+        let columns = max(1, columnsPerRow)
+        selectionFrames.removeAll(keepingCapacity: true)
+        selectionFrames.reserveCapacity(tileCount)
+
+        let topY = max(tileSize.height, tilesContainer.bounds.height - topOverflow)
+        for (index, tile) in tilePool.prefix(tileCount).enumerated() {
+            let column = index % columns
+            let row = index / columns
+            let tilesInRow = min(columns, tileCount - row * columns)
+            let rowWidth = CGFloat(tilesInRow) * tileSize.width
+                + CGFloat(max(0, tilesInRow - 1)) * spacing
+            let rowAlignment = mode == .windowPreviews
+                ? Preferences.shared.previewRowAlignment
+                : .center
+            let rowOffset = rowAlignment.leadingOffset(
+                remainingWidth: max(0, gridWidth - rowWidth))
+            let frame = NSRect(
+                x: leadingOverflow + rowOffset + CGFloat(column) * (tileSize.width + spacing),
+                y: topY - tileSize.height - CGFloat(row) * (tileSize.height + rowSpacing),
+                width: tileSize.width,
+                height: tileSize.height)
+            tile.frame = frame
+            selectionFrames.append(frame.insetBy(
+                dx: -DesignTokens.selectionLensInset,
+                dy: -DesignTokens.selectionLensInset))
         }
     }
 
@@ -1580,6 +1757,9 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         searchField.alphaValue > 0.01
     }
     var searchQueryForTesting: String { searchField.stringValue }
+    var searchFieldFrameForTesting: NSRect { searchField.frame }
+    var emptySearchIsVisibleForTesting: Bool { !emptySearchLabel.isHidden }
+    var visibleTileCountForTesting: Int { visibleTileCount }
     var isPinnedForTesting: Bool { isPinned }
     var settingsButtonToolTipForTesting: String? { settingsButton.toolTip }
     var gridFrameForTesting: NSRect { scrollView.frame }
@@ -1665,11 +1845,20 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         searchField.stringValue = query
     }
 
+    private func beginSearchEditingIfNeeded() {
+        if !isSearchEditing {
+            isSearchEditing = true
+            updateSettingsButtonVisibility(animated: false)
+            onSearchEditingChanged?(true)
+        }
+        if firstResponder !== searchField.currentEditor() {
+            makeFirstResponder(searchField)
+        }
+    }
+
     public func controlTextDidBeginEditing(_ obj: Notification) {
         guard obj.object as? NSSearchField === searchField else { return }
-        isSearchEditing = true
-        updateSettingsButtonVisibility(animated: false)
-        onSearchEditingChanged?(true)
+        beginSearchEditingIfNeeded()
     }
 
     public func controlTextDidChange(_ obj: Notification) {
@@ -1679,6 +1868,7 @@ public final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
 
     public func controlTextDidEndEditing(_ obj: Notification) {
         guard obj.object as? NSSearchField === searchField else { return }
+        guard isSearchEditing else { return }
         isSearchEditing = false
         onSearchEditingChanged?(false)
         updateSettingsButtonVisibility(animated: true)
