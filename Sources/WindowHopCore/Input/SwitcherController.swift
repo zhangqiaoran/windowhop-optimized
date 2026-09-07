@@ -11,6 +11,12 @@ public final class SwitcherController {
     /// switcher is open. Store changes remove or refresh entries in place and append
     /// windows that appeared, but never reorder (see SessionListReconciler).
     private var items: [SwitcherItem] = []
+    /// Unfiltered stable session order. Search derives its visible subset from
+    /// this array without disturbing MRU/session ordering.
+    private var sessionItems: [SwitcherItem] = []
+    private var searchIndex = SwitcherSearchIndex()
+    private var searchQuery = ""
+    private var isSearchEditing = false
     /// IDs optimistically removed from the open switcher before the window
     /// server finishes sending its destroy notification. Hash membership keeps
     /// refresh filtering average O(1) per item and avoids the old delayed pop.
@@ -45,6 +51,15 @@ public final class SwitcherController {
         }
         panels.onSettingsRequested = { [weak self] in
             self?.openSettingsFromSession()
+        }
+        panels.onPinRequested = { [weak self] in
+            self?.pinCurrentSession()
+        }
+        panels.onSearchQueryChanged = { [weak self] query in
+            self?.searchQueryChanged(query)
+        }
+        panels.onSearchEditingChanged = { [weak self] editing in
+            self?.searchEditingChanged(editing)
         }
         panels.onPreviewPermissionRequested = { [weak self] in
             self?.openScreenRecordingSettingsFromSession()
@@ -88,7 +103,7 @@ public final class SwitcherController {
         case .trigger(let backward):
             let triggerStart = CFAbsoluteTimeGetCurrent()
             pendingCloseIDs.removeAll(keepingCapacity: true)
-            items = WindowStore.shared.snapshot()
+            seedSessionItems()
             perform(state.trigger(backward: backward, itemCount: items.count))
             DebugLog.log("trigger handled: \(items.count) items, phase \(state.phase), "
                 + "\(String(format: "%.2f", (CFAbsoluteTimeGetCurrent() - triggerStart) * 1000))ms to visible panel")
@@ -100,7 +115,7 @@ public final class SwitcherController {
             let openStart = CFAbsoluteTimeGetCurrent()
             if !state.isActive {
                 pendingCloseIDs.removeAll(keepingCapacity: true)
-                items = WindowStore.shared.snapshot()
+                seedSessionItems()
             }
             perform(state.openPersistent(itemCount: items.count))
             DebugLog.log("persistent open handled: \(items.count) items, phase \(state.phase), "
@@ -176,6 +191,8 @@ public final class SwitcherController {
                 items: items,
                 selectedIndex: selectedIndex,
                 presentationMode: state.phase == .sticky ? .persistent : .cycling)
+            panels.setPinned(state.phase == .sticky)
+            panels.setSearchQuery(searchQuery)
             state.updateColumns(panels.columnsPerRow)
             // EventTap owns held/sticky transitions synchronously on its tap
             // thread. Rewriting the mode here can resurrect an already-released
@@ -257,6 +274,110 @@ public final class SwitcherController {
         }
     }
 
+    // MARK: - Pin + search
+
+    private func seedSessionItems() {
+        sessionItems = WindowStore.shared.snapshot()
+        searchIndex.rebuild(items: sessionItems)
+        searchQuery = ""
+        isSearchEditing = false
+        items = sessionItems
+        panels.setSearchQuery("")
+    }
+
+    private func pinCurrentSession() {
+        guard state.pinPersistent() else { return }
+        EventTap.shared.mode = isSearchEditing ? .sessionSearch : .sessionSticky
+        heldModifierGuard?.invalidate()
+        heldModifierGuard = nil
+        panels.setPinned(true)
+        DebugLog.log("session pinned; modifier release will no longer activate")
+    }
+
+    private func searchEditingChanged(_ editing: Bool) {
+        guard state.isActive else { return }
+        isSearchEditing = editing
+        if editing {
+            // Typing must not be intercepted by the global switcher key map.
+            // Pinning first also guarantees that releasing Alt/Option while the
+            // user reaches for the mouse cannot dismiss the panel.
+            pinCurrentSession()
+            EventTap.shared.mode = .sessionSearch
+        } else {
+            EventTap.shared.mode = state.phase == .sticky
+                ? .sessionSticky
+                : .sessionHeld
+        }
+    }
+
+    private func searchQueryChanged(_ query: String) {
+        guard state.isActive else { return }
+        let normalized = SwitcherSearchIndex.normalize(query)
+        guard normalized != SwitcherSearchIndex.normalize(searchQuery) else { return }
+
+        let selectedID = itemID(at: state.selectedIndex)
+        let previousCount = items.count
+        searchQuery = query
+        applyVisibleSessionItems(
+            preservingSelectedID: selectedID,
+            fallbackIndex: 0,
+            animatedLayout: true)
+
+        DebugLog.log("search filtered \(sessionItems.count) -> \(items.count) items "
+            + "(previous \(previousCount))")
+    }
+
+    private func applyVisibleSessionItems(
+        preservingSelectedID selectedID: AnyHashable?,
+        fallbackIndex: Int,
+        animatedLayout: Bool
+    ) {
+        items = searchIndex.filter(sessionItems, query: searchQuery)
+        panels.setSearchQuery(searchQuery)
+
+        if sessionItems.isEmpty {
+            let command = state.listChanged(itemCount: 0, preferredIndex: nil)
+            if case .cancel = command { perform(command) }
+            return
+        }
+
+        let preferredIndex = selectedID.flatMap { id in
+            items.firstIndex { $0.id == id }
+        } ?? (items.isEmpty ? nil : min(max(0, fallbackIndex), items.count - 1))
+
+        if searchQuery.isEmpty {
+            let command = state.listChanged(
+                itemCount: items.count,
+                preferredIndex: preferredIndex)
+            if case .cancel = command {
+                perform(command)
+                return
+            }
+        } else {
+            _ = state.filteredListChanged(
+                itemCount: items.count,
+                preferredIndex: preferredIndex)
+        }
+
+        var availableIDs = Set<AnyHashable>()
+        availableIDs.reserveCapacity(items.count)
+        for item in items { availableIDs.insert(item.id) }
+        expandedPreview.retainAvailable(availableIDs)
+
+        guard state.isActive else { return }
+        cancelExpandedPreviewTimer()
+        panels.hideExpandedPreview()
+        PreviewProvider.shared.cancelExpandedPreview()
+        panels.update(
+            items: items,
+            selectedIndex: state.selectedIndex,
+            animatedLayout: animatedLayout)
+        state.updateColumns(panels.columnsPerRow)
+        if !items.isEmpty {
+            targetExpandedPreview(at: state.selectedIndex)
+        }
+    }
+
     // MARK: - Store changes while the session is open
 
     private func storeChanged() {
@@ -300,16 +421,16 @@ public final class SwitcherController {
 
         var sessionById: [AnyHashable: SwitcherItem] = [:]
         var sessionIds: [AnyHashable] = []
-        sessionById.reserveCapacity(items.count)
-        sessionIds.reserveCapacity(items.count)
-        for item in items {
+        sessionById.reserveCapacity(sessionItems.count)
+        sessionIds.reserveCapacity(sessionItems.count)
+        for item in sessionItems {
             sessionIds.append(item.id)
             if sessionById[item.id] == nil { sessionById[item.id] = item }
         }
 
         var preserved = Set<AnyHashable>()
-        preserved.reserveCapacity(items.count)
-        for item in items {
+        preserved.reserveCapacity(sessionItems.count)
+        for item in sessionItems {
             if pendingVisualCloseIDs.contains(item.id) {
                 // The AX window may already be gone, but its switcher card is a
                 // deliberate dust-animation ghost until the 80% hand-off.
@@ -320,7 +441,7 @@ public final class SwitcherController {
             }
         }
 
-        let previousItemCount = items.count
+        let previousVisibleCount = items.count
         let plan = SessionListReconciler.reconcile(sessionIds: sessionIds,
                                                    freshIds: freshIds,
                                                    preserving: preserved)
@@ -329,34 +450,31 @@ public final class SwitcherController {
         for id in plan.ids {
             if let item = freshById[id] ?? sessionById[id] { reconciled.append(item) }
         }
-        items = reconciled
-        // a window that appeared mid-session has no capture in flight yet; without
-        // this its tile would stay a placeholder for the rest of the session
+        sessionItems = reconciled
+        searchIndex.rebuild(items: sessionItems)
+
+        // A window that appeared mid-session has no capture in flight yet.
+        // Capture only newly visible matches while search is active; hidden
+        // search misses do not consume screenshot work.
         if !plan.appeared.isEmpty {
-            DebugLog.log("session list grew by \(plan.appeared.count): now \(items.count) items")
-            PreviewProvider.shared.extendSession(
-                items: plan.appeared.compactMap { freshById[$0] },
-                targetSize: panels.previewTargetSize,
-                scale: panels.captureScale)
+            let appeared = plan.appeared.compactMap { freshById[$0] }
+            let visibleAppeared = searchQuery.isEmpty
+                ? appeared
+                : searchIndex.filter(appeared, query: searchQuery)
+            if !visibleAppeared.isEmpty {
+                DebugLog.log("session list grew by \(visibleAppeared.count) visible item(s)")
+                PreviewProvider.shared.extendSession(
+                    items: visibleAppeared,
+                    targetSize: panels.previewTargetSize,
+                    scale: panels.captureScale)
+            }
         }
-        var availableIDs = Set<AnyHashable>()
-        availableIDs.reserveCapacity(items.count)
-        for item in items { availableIDs.insert(item.id) }
-        expandedPreview.retainAvailable(availableIDs)
-        let preferredIndex = selectedId.flatMap { id in
-            items.firstIndex { $0.id == id }
-        } ?? state.selectedIndex
-        let command = state.listChanged(itemCount: items.count, preferredIndex: preferredIndex)
-        if state.isActive {
-            panels.update(items: items,
-                          selectedIndex: state.selectedIndex,
-                          animatedLayout: items.count < previousItemCount)
-            state.updateColumns(panels.columnsPerRow)
-            targetExpandedPreview(at: state.selectedIndex)
-        }
-        if case .cancel = command {
-            perform(command)
-        }
+
+        applyVisibleSessionItems(
+            preservingSelectedID: selectedId,
+            fallbackIndex: state.selectedIndex,
+            animatedLayout: searchIndex.filter(sessionItems, query: searchQuery).count
+                < previousVisibleCount)
     }
 
     /// Frozen-session entries may briefly disappear from location metadata while
@@ -410,34 +528,14 @@ public final class SwitcherController {
         let selectedID = state.selectedIndex >= 0 && state.selectedIndex < items.count
             ? items[state.selectedIndex].id
             : nil
-        items.remove(at: removalIndex)
 
-        let preferredIndex: Int?
-        if let selectedID,
-           let retained = items.firstIndex(where: {
-               $0.id == selectedID && !pendingVisualCloseIDs.contains($0.id)
-           }) {
-            preferredIndex = retained
-        } else {
-            preferredIndex = nearestSelectableIndex(
-                around: min(originalIndex, max(0, items.count - 1)))
-                ?? (items.isEmpty ? nil : min(removalIndex, items.count - 1))
-        }
+        sessionItems.removeAll { $0.id == id }
+        searchIndex.rebuild(items: sessionItems)
 
-        let command = state.listChanged(
-            itemCount: items.count,
-            preferredIndex: preferredIndex)
-
-        if state.isActive {
-            panels.update(items: items,
-                          selectedIndex: state.selectedIndex,
-                          animatedLayout: true)
-            state.updateColumns(panels.columnsPerRow)
-            targetExpandedPreview(at: state.selectedIndex)
-        }
-        if case .cancel = command {
-            perform(command)
-        }
+        applyVisibleSessionItems(
+            preservingSelectedID: selectedID,
+            fallbackIndex: min(originalIndex, max(0, removalIndex)),
+            animatedLayout: true)
     }
 
     private func nearestSelectableIndex(around index: Int) -> Int? {
@@ -551,6 +649,11 @@ public final class SwitcherController {
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
         panels.hide()
+        sessionItems.removeAll(keepingCapacity: true)
+        items.removeAll(keepingCapacity: true)
+        searchIndex.rebuild(items: [])
+        searchQuery = ""
+        isSearchEditing = false
         // capture is session-scoped: pending results stop delivering live, but
         // the memory-only cache remains warm for the next instant open
         PreviewProvider.shared.endSession()
