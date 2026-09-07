@@ -600,6 +600,7 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     private enum RootPointerAction: Equatable {
         case close(Int)
         case item(Int)
+        case pin
         case settings
         case permission
     }
@@ -615,6 +616,8 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
                     onItemCloseRequested?(index)
                 case .item(let index):
                     onItemClicked?(index)
+                case .pin:
+                    onPinRequested?()
                 case .settings:
                     onSettingsRequested?()
                 case .permission:
@@ -627,6 +630,11 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
     }
 
     private func rootPointerAction(atHostPoint point: NSPoint) -> RootPointerAction? {
+        if pinButton.isEnabled,
+           pinButton.alphaValue > 0.01,
+           pinHitFrameInHost.contains(point) {
+            return .pin
+        }
         if settingsButton.isEnabled,
            (settingsGlassView ?? settingsButton).alphaValue > 0.01,
            settingsHitFrameInHost.contains(point) {
@@ -654,6 +662,11 @@ public final class SwitcherPanel: NSPanel, NSTextFieldDelegate {
             }
         }
         return nil
+    }
+
+    private var pinHitFrameInHost: NSRect {
+        guard let parent = pinButton.superview else { return .zero }
+        return parent.convert(pinButton.frame, to: hostView)
     }
 
     private var settingsHitFrameInHost: NSRect {
