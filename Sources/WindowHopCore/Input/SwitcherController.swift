@@ -339,11 +339,10 @@ public final class SwitcherController {
         preferSearchGeometry: Bool,
         contentMayHaveChanged: Bool
     ) {
-        let previousIDs = items.map(\.id)
         let nextItems = searchIndex.filterNormalized(
             sessionItems, normalizedQuery: normalizedSearchQuery)
-        let nextIDs = nextItems.map(\.id)
-        let sameStableOrder = previousIDs == nextIDs
+        let sameStableOrder = items.count == nextItems.count
+            && items.indices.allSatisfy { items[$0].id == nextItems[$0].id }
 
         items = nextItems
         panels.setSearchQuery(searchQuery)
@@ -372,11 +371,6 @@ public final class SwitcherController {
                 preferredIndex: preferredIndex)
         }
 
-        var availableIDs = Set<AnyHashable>()
-        availableIDs.reserveCapacity(items.count)
-        for item in items { availableIDs.insert(item.id) }
-        expandedPreview.retainAvailable(availableIDs)
-
         guard state.isActive else { return }
 
         // Most AX title/move/resize notifications do not change the visible
@@ -386,11 +380,16 @@ public final class SwitcherController {
         if sameStableOrder {
             if contentMayHaveChanged {
                 panels.refreshContent(items: items, selectedIndex: state.selectedIndex)
-            } else if !items.isEmpty {
-                panels.select(state.selectedIndex)
             }
+            // Query edits that keep the exact same result set require no UI
+            // work at all: the NSSearchField already owns the changed text.
             return
         }
+
+        var availableIDs = Set<AnyHashable>()
+        availableIDs.reserveCapacity(items.count)
+        for item in items { availableIDs.insert(item.id) }
+        expandedPreview.retainAvailable(availableIDs)
 
         cancelExpandedPreviewTimer()
         panels.hideExpandedPreview()
